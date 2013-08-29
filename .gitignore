@@ -4,3 +4,6 @@
 /doc
 /.yardoc
 /TODO.md
+/.ruby-version
+/.ruby-gemset
+/.rvmrc
