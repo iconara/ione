@@ -1,8 +1,8 @@
 # encoding: utf-8
 
 module Cql
-  IoError = Class.new(CqlError)
-  CancelledError = Class.new(CqlError)
+  IoError = Class.new(StandardError)
+  CancelledError = Class.new(StandardError)
 
   module Io
     ConnectionError = Class.new(IoError)

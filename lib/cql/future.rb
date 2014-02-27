@@ -4,7 +4,7 @@ require 'thread'
 
 
 module Cql
-  FutureError = Class.new(CqlError)
+  FutureError = Class.new(StandardError)
 
   # A promise of delivering a value some time in the future.
   #
