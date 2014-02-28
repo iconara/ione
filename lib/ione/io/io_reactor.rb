@@ -75,8 +75,6 @@ module Ione
     #       # get data back.
     #     end
     #   end
-    #
-    # @private
     class IoReactor
       # Initializes a new IO reactor.
       #

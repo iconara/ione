@@ -1,7 +1,6 @@
 # encoding: utf-8
 
 module Ione
-  # @private
   class ByteBuffer
     def initialize(initial_bytes='')
       @read_buffer = ''

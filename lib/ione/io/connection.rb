@@ -7,8 +7,6 @@ module Ione
   module Io
     # A wrapper around a socket. Handles connecting to the remote host, reading
     # from and writing to the socket.
-    #
-    # @private
     class Connection
       attr_reader :host, :port, :connection_timeout
 
@@ -118,7 +116,6 @@ module Ione
       # Errors raised by the callback will be ignored.
       #
       # @yield [String] the new data
-      #
       def on_data(&listener)
         @data_listener = listener
       end
@@ -138,7 +135,6 @@ module Ione
       #
       # @yield [error, nil] the error that caused the socket to close, or nil if
       #   the socket closed with #close
-      #
       def on_closed(&listener)
         @closed_listener = listener
       end
@@ -151,7 +147,6 @@ module Ione
       # 
       # @yieldparam buffer [Ione::ByteBuffer] the connection's internal buffer
       # @param bytes [String, Ione::ByteBuffer] the data to write to the socket
-      #
       def write(bytes=nil)
         @lock.synchronize do
           if block_given?

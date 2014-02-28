@@ -11,8 +11,6 @@ module Ione
   # A promise is the write end of a Promise/Future pair. It can be fulfilled
   # with a value or failed with an error. The value can be read through the
   # future returned by {#future}.
-  #
-  # @private
   class Promise
     attr_reader :future
 
@@ -76,7 +74,6 @@ module Ione
     end
   end
 
-  # @private
   module FutureFactories
     # Combines multiple futures into a new future which resolves when all
     # constituent futures complete, or fails when one or more of them fails.
@@ -120,7 +117,6 @@ module Ione
     end
   end
 
-  # @private
   module FutureCombinators
     # Returns a new future representing a transformation of this future's value.
     #
@@ -229,7 +225,6 @@ module Ione
     end
   end
 
-  # @private
   module FutureCallbacks
     # Registers a listener that will be called when this future completes,
     # i.e. resolves or fails. The listener will be called with the future as
@@ -295,7 +290,6 @@ module Ione
   # A future represents the value of a process that may not yet have completed.
   #
   # @see Ione::Promise
-  # @private
   class Future
     extend FutureFactories
     include FutureCombinators
