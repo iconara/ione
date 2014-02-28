@@ -11,5 +11,5 @@ module Ione
   end
 end
 
-require 'cql/io/io_reactor'
-require 'cql/io/connection'
+require 'ione/io/io_reactor'
+require 'ione/io/connection'
