@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 
-module Cql
+module Ione
   describe Promise do
     let :promise do
       described_class.new

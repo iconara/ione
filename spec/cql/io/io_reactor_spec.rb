@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 
-module Cql
+module Ione
   module Io
     describe IoReactor do
       let :reactor do
@@ -184,12 +184,12 @@ module Cql
       describe '#to_s' do
         context 'returns a string that' do
           it 'includes the class name' do
-            reactor.to_s.should include('Cql::Io::IoReactor')
+            reactor.to_s.should include('Ione::Io::IoReactor')
           end
 
           it 'includes a list of its connections' do
             reactor.to_s.should include('@connections=[')
-            reactor.to_s.should include('#<Cql::Io::Unblocker>')
+            reactor.to_s.should include('#<Ione::Io::Unblocker>')
           end
         end
       end

@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 
-module Cql
+module Ione
   describe ByteBuffer do
     let :buffer do
       described_class.new
@@ -154,7 +154,7 @@ module Cql
     describe '#inspect' do
       it 'returns the bytes wrapped in ByteBuffer(...)' do
         buffer.append("\xca\xfe")
-        buffer.inspect.should == '#<Cql::ByteBuffer: "\xCA\xFE">'
+        buffer.inspect.should == '#<Ione::ByteBuffer: "\xCA\xFE">'
       end
     end
 

@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module Cql
+module Ione
   module Io
     ReactorError = Class.new(IoError)
 
@@ -56,7 +56,7 @@ module Cql
     #         # IO reactor thread so you're blocking the reactor from doing
     #         # other IO work. You should not do any heavy lifting here, but
     #         # instead hand off the data to your application's other threads.
-    #         # One way of doing that is to create a Cql::Future in the method
+    #         # One way of doing that is to create a Ione::Future in the method
     #         # that sends the request, and then complete the future in this
     #         # method. How you keep track of which future belongs to which
     #         # reply is very protocol dependent so you'll have to figure that
@@ -76,7 +76,7 @@ module Cql
     #     end
     #   end
     #
-    # See {Cql::Protocol::CqlProtocolHandler} for an example of how the CQL
+    # See {Ione::Protocol::CqlProtocolHandler} for an example of how the CQL
     # protocol is implemented, and there is an integration tests that implements
     # the Redis protocol that you can look at too.
     #
@@ -121,7 +121,7 @@ module Cql
       # This method is asynchronous and returns a future which completes when
       # the reactor has started.
       #
-      # @return [Cql::Future] a future that will resolve to the reactor itself
+      # @return [Ione::Future] a future that will resolve to the reactor itself
       def start
         @lock.synchronize do
           raise ReactorError, 'Cannot start a stopped IO reactor' if @stopped
@@ -152,7 +152,7 @@ module Cql
       # the reactor has completely stopped, or fails with an error if the reactor
       # stops or has already stopped because of a failure.
       #
-      # @return [Cql::Future] a future that will resolve to the reactor itself
+      # @return [Ione::Future] a future that will resolve to the reactor itself
       def stop
         @stopped = true
         @stopped_promise.future
@@ -164,8 +164,8 @@ module Cql
       # @param port [Integer] the port to connect to
       # @param timeout [Numeric] the number of seconds to wait for a connection
       #   before failing
-      # @yieldparam [Cql::Io::Connection] connection the newly opened connection
-      # @return [Cql::Future] a future that will resolve when the connection is
+      # @yieldparam [Ione::Io::Connection] connection the newly opened connection
+      # @return [Ione::Future] a future that will resolve when the connection is
       #   open. The value will be the connection, or when a block is given to
       #   what the block returns
       def connect(host, port, timeout, &block)
@@ -181,7 +181,7 @@ module Cql
       #
       # @param timeout [Float] the number of seconds to wait until the returned
       #   future is completed
-      # @return [Cql::Future] a future that completes when the timer expires
+      # @return [Ione::Future] a future that completes when the timer expires
       def schedule_timer(timeout)
         @io_loop.schedule_timer(timeout)
       end

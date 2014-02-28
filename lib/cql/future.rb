@@ -3,7 +3,7 @@
 require 'thread'
 
 
-module Cql
+module Ione
   FutureError = Class.new(StandardError)
 
   # A promise of delivering a value some time in the future.
@@ -44,7 +44,7 @@ module Cql
     # Observe a future and fulfill the promise with the future's value when the
     # future resolves, or fail with the future's error when the future fails.
     #
-    # @param [Cql::Future] future the future to observe
+    # @param [Ione::Future] future the future to observe
     def observe(future)
       future.on_value { |v| fulfill(v) }
       future.on_failure { |e| fail(e) }
@@ -84,8 +84,8 @@ module Cql
     # The value of the combined future is an array of the values of the
     # constituent futures.
     #
-    # @param [Array<Cql::Future>] futures the futures to combine
-    # @return [Cql::Future<Array>] an array of the values of the constituent
+    # @param [Array<Ione::Future>] futures the futures to combine
+    # @return [Ione::Future<Array>] an array of the values of the constituent
     #   futures
     def all(*futures)
       return resolved([]) if futures.empty?
@@ -96,8 +96,8 @@ module Cql
     # (resolved) of the specified futures. If all of the futures fail, the
     # returned future will also fail (with the error of the last failed future).
     #
-    # @param [Array<Cql::Future>] futures the futures to monitor
-    # @return [Cql::Future] a future which represents the first completing future
+    # @param [Array<Ione::Future>] futures the futures to monitor
+    # @return [Ione::Future] a future which represents the first completing future
     def first(*futures)
       return resolved if futures.empty?
       FirstFuture.new(futures)
@@ -106,7 +106,7 @@ module Cql
     # Creates a new pre-resolved future.
     #
     # @param [Object, nil] value the value of the created future
-    # @return [Cql::Future] a resolved future
+    # @return [Ione::Future] a resolved future
     def resolved(value=nil)
       ResolvedFuture.new(value)
     end
@@ -114,7 +114,7 @@ module Cql
     # Creates a new pre-failed future.
     #
     # @param [Error] error the error of the created future
-    # @return [Cql::Future] a failed future
+    # @return [Ione::Future] a failed future
     def failed(error)
       FailedFuture.new(error)
     end
@@ -130,7 +130,7 @@ module Cql
     # @param [Object] value the value of this future (when no block is given)
     # @yieldparam [Object] value the value of this future
     # @yieldreturn [Object] the transformed value
-    # @return [Cql::Future] a new future representing the transformed value
+    # @return [Ione::Future] a new future representing the transformed value
     def map(value=nil, &block)
       CompletableFuture.new.tap do |f|
         on_failure { |e| f.fail(e) }
@@ -147,8 +147,8 @@ module Cql
     # This method is useful when you want to chain asynchronous operations.
     #
     # @yieldparam [Object] value the value of this future
-    # @yieldreturn [Cql::Future] a future representing the transformed value
-    # @return [Cql::Future] a new future representing the transformed value
+    # @yieldreturn [Ione::Future] a future representing the transformed value
+    # @return [Ione::Future] a new future representing the transformed value
     def flat_map(&block)
       CompletableFuture.new.tap do |f|
         on_failure { |e| f.fail(e) }
@@ -174,7 +174,7 @@ module Cql
     # @param [Object] value the value when no block is given
     # @yieldparam [Object] error the error from the original future
     # @yieldreturn [Object] the value of the new future
-    # @return [Cql::Future] a new future representing a value recovered from the error
+    # @return [Ione::Future] a new future representing a value recovered from the error
     def recover(value=nil, &block)
       CompletableFuture.new.tap do |f|
         on_failure { |e| run(f, value, block, e) }
@@ -202,7 +202,7 @@ module Cql
     #
     # @yieldparam [Object] error the error from the original future
     # @yieldreturn [Object] the value of the new future
-    # @return [Cql::Future] a new future representing a value recovered from the
+    # @return [Ione::Future] a new future representing a value recovered from the
     #   error
     def fallback(&block)
       CompletableFuture.new.tap do |f|
@@ -235,7 +235,7 @@ module Cql
     # i.e. resolves or fails. The listener will be called with the future as
     # solve argument
     #
-    # @yieldparam [Cql::Future] future the future
+    # @yieldparam [Ione::Future] future the future
     def on_complete(&listener)
       run_immediately = false
       @lock.synchronize do
@@ -294,7 +294,7 @@ module Cql
 
   # A future represents the value of a process that may not yet have completed.
   #
-  # @see Cql::Promise
+  # @see Ione::Promise
   # @private
   class Future
     extend FutureFactories

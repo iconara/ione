@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 
-module Cql
+module Ione
   module Io
     describe Connection do
       let :handler do
@@ -461,7 +461,7 @@ module Cql
       describe '#to_s' do
         context 'returns a string that' do
           it 'includes the class name' do
-            handler.to_s.should include('Cql::Io::Connection')
+            handler.to_s.should include('Ione::Io::Connection')
           end
 
           it 'includes the host and port' do

@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module Cql
+module Ione
   # @private
   class ByteBuffer
     def initialize(initial_bytes='')

@@ -3,7 +3,7 @@
 require 'socket'
 
 
-module Cql
+module Ione
   module Io
     # A wrapper around a socket. Handles connecting to the remote host, reading
     # from and writing to the socket.
@@ -149,8 +149,8 @@ module Cql
       # can use the block form of this method to get access to the connection's
       # internal buffer.
       # 
-      # @yieldparam buffer [Cql::ByteBuffer] the connection's internal buffer
-      # @param bytes [String, Cql::ByteBuffer] the data to write to the socket
+      # @yieldparam buffer [Ione::ByteBuffer] the connection's internal buffer
+      # @param bytes [String, Ione::ByteBuffer] the data to write to the socket
       #
       def write(bytes=nil)
         @lock.synchronize do

@@ -5,7 +5,7 @@ require 'spec_helper'
 
 describe 'An IO reactor' do
   let :io_reactor do
-    Cql::Io::IoReactor.new
+    Ione::Io::IoReactor.new
   end
 
   context 'with a generic server' do
@@ -53,7 +53,7 @@ describe 'An IO reactor' do
     let :protocol_handler do
       begin
         io_reactor.connect(ENV['CASSANDRA_HOST'], 6379, 1) { |c| IoSpec::RedisProtocolHandler.new(c) }.value
-      rescue Cql::Io::ConnectionError
+      rescue Ione::Io::ConnectionError
         nil
       end
     end
@@ -128,7 +128,7 @@ module IoSpec
       @connection = connection
       @connection.on_data(&method(:receive_data))
       @lock = Mutex.new
-      @data = Cql::ByteBuffer.new
+      @data = Ione::ByteBuffer.new
     end
 
     def data
@@ -185,7 +185,7 @@ module IoSpec
     end
 
     def send_request(*args)
-      promise = Cql::Promise.new
+      promise = Ione::Promise.new
       @lock.synchronize do
         @responses << promise
       end
