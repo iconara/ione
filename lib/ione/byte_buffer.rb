@@ -191,6 +191,7 @@ module Ione
     # @param [Integer] location the starting location where the new bytes
     #   should be inserted
     # @param [String] bytes the replacement bytes
+    # @return [Ione::ByteBuffer] itself
     def update(location, bytes)
       absolute_offset = @offset + location
       bytes_length = bytes.bytesize
@@ -204,6 +205,7 @@ module Ione
           @write_buffer[0, overflow] = bytes[read_buffer_portion, bytes_length - 1]
         end
       end
+      self
     end
 
     # Return as much of the buffer as possible without having to concatenate

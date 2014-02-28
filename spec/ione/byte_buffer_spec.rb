@@ -287,6 +287,11 @@ module Ione
         buffer.read(1)
         buffer.to_s.should == 'o bbazyyyy'
       end
+
+      it 'returns itself' do
+        buffer.append('foo')
+        buffer.update(0, 'bar').should equal(buffer)
+      end
     end
 
     describe '#dup' do
