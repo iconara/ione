@@ -103,8 +103,8 @@ module Ione
       end
 
       # Returns true as long as the reactor is running. It will be true even
-      # after #stop has been called, but false when the future returned by
-      # #stop completes.
+      # after {#stop} has been called, but false when the future returned by
+      # {#stop} completes.
       def running?
         @running
       end
