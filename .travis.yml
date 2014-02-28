@@ -1,0 +1,15 @@
+language: ruby
+script: rspec
+bundler_args: --without development
+services:
+  - redis-server
+rvm:
+  - 1.9.3
+  - 2.0.0
+  - jruby
+  - rbx-2.1.1
+jdk:
+  - openjdk7
+matrix:
+  allow_failures:
+    - rvm: rbx-2.1.1
