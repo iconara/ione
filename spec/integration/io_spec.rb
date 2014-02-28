@@ -28,12 +28,12 @@ describe 'An IO reactor' do
     end
 
     it 'connects to the server' do
-      io_reactor.connect(ENV['CASSANDRA_HOST'], fake_server.port, 1).map(&protocol_handler_factory)
+      io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1).map(&protocol_handler_factory)
       fake_server.await_connects!(1)
     end
 
     it 'receives data' do
-      protocol_handler = io_reactor.connect(ENV['CASSANDRA_HOST'], fake_server.port, 1).map(&protocol_handler_factory).value
+      protocol_handler = io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1).map(&protocol_handler_factory).value
       fake_server.await_connects!(1)
       fake_server.broadcast!('hello world')
       await { protocol_handler.data.bytesize > 0 }
@@ -41,7 +41,7 @@ describe 'An IO reactor' do
     end
 
     it 'receives data on multiple connections' do
-      protocol_handlers = Array.new(10) { io_reactor.connect(ENV['CASSANDRA_HOST'], fake_server.port, 1).map(&protocol_handler_factory).value }
+      protocol_handlers = Array.new(10) { io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1).map(&protocol_handler_factory).value }
       fake_server.await_connects!(10)
       fake_server.broadcast!('hello world')
       await { protocol_handlers.all? { |c| c.data.bytesize > 0 } }
@@ -52,7 +52,7 @@ describe 'An IO reactor' do
   context 'when talking to Redis' do
     let :protocol_handler do
       begin
-        io_reactor.connect(ENV['CASSANDRA_HOST'], 6379, 1).map { |c| IoSpec::RedisProtocolHandler.new(c) }.value
+        io_reactor.connect(ENV['SERVER_HOST'], 6379, 1).map { |c| IoSpec::RedisProtocolHandler.new(c) }.value
       rescue Ione::Io::ConnectionError
         nil
       end
