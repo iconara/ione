@@ -37,9 +37,18 @@ module Ione
       length == 0
     end
 
-    # Append the bytes from a string to this buffer.
+    # Append the bytes from a string or another byte buffer to this buffer.
     #
-    # @param [String] bytes the bytes to append
+    # @note
+    #   When the bytes are not in an ASCII compatible encoding they are copied
+    #   and retagged as `Encoding::BINARY` before they are appended to the
+    #   buffer – this is required to avoid Ruby retagging the whole buffer with
+    #   the encoding of the new bytes. If you can, make sure that the data you
+    #   append is ASCII compatible (i.e. responds true to `#ascii_only?`),
+    #   otherwise you will pay a small penalty for each append due to the extra
+    #   copy that has to be made.
+    #
+    # @param [String, Ione::ByteBuffer] bytes the bytes to append
     # @return [Ione::ByteBuffer] itself
     def append(bytes)
       if bytes.is_a?(self.class)
