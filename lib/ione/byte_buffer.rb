@@ -1,6 +1,19 @@
 # encoding: utf-8
 
 module Ione
+  # A byte buffer is a more efficient way of working with bytes than using
+  # a regular Ruby string. It also has convenient methods for reading integers
+  # shorts and single bytes that are faster than `String#unpack`.
+  #
+  # When you use a string as a buffer, by adding to the end and taking away
+  # from the beginning, Ruby will continue to grow the backing array of
+  # characters. This means that the longer you use the string the worse the
+  # performance will get and the more memory you waste.
+  #
+  # {ByteBuffer} solves the problem by using two strings: one is the read
+  # buffer and one is the write buffer. Writes go to the write buffer only,
+  # and reads read from the read buffer until it is empty, then a new write
+  # buffer is created and the old write buffer becomes the new read buffer.
   class ByteBuffer
     def initialize(initial_bytes='')
       @read_buffer = ''
@@ -10,14 +23,24 @@ module Ione
       append(initial_bytes) unless initial_bytes.empty?
     end
 
+    # Returns the number of bytes in the buffer.
+    #
+    # The value is cached so this is a cheap operation.
     attr_reader :length
     alias_method :size, :length
     alias_method :bytesize, :length
 
+    # Returns true when the number of bytes in the buffer is zero.
+    #
+    # The length is cached so this is a cheap operation.
     def empty?
       length == 0
     end
 
+    # Append the bytes from a string to this buffer.
+    #
+    # @param [String] bytes the bytes to append
+    # @return [Ione::ByteBuffer] itself
     def append(bytes)
       if bytes.is_a?(self.class)
         bytes.append_to(self)
@@ -35,6 +58,11 @@ module Ione
     end
     alias_method :<<, :append
 
+    # Remove the first N bytes from the buffer.
+    #
+    # @param [Integer] n the number of bytes to remove from the buffer
+    # @return [Ione::ByteBuffer] itself
+    # @raise RangeError when there are not enough bytes in the buffer
     def discard(n)
       raise RangeError, "#{n} bytes to discard but only #{@length} available" if @length < n
       @offset += n
@@ -42,6 +70,12 @@ module Ione
       self
     end
 
+    # Remove and return the first N bytes from the buffer.
+    #
+    # @param [Integer] n the number of bytes to remove and return from the buffer
+    # @return [String] a string with the bytes, the string will be tagged
+    #   with `Encoding::BINARY`.
+    # @raise RangeError when there are not enough bytes in the buffer
     def read(n)
       raise RangeError, "#{n} bytes required but only #{@length} available" if @length < n
       if @offset >= @read_buffer.bytesize
@@ -59,6 +93,10 @@ module Ione
       end
     end
 
+    # Remove and return the first four bytes from the buffer and decode them as an unsigned integer.
+    #
+    # @return [Integer] the big-endian integer interpretation of the four bytes
+    # @raise RangeError when there are not enough bytes in the buffer
     def read_int
       raise RangeError, "4 bytes required to read an int, but only #{@length} available" if @length < 4
       if @offset >= @read_buffer.bytesize
@@ -80,6 +118,10 @@ module Ione
       (i0 << 24) | (i1 << 16) | (i2 << 8) | i3
     end
 
+    # Remove and return the first two bytes from the buffer and decode them as an unsigned integer.
+    #
+    # @return [Integer] the big-endian integer interpretation of the two bytes
+    # @raise RangeError when there are not enough bytes in the buffer
     def read_short
       raise RangeError, "2 bytes required to read a short, but only #{@length} available" if @length < 2
       if @offset >= @read_buffer.bytesize
@@ -97,6 +139,11 @@ module Ione
       (i0 << 8) | i1
     end
 
+    # Remove and return the first byte from the buffer and decode it as a signed or unsigned integer.
+    #
+    # @param [Boolean] signed whether or not to interpret the byte as a signed number of not
+    # @return [Integer] the integer interpretation of the byte
+    # @raise RangeError when the buffer is empty
     def read_byte(signed=false)
       raise RangeError, "No bytes available to read byte" if empty?
       if @offset >= @read_buffer.bytesize
@@ -109,6 +156,32 @@ module Ione
       b
     end
 
+    # Overwrite a portion of the buffer with new bytes.
+    #
+    # The number of bytes that will be replaced depend on the size of the
+    # replacement string. If you pass a five byte string the five bytes
+    # starting at the location will be replaced.
+    #
+    # When you pass more bytes than the size of the buffer after the location
+    # only as many as needed to replace the remaining bytes of the buffer will
+    # actually be used.
+    #
+    # Make sure that you get your location right, if you have discarded bytes
+    # from the buffer all of the offsets will have changed.
+    #
+    # @example replacing bytes in the middle of a buffer
+    #   buffer = ByteBuffer.new("hello world!")
+    #   bufferupdate(6, "fnord")
+    #   buffer # => "hello fnord!"
+    #
+    # @example replacing bytes at the end of the buffer
+    #   buffer = ByteBuffer.new("my name is Jim")
+    #   buffer.update(11, "Sammy")
+    #   buffer # => "my name is Sam"
+    #
+    # @param [Integer] location the starting location where the new bytes
+    #   should be inserted
+    # @param [String] bytes the replacement bytes
     def update(location, bytes)
       absolute_offset = @offset + location
       bytes_length = bytes.bytesize
@@ -124,6 +197,25 @@ module Ione
       end
     end
 
+    # Return as much of the buffer as possible without having to concatenate
+    # or allocate any unnecessary strings.
+    #
+    # If the buffer is not empty this method will return something, but there
+    # are no guarantees as to how much it will return. It's primarily useful
+    # in situations where a loop wants to offer some bytes but can't be sure
+    # how many will be accepted — for example when writing to a socket.
+    #
+    # @example feeding bytes to a socket
+    #   while true
+    #     _, writables, _ = IO.select(nil, sockets)
+    #     if writables
+    #       writables.each do |io|
+    #         n = io.write_nonblock(buffer.cheap_peek)
+    #         buffer.discard(n)
+    #       end
+    #     end
+    #
+    # @return [String] some bytes from the start of the buffer
     def cheap_peek
       if @offset >= @read_buffer.bytesize
         swap_buffers
