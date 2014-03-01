@@ -146,7 +146,19 @@ module Ione
       describe '#connect' do
         include_context 'running_reactor'
 
-        it 'returns the connected connection when no block is given' do
+        it 'calls the given block with the connection and the reactor itself and returns what it returns' do
+          connection = nil
+          reactor.start.value
+          reactor.connect('example.com', 9999, 5) { |c| connection = c }.value
+          connection.should be_a(Connection)
+        end
+
+        it 'returns a future that resolves to what the given block returns' do
+          reactor.start.value
+          reactor.connect('example.com', 9999, 5) { :foo }.value.should == :foo
+        end
+
+        it 'returns the connection when no block is given' do
           reactor.start.value
           reactor.connect('example.com', 9999, 5).value.should be_a(Connection)
         end

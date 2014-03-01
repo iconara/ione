@@ -158,13 +158,16 @@ module Ione
       # @param port [Integer] the port to connect to
       # @param timeout [Numeric] the number of seconds to wait for a connection
       #   before failing
-      # @return [Ione::Future] a future that will resolve to the connection when
-      #   when it has finished connecting.
-      def connect(host, port, timeout)
+      # @yieldparam [Ione::Io::Connection] connection the newly opened connection
+      # @return [Ione::Future] a future that will resolve when the connection is
+      #   open. The value will be the connection, or when a block is given to
+      #   what the block returns
+      def connect(host, port, timeout, &block)
         connection = Connection.new(host, port, timeout, @unblocker, @clock)
         f = connection.connect
         @io_loop.add_socket(connection)
         @unblocker.unblock!
+        f = f.map(&block) if block_given?
         f
       end
 
