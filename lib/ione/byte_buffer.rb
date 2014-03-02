@@ -73,6 +73,7 @@ module Ione
     # @return [Ione::ByteBuffer] itself
     # @raise RangeError when there are not enough bytes in the buffer
     def discard(n)
+      raise RangeError, 'Cannot discard a negative number of bytes' if n < 0
       raise RangeError, "#{n} bytes to discard but only #{@length} available" if @length < n
       @offset += n
       @length -= n
@@ -86,6 +87,7 @@ module Ione
     #   with `Encoding::BINARY`.
     # @raise RangeError when there are not enough bytes in the buffer
     def read(n)
+      raise RangeError, 'Cannot read a negative number of bytes' if n < 0
       raise RangeError, "#{n} bytes required but only #{@length} available" if @length < n
       if @offset >= @read_buffer.bytesize
         swap_buffers

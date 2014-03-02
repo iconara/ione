@@ -175,6 +175,11 @@ module Ione
         buffer.append('hello')
         expect { buffer.discard(7) }.to raise_error(RangeError)
       end
+
+      it 'raises an error when the specified number of bytes is negative' do
+        buffer.append('hello')
+        expect { buffer.discard(-7) }.to raise_error(RangeError)
+      end
     end
 
     describe '#read' do
@@ -194,6 +199,11 @@ module Ione
         buffer.append('hello')
         expect { buffer.read(23423543) }.to raise_error(RangeError)
         expect { buffer.discard(5).read(1) }.to raise_error(RangeError)
+      end
+
+      it 'raises an error when the specified number of bytes is negative' do
+        buffer.append('hello')
+        expect { buffer.read(-4) }.to raise_error(RangeError)
       end
 
       it 'returns a string with binary encoding' do
