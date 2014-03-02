@@ -1,11 +1,11 @@
+.ruby-version
+.ruby-gemset
+.rvmrc
 /coverage
 /benchmark
 /tmp
 /doc
 /.yardoc
 /TODO.md
-/.ruby-version
-/.ruby-gemset
-/.rvmrc
 /tags
 /pkg
