@@ -696,10 +696,24 @@ module Ione
           future.should be_resolved
         end
 
-        it 'calls callbacks immediately' do
+        it 'is completed' do
+          future.should be_completed
+        end
+
+        it 'is not failed' do
+          future.should_not be_failed
+        end
+
+        it 'calls its value callbacks immediately' do
           value = nil
           future.on_value { |v| value = v }
           value.should == 'hello world'
+        end
+
+        it 'calls its complete callbacks immediately' do
+          f = nil
+          future.on_complete { |ff| f = ff }
+          f.should_not be_nil
         end
 
         it 'does not block on #value' do
@@ -718,14 +732,28 @@ module Ione
       end
 
       context 'returns a future which' do
-        it 'is failed when created' do
+        it 'is failed' do
           future.should be_failed
         end
 
-        it 'calls callbacks immediately' do
+        it 'is completed' do
+          future.should be_completed
+        end
+
+        it 'is not resolved' do
+          future.should_not be_resolved
+        end
+
+        it 'call its failure callbacks immediately' do
           error = nil
           future.on_failure { |e| error = e }
           error.message.should == 'bork'
+        end
+
+        it 'calls its complete callbacks immediately' do
+          f = nil
+          future.on_complete { |ff| f = ff }
+          f.should_not be_nil
         end
 
         it 'does not block on #value' do
