@@ -1,5 +1,5 @@
 language: ruby
-script: rspec
+script: bundle exec rake spec:all
 bundler_args: --without development
 services:
   - redis-server
