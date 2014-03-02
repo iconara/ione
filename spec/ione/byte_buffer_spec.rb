@@ -332,6 +332,30 @@ module Ione
       end
     end
 
+    describe '#index' do
+      it 'returns the first index of the specified substring' do
+        buffer.append('fizz buzz')
+        buffer.index('zz').should == 2
+      end
+
+      it 'returns the first index of the specified substring, after the specified index' do
+        buffer.append('fizz buzz')
+        buffer.index('zz', 3).should == 7
+      end
+
+      it 'returns nil when the substring is not found' do
+        buffer.append('hello world')
+        buffer.index('zz').should be_nil
+      end
+
+      it 'returns the first index of the specified substring after the buffer has been modified' do
+        buffer.append('foo bar')
+        buffer.read(1)
+        buffer.append(' baz baz')
+        buffer.index('baz', 8).should == 11
+      end
+    end
+
     context 'when reading and appending' do
       it 'handles heavy churn' do
         1000.times do

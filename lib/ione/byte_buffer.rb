@@ -167,6 +167,20 @@ module Ione
       b
     end
 
+    def index(substring, start_index=0)
+      if @offset >= @read_buffer.bytesize
+        swap_buffers
+      end
+      read_buffer_length = @read_buffer.bytesize
+      if start_index < read_buffer_length - @offset && (index = @read_buffer.index(substring, @offset + start_index))
+        index - @offset
+      elsif (index = @write_buffer.index(substring, start_index - read_buffer_length + @offset))
+        index + read_buffer_length - @offset
+      else
+        nil
+      end
+    end
+
     # Overwrite a portion of the buffer with new bytes.
     #
     # The number of bytes that will be replaced depend on the size of the
