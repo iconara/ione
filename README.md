@@ -8,6 +8,27 @@ _If you're reading this on GitHub, please note that this is the readme for the d
 
 Ione is a framework for reactive programming in Ruby. It is based on the reactive core of [cql-rb](http://github.com/iconara/cql-rb), the Ruby driver for Cassandra.
 
+# Features
+
+## Futures & promises
+
+At the core of Ione is a futures API. Futures make it easy to compose asynchronous operations.
+
+## Evented IO
+
+A key piece of the framework is an IO reactor with which you can easily build network clients and servers.
+
+### Byte buffer
+
+Networking usually means pushing lots of bytes around and in Ruby it's easy to make the mistake of using strings as buffers. Ione provides an efficient byte buffer implementation as an alternative.
+
+# Examples
+
+The [examples](https://github.com/iconara/ione/tree/master/examples) directory has some examples of what you can do with Ione, for example:
+
+* [redis_client](https://github.com/iconara/ione/tree/master/examples/redis_client) is a more or less full featured Redis client that uses most of Ione's features.
+* [http_client](https://github.com/iconara/ione/tree/master/examples/http_client) a simplistic HTTP client that uses Ione and [http_parser.rb](http://rubygems.org/gems/http_parser.rb) to make HTTP GET request.
+
 # How to contribute
 
 [See CONTRIBUTING.md](CONTRIBUTING.md)
