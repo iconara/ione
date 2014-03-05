@@ -15,12 +15,17 @@ module Ione
   # and reads read from the read buffer until it is empty, then a new write
   # buffer is created and the old write buffer becomes the new read buffer.
   class ByteBuffer
-    def initialize(initial_bytes='')
+    def initialize(initial_bytes=nil)
       @read_buffer = ''
-      @write_buffer = ''
       @offset = 0
       @length = 0
-      append(initial_bytes) unless initial_bytes.empty?
+      if initial_bytes && !initial_bytes.empty?
+        @write_buffer = initial_bytes.dup
+        @write_buffer.force_encoding(::Encoding::BINARY)
+        @length = @write_buffer.bytesize
+      else
+        @write_buffer = ''
+      end
     end
 
     # Returns the number of bytes in the buffer.
