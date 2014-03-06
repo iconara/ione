@@ -8,7 +8,7 @@ describe 'An IO reactor' do
     Ione::Io::IoReactor.new
   end
 
-  context 'with a generic server' do
+  context 'connecting to a generic server' do
     let :protocol_handler_factory do
       lambda { |c| IoSpec::TestConnection.new(c) }
     end
@@ -28,12 +28,12 @@ describe 'An IO reactor' do
     end
 
     it 'connects to the server' do
-      io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1).map(&protocol_handler_factory)
+      io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1, &protocol_handler_factory)
       fake_server.await_connects!(1)
     end
 
     it 'receives data' do
-      protocol_handler = io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1).map(&protocol_handler_factory).value
+      protocol_handler = io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1, &protocol_handler_factory).value
       fake_server.await_connects!(1)
       fake_server.broadcast!('hello world')
       await { protocol_handler.data.bytesize > 0 }
@@ -41,11 +41,48 @@ describe 'An IO reactor' do
     end
 
     it 'receives data on multiple connections' do
-      protocol_handlers = Array.new(10) { io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1).map(&protocol_handler_factory).value }
+      protocol_handlers = Array.new(10) { io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1, &protocol_handler_factory).value }
       fake_server.await_connects!(10)
       fake_server.broadcast!('hello world')
       await { protocol_handlers.all? { |c| c.data.bytesize > 0 } }
       protocol_handlers.sample.data.should == 'hello world'
+    end
+  end
+
+  context 'running an echo server' do
+    let :protocol_handler_factory do
+      lambda do |acceptor|
+        acceptor.on_accept do |connection|
+          connection.on_data do |data|
+            connection.write(data)
+          end
+        end
+      end
+    end
+
+    let :port do
+      2**15 + rand(2**15)
+    end
+
+    before do
+      io_reactor.start.value
+    end
+
+    after do
+      io_reactor.stop.value
+    end
+
+    it 'starts a server' do
+      io_reactor.bind(ENV['SERVER_HOST'], port, 1, &protocol_handler_factory).value
+    end
+
+    it 'starts a server that listens to the specified port' do
+      io_reactor.bind(ENV['SERVER_HOST'], port, 1, &protocol_handler_factory).value
+      socket = TCPSocket.new(ENV['SERVER_HOST'], port)
+      socket.puts('HELLO')
+      result = socket.read(5)
+      result.should == 'HELLO'
+      socket.close
     end
   end
 end

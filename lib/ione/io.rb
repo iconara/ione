@@ -13,3 +13,5 @@ end
 
 require 'ione/io/io_reactor'
 require 'ione/io/connection'
+require 'ione/io/server_connection'
+require 'ione/io/acceptor'
