@@ -1,9 +1,9 @@
 # encoding: utf-8
 
-require 'spec_helper'
 require 'webrick'
 require 'open-uri'
 require 'logger'
+require 'ione/http_client'
 
 
 module Ione

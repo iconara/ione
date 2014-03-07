@@ -1,2 +1,6 @@
+-I lib
+-I examples/http_client/lib
+-I examples/redis_client/lib
 --color
 --format doc
+--pattern 'spec/**/*_spec.rb,examples/*/spec/**/*_spec.rb'

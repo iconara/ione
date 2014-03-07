@@ -11,6 +11,10 @@ group :development do
   end
 end
 
+group :http_client_example do
+  gem 'http_parser.rb'
+end
+
 group :test do
   gem 'rspec'
   gem 'simplecov'

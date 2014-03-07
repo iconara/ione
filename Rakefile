@@ -4,28 +4,15 @@ require 'rspec/core/rake_task'
 require 'bundler/gem_helper'
 
 
-task :default => 'spec:all'
+task :default => :spec
 
-namespace :spec do
-  desc 'Run all tests'
-  task :all
-
-  desc 'Run core tests'
-  RSpec::Core::RakeTask.new(:core)
-  task :all => :core
-
-  FileList['examples/*/spec'].each do |path|
-    name = path.split('/')[1]
-    desc "Run #{name} example tests"
-    task name do
-      Dir.chdir(File.dirname(path)) do
-        Rake::Task["spec:#{name}_spec"].invoke
-      end
-    end
-    desc ''
-    RSpec::Core::RakeTask.new("#{name}_spec")
-    task :all => name
+RSpec::Core::RakeTask.new(:spec) do |r|
+  options = File.readlines('.rspec').map(&:chomp)
+  if (pattern = options.find { |o| o.start_with?('--pattern') })
+    options.delete(pattern)
+    r.pattern = pattern.sub(/^--pattern\s+(['"']?)(.+)\1$/, '\2')
   end
+  r.ruby_opts, r.rspec_opts = options.partition { |o| o.start_with?('-I') }
 end
 
 namespace :bundler do
@@ -33,4 +20,4 @@ namespace :bundler do
 end
 
 desc 'Tag & release the gem'
-task :release => ['spec:all', 'bundler:release']
+task :release => [:spec, 'bundler:release']
