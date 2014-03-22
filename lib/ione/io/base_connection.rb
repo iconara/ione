@@ -9,27 +9,32 @@ module Ione
         @host = host
         @port = port
         @state = :connecting
+        @closed_promise = Promise.new
       end
 
       # Closes the connection
       def close(cause=nil)
-        return false if @io.nil?
-        begin
-          @io.close
-          @io = nil
-          @state = :closed
-        rescue SystemCallError, IOError
-          # nothing to do, the socket was most likely already closed
+        return false if @state == :closed
+        if @io
+          begin
+            @io.close
+            @io = nil
+          rescue SystemCallError, IOError
+            # nothing to do, the socket was most likely already closed
+          end
         end
-        if @closed_listener
-          @closed_listener.call(cause)
+        @state = :closed
+        if cause
+          @closed_promise.fail(cause)
+        else
+          @closed_promise.fulfill(self)
         end
         true
       end
 
       # @private
       def connecting?
-        !(closed? || connected?)
+        @state == :connecting
       end
 
       # Returns true if the connection is connected
@@ -39,7 +44,7 @@ module Ione
 
       # Returns true if the connection is closed
       def closed?
-        @io.nil?
+        @state == :closed
       end
 
       # @private
@@ -75,20 +80,13 @@ module Ione
       # Register to receive a notification when the socket is closed, both for
       # expected and unexpected reasons.
       #
-      # You shoud only call this method in your protocol handler constructor.
-      #
-      # Only one callback can be registered, if you register multiple times only
-      # the last one will receive notifications. This is not meant as a general
-      # event system, it's just for protocol handlers to be notified of the
-      # connection closing. If you want multiple listeners you need to implement
-      # that yourself in your protocol handler.
-      #
       # Errors raised by the callback will be ignored.
       #
       # @yield [error, nil] the error that caused the socket to close, or nil if
       #   the socket closed with #close
       def on_closed(&listener)
-        @closed_listener = listener
+        @closed_promise.future.on_value { listener.call(nil) }
+        @closed_promise.future.on_failure { |e| listener.call(e) }
       end
 
       # Write bytes to the socket.

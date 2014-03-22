@@ -17,7 +17,7 @@ module Ione
         @lock = Mutex.new
         @write_buffer = ByteBuffer.new
         @connected_promise = Promise.new
-        @closed_listener = method(:default_closed_listener)
+        on_closed(&method(:cleanup_on_close))
       end
 
       # @private
@@ -54,26 +54,19 @@ module Ione
         rescue SystemCallError => e
           close(e)
         rescue SocketError => e
-          close(e) || default_closed_listener(e)
+          close(e) || cleanup_on_close(e)
         end
         @connected_promise.future
       end
 
-      def on_closed(&listener)
-        @actual_closed_listener = listener
-      end
-
       private
 
-      def default_closed_listener(cause)
+      def cleanup_on_close(cause)
         if cause && !cause.is_a?(IoError)
           cause = ConnectionError.new(cause.message)
         end
         unless @connected_promise.future.completed?
           @connected_promise.fail(cause)
-        end
-        if @actual_closed_listener
-          @actual_closed_listener.call(cause)
         end
       end
     end
