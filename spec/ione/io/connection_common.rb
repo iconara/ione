@@ -65,7 +65,39 @@ shared_examples_for 'a connection' do
     end
   end
 
+  describe '#drain' do
+    before do
+      socket.stub(:write_nonblock) { |s| s.bytesize }
+    end
+
+    it 'waits for the buffer to drain and then closes the socket' do
+      handler.write('hello world')
+      handler.drain
+      handler.should_not be_closed
+      handler.flush
+      handler.should be_closed
+    end
+
+    it 'closes the socket immediately when the buffer is empty' do
+      handler.drain
+      handler.should be_closed
+    end
+
+    it 'returns a future that completes when the socket has closed' do
+      handler.write('hello world')
+      f = handler.drain
+      f.should_not be_completed
+      handler.flush
+      f.should be_completed
+    end
+  end
+
   describe '#write/#flush' do
+    before do
+      socket.stub(:write_nonblock)
+      unblocker.stub(:unblock!)
+    end
+
     it 'appends to its buffer when #write is called' do
       handler.write('hello world')
     end
@@ -135,6 +167,54 @@ shared_examples_for 'a connection' do
         handler.write('hello world')
         handler.flush
         error.should be_a(Exception)
+      end
+    end
+
+    context 'when closed' do
+      it 'discards the bytes' do
+        handler.close
+        handler.write('hello world')
+        handler.flush
+        socket.should_not have_received(:write_nonblock)
+      end
+
+      it 'does not yield the buffer' do
+        called = false
+        handler.close
+        handler.write { called = true }
+        handler.flush
+        called.should be_false
+      end
+
+      it 'does not unblock the reactor' do
+        handler.close
+        handler.write('hello world')
+        handler.flush
+        unblocker.should_not have_received(:unblock!)
+      end
+    end
+
+    context 'when draining' do
+      it 'discards the bytes' do
+        handler.drain
+        handler.write('hello world')
+        handler.flush
+        socket.should_not have_received(:write_nonblock)
+      end
+
+      it 'does not yield the buffer' do
+        called = false
+        handler.drain
+        handler.write { called = true }
+        handler.flush
+        called.should be_false
+      end
+
+      it 'does not unblock the reactor' do
+        handler.drain
+        handler.write('hello world')
+        handler.flush
+        unblocker.should_not have_received(:unblock!)
       end
     end
   end

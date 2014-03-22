@@ -31,9 +31,7 @@ module Ione
 
     def accept_connection(connection)
       connection.write(File.read(@path))
-      @reactor.schedule_timer(0.01).on_value do
-        connection.close
-      end
+      connection.drain
     end
   end
 end

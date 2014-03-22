@@ -13,6 +13,8 @@ module Ione
       end
 
       # Closes the connection
+      #
+      # @return [true, false] returns false if the connection was already closed
       def close(cause=nil)
         return false if @state == :closed
         if @io
@@ -30,6 +32,18 @@ module Ione
           @closed_promise.fulfill(self)
         end
         true
+      end
+
+      # Wait for the connection's buffers to empty and then close it.
+      #
+      # This method is almost always preferable to {#close}.
+      #
+      # @return [Ione::Future] a future that resolves to the connection when it
+      #   has closed
+      def drain
+        @state = :draining
+        close if @write_buffer.empty?
+        @closed_promise.future
       end
 
       # @private
@@ -98,22 +112,29 @@ module Ione
       # @yieldparam buffer [Ione::ByteBuffer] the connection's internal buffer
       # @param bytes [String, Ione::ByteBuffer] the data to write to the socket
       def write(bytes=nil)
-        @lock.synchronize do
-          if block_given?
-            yield @write_buffer
-          elsif bytes
-            @write_buffer.append(bytes)
+        if @state == :connected || @state == :connecting
+          @lock.synchronize do
+            if block_given?
+              yield @write_buffer
+            elsif bytes
+              @write_buffer.append(bytes)
+            end
           end
+          @unblocker.unblock!
         end
-        @unblocker.unblock!
       end
 
       # @private
       def flush
-        if writable?
+        if @state == :connected || @state == :draining
           @lock.synchronize do
-            bytes_written = @io.write_nonblock(@write_buffer.cheap_peek)
-            @write_buffer.discard(bytes_written)
+            unless @write_buffer.empty?
+              bytes_written = @io.write_nonblock(@write_buffer.cheap_peek)
+              @write_buffer.discard(bytes_written)
+            end
+            if @state == :draining && @write_buffer.empty?
+              close
+            end
           end
         end
       rescue => e
