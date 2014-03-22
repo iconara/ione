@@ -5,18 +5,16 @@ module Ione
     # A wrapper around a socket. Handles connecting to the remote host, reading
     # from and writing to the socket.
     class Connection < BaseConnection
-      attr_reader :host, :port, :connection_timeout
+      attr_reader :connection_timeout
 
       # @private
       def initialize(host, port, connection_timeout, unblocker, clock, socket_impl=Socket)
-        @host = host
-        @port = port
+        super(host, port)
         @connection_timeout = connection_timeout
         @unblocker = unblocker
         @clock = clock
         @socket_impl = socket_impl
         @lock = Mutex.new
-        @connected = false
         @write_buffer = ByteBuffer.new
         @connected_promise = Promise.new
         @closed_listener = method(:default_closed_listener)
@@ -36,11 +34,11 @@ module Ione
           end
           unless connected?
             @io.connect_nonblock(@sockaddr)
-            @connected = true
+            @state = :connected
             @connected_promise.fulfill(self)
           end
         rescue Errno::EISCONN
-          @connected = true
+          @state = :connected
           @connected_promise.fulfill(self)
         rescue Errno::EINPROGRESS, Errno::EALREADY
           if @clock.now - @connection_started_at > @connection_timeout

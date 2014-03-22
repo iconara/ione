@@ -312,13 +312,15 @@ module Ione
           end
 
           it 'includes the connection state' do
-            handler.to_s.should include('closed')
+            handler.to_s.should include('connecting')
             socket.stub(:connect_nonblock).and_raise(Errno::EINPROGRESS)
             handler.connect
             handler.to_s.should include('connecting')
             socket.stub(:connect_nonblock)
             handler.connect
             handler.to_s.should include('connected')
+            handler.close
+            handler.to_s.should include('closed')
           end
         end
       end

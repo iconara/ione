@@ -3,13 +3,21 @@
 module Ione
   module Io
     class BaseConnection
+      attr_reader :host, :port
+
+      def initialize(host, port)
+        @host = host
+        @port = port
+        @state = :connecting
+      end
+
       # Closes the connection
       def close(cause=nil)
-        return false unless @io
+        return false if @io.nil?
         begin
           @io.close
           @io = nil
-          @connected = false
+          @state = :closed
         rescue SystemCallError, IOError
           # nothing to do, the socket was most likely already closed
         end
@@ -26,7 +34,7 @@ module Ione
 
       # Returns true if the connection is connected
       def connected?
-        @connected
+        @state == :connected
       end
 
       # Returns true if the connection is closed
@@ -128,15 +136,7 @@ module Ione
       end
 
       def to_s
-        state = 'inconsistent'
-        if connected?
-          state = 'connected'
-        elsif connecting?
-          state = 'connecting'
-        elsif closed?
-          state = 'closed'
-        end
-        %(#<#{self.class.name} #{state} #{@host}:#{@port}>)
+        %(#<#{self.class.name} #{@state} #{@host}:#{@port}>)
       end
     end
   end

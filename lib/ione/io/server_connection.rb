@@ -3,17 +3,14 @@
 module Ione
   module Io
     class ServerConnection < BaseConnection
-      attr_reader :host, :port
-
       # @private
       def initialize(socket, host, port, unblocker)
+        super(host, port)
         @io = socket
-        @host = host
-        @port = port
         @unblocker = unblocker
         @lock = Mutex.new
         @write_buffer = ByteBuffer.new
-        @connected = true
+        @state = :connected
       end
     end
   end
