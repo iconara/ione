@@ -171,6 +171,21 @@ module Ione
         f
       end
 
+      def bind(host, port, backlog, &block)
+        server = Acceptor.new(host, port, backlog, @unblocker, self)
+        f = server.bind
+        @io_loop.add_socket(server)
+        @unblocker.unblock!
+        f = f.map(&block) if block_given?
+        f
+      end
+
+      # @private
+      def accept(socket)
+        @io_loop.add_socket(socket)
+        @unblocker.unblock!
+      end
+
       # Returns a future that completes after the specified number of seconds.
       #
       # @param timeout [Float] the number of seconds to wait until the returned

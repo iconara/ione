@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require 'spec_helper'
+require 'ione/io/connection_common'
 
 
 module Ione
@@ -38,10 +39,21 @@ module Ione
           .and_return(socket)
       end
 
+      before do
+        socket.stub(:connect_nonblock)
+        socket.stub(:close)
+      end
+
+      it_behaves_like 'a connection' do
+        before do
+          handler.connect
+        end
+      end
+
       describe '#connect' do
         it 'creates a socket and calls #connect_nonblock' do
-          socket.should_receive(:connect_nonblock).with('SOCKADDR1')
           handler.connect
+          socket.should have_received(:connect_nonblock).with('SOCKADDR1')
         end
 
         it 'handles EINPROGRESS that #connect_nonblock raises' do
@@ -56,23 +68,26 @@ module Ione
         end
 
         it 'is connecting even after the second call' do
-          socket.should_receive(:connect_nonblock).twice.and_raise(Errno::EINPROGRESS)
-          handler.connect
-          handler.connect
-          handler.should be_connecting
-        end
-
-        it 'does not create a new socket the second time' do
-          socket_impl.should_receive(:new).once.and_return(socket)
           socket.stub(:connect_nonblock).and_raise(Errno::EINPROGRESS)
           handler.connect
           handler.connect
+          handler.should be_connecting
+          socket.should have_received(:connect_nonblock).twice
+        end
+
+        it 'does not create a new socket the second time' do
+          socket_impl.stub(:new).and_return(socket)
+          socket.stub(:connect_nonblock).and_raise(Errno::EINPROGRESS)
+          handler.connect
+          handler.connect
+          socket_impl.should have_received(:new).once
         end
 
         it 'attempts another connect the second time' do
-          socket.should_receive(:connect_nonblock).twice.and_raise(Errno::EINPROGRESS)
+          socket.stub(:connect_nonblock).and_raise(Errno::EINPROGRESS)
           handler.connect
           handler.connect
+          socket.should have_received(:connect_nonblock).twice
         end
 
         shared_examples 'on successfull connection' do
@@ -264,60 +279,6 @@ module Ione
         end
       end
 
-      describe '#close' do
-        before do
-          socket.stub(:connect_nonblock)
-          socket.stub(:close)
-          handler.connect
-        end
-
-        it 'closes the socket' do
-          socket.should_receive(:close)
-          handler.close
-        end
-
-        it 'returns true' do
-          handler.close.should be_true
-        end
-
-        it 'swallows SystemCallErrors' do
-          socket.stub(:close).and_raise(SystemCallError.new('Bork!', 9999))
-          handler.close
-        end
-
-        it 'swallows IOErrors' do
-          socket.stub(:close).and_raise(IOError.new('Bork!'))
-          handler.close
-        end
-
-        it 'calls the closed listener' do
-          called = false
-          handler.on_closed { called = true }
-          handler.close
-          called.should be_true, 'expected the close listener to have been called'
-        end
-
-        it 'does nothing when closed a second time' do
-          socket.should_receive(:close).once
-          calls = 0
-          handler.on_closed { calls += 1 }
-          handler.close
-          handler.close
-          calls.should == 1
-        end
-
-        it 'returns false if it did nothing' do
-          handler.close
-          handler.close.should be_false
-        end
-
-        it 'is not writable when closed' do
-          handler.write('foo')
-          handler.close
-          handler.should_not be_writable
-        end
-      end
-
       describe '#to_io' do
         before do
           socket.stub(:connect_nonblock)
@@ -340,128 +301,10 @@ module Ione
         end
       end
 
-      describe '#write/#flush' do
-        before do
-          socket.stub(:connect_nonblock)
-          handler.connect
-        end
-
-        it 'appends to its buffer when #write is called' do
-          handler.write('hello world')
-        end
-
-        it 'unblocks the reactor' do
-          unblocker.should_receive(:unblock!)
-          handler.write('hello world')
-        end
-
-        it 'is writable when there are bytes to write' do
-          handler.should_not be_writable
-          handler.write('hello world')
-          handler.should be_writable
-          socket.should_receive(:write_nonblock).with('hello world').and_return(11)
-          handler.flush
-          handler.should_not be_writable
-        end
-
-        it 'writes to the socket from its buffer when #flush is called' do
-          handler.write('hello world')
-          socket.should_receive(:write_nonblock).with('hello world').and_return(11)
-          handler.flush
-        end
-
-        it 'takes note of how much the #write_nonblock call consumed and writes the rest of the buffer on the next call to #flush' do
-          handler.write('hello world')
-          socket.should_receive(:write_nonblock).with('hello world').and_return(6)
-          handler.flush
-          socket.should_receive(:write_nonblock).with('world').and_return(5)
-          handler.flush
-        end
-
-        it 'does not call #write_nonblock if the buffer is empty' do
-          handler.flush
-          handler.write('hello world')
-          socket.should_receive(:write_nonblock).with('hello world').and_return(11)
-          handler.flush
-          socket.should_not_receive(:write_nonblock)
-          handler.flush
-        end
-
-        context 'with a block' do
-          it 'yields a byte buffer to the block' do
-            socket.should_receive(:write_nonblock).with('hello world').and_return(11)
-            handler.write do |buffer|
-              buffer << 'hello world'
-            end
-            handler.flush
-          end
-        end
-
-        context 'when #write_nonblock raises an error' do
-          before do
-            socket.stub(:close)
-            socket.stub(:write_nonblock).and_raise('Bork!')
-          end
-
-          it 'closes the socket' do
-            socket.should_receive(:close)
-            handler.write('hello world')
-            handler.flush
-          end
-
-          it 'passes the error to the close handler' do
-            error = nil
-            handler.on_closed { |e| error = e }
-            handler.write('hello world')
-            handler.flush
-            error.should be_a(Exception)
-          end
-        end
-      end
-
-      describe '#read' do
-        before do
-          socket.stub(:connect_nonblock)
-          handler.connect
-        end
-
-        it 'reads a chunk from the socket' do
-          socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
-          handler.read
-        end
-
-        it 'calls the data listener with the new data' do
-          socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
-          data = nil
-          handler.on_data { |d| data = d }
-          handler.read
-          data.should == 'foo bar'
-        end
-
-        context 'when #read_nonblock raises an error' do
-          before do
-            socket.stub(:close)
-            socket.stub(:read_nonblock).and_raise('Bork!')
-          end
-
-          it 'closes the socket' do
-            socket.should_receive(:close)
-            handler.read
-          end
-
-          it 'passes the error to the close handler' do
-            error = nil
-            handler.on_closed { |e| error = e }
-            handler.read
-            error.should be_a(Exception)
-          end
-        end
-      end
-
       describe '#to_s' do
         context 'returns a string that' do
           it 'includes the class name' do
-            handler.to_s.should include('Ione::Io::Connection')
+            handler.to_s.should include(described_class.name.to_s)
           end
 
           it 'includes the host and port' do
@@ -469,13 +312,15 @@ module Ione
           end
 
           it 'includes the connection state' do
-            handler.to_s.should include('closed')
+            handler.to_s.should include('connecting')
             socket.stub(:connect_nonblock).and_raise(Errno::EINPROGRESS)
             handler.connect
             handler.to_s.should include('connecting')
             socket.stub(:connect_nonblock)
             handler.connect
             handler.to_s.should include('connected')
+            handler.close
+            handler.to_s.should include('closed')
           end
         end
       end

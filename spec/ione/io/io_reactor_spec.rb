@@ -146,21 +146,63 @@ module Ione
       describe '#connect' do
         include_context 'running_reactor'
 
-        it 'calls the given block with the connection and the reactor itself and returns what it returns' do
+        it 'calls the given block with a connection' do
           connection = nil
           reactor.start.value
           reactor.connect('example.com', 9999, 5) { |c| connection = c }.value
-          connection.should be_a(Connection)
+          connection.should_not be_nil
         end
 
         it 'returns a future that resolves to what the given block returns' do
           reactor.start.value
-          reactor.connect('example.com', 9999, 5) { :foo }.value.should == :foo
+          x = reactor.connect('example.com', 9999, 5) { :foo }.value
+          x.should == :foo
         end
 
         it 'returns the connection when no block is given' do
           reactor.start.value
           reactor.connect('example.com', 9999, 5).value.should be_a(Connection)
+        end
+
+        it 'creates a connection and passes it to the selector as a readable' do
+          reactor.start.value
+          connection = reactor.connect('example.com', 9999, 5).value
+          await { selector.last_arguments[0].length > 1 }
+          selector.last_arguments[0].should include(connection)
+        end
+      end
+
+      describe '#bind' do
+        include_context 'running_reactor'
+
+        let :port do
+          2**15 + rand(2**15)
+        end
+
+        it 'calls the given block with an acceptor' do
+          acceptor = nil
+          reactor.start.value
+          reactor.bind(ENV['SERVER_HOST'], port, 5) { |a| acceptor = a }.value
+          acceptor.should_not be_nil
+        end
+
+        it 'returns a future that resolves to what the given block returns' do
+          reactor.start.value
+          x = reactor.bind(ENV['SERVER_HOST'], port, 5) { |acceptor| :foo }.value
+          x.should == :foo
+        end
+
+        it 'returns the acceptor when no block is given' do
+          reactor.start.value
+          acceptor = reactor.bind(ENV['SERVER_HOST'], port, 5).value
+          acceptor.should be_an(Acceptor)
+        end
+
+        it 'creates an acceptor and passes it to the selector as a readable' do
+          reactor.start.value
+          acceptor = reactor.bind(ENV['SERVER_HOST'], port, 5).value
+          await { selector.last_arguments[0].length > 1 }
+          selector.last_arguments[0].should include(acceptor)
         end
       end
 
@@ -357,6 +399,8 @@ end
 
 module IoReactorSpec
   class FakeSelector
+    attr_reader :last_arguments
+
     def initialize
       handler { [[], [], []] }
     end
@@ -366,6 +410,7 @@ module IoReactorSpec
     end
 
     def select(*args)
+      @last_arguments = args
       @body.call(*args)
     end
   end
