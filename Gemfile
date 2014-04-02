@@ -15,6 +15,10 @@ group :http_client_example do
   gem 'http_parser.rb'
 end
 
+group :http_server_example do
+  gem 'puma'
+end
+
 group :test do
   gem 'rspec'
   gem 'simplecov'

@@ -17,6 +17,9 @@ GEM
     http_parser.rb (0.6.0)
     mime-types (2.1)
     multi_json (1.8.4)
+    puma (2.8.1)
+      rack (>= 1.1, < 2.0)
+    rack (1.5.2)
     rake (10.1.1)
     redcarpet (3.1.1)
     rest-client (1.6.7)
@@ -47,6 +50,7 @@ DEPENDENCIES
   coveralls
   http_parser.rb
   ione!
+  puma
   rake
   redcarpet
   rspec

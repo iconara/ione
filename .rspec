@@ -1,5 +1,6 @@
 -I lib
 -I examples/http_client/lib
+-I examples/http_server/lib
 -I examples/motd_server/lib
 -I examples/redis_client/lib
 --color
