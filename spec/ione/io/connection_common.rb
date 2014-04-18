@@ -139,6 +139,45 @@ shared_examples_for 'a connection' do
       handler.flush
     end
 
+    context 'with a flushed listener' do
+      before do
+        socket.stub(:write_nonblock) do |bytes|
+          bytes.bytesize
+        end
+      end
+
+      it 'calls the listener after #flush' do
+        called = false
+        handler.on_flushed { called = true }
+        handler.write('foo')
+        handler.flush
+        called.should be_true
+      end
+
+      it 'does not call the flushed listener when nothing was flushed' do
+        called = false
+        handler.on_flushed { called = true }
+        handler.flush
+        called.should be_false
+      end
+
+      it 'yields the number of remaining bytes in the connection\'s buffer to the flushed listener' do
+        socket.stub(:write_nonblock).with('foo bar baz').and_return(8)
+        remaining_bytes = nil
+        handler.on_flushed { |n| remaining_bytes = n }
+        handler.write('foo bar baz')
+        handler.flush
+        remaining_bytes.should == 3
+      end
+
+      it 'ignores errors raised by the flushed listener' do
+        handler.on_flushed { raise 'Bork!' }
+        handler.write('foo')
+        handler.flush
+        handler.should_not be_closed
+      end
+    end
+
     context 'with a block' do
       it 'yields a byte buffer to the block' do
         socket.should_receive(:write_nonblock).with('hello world').and_return(11)

@@ -94,6 +94,30 @@ module Ione
         @data_listener = listener
       end
 
+      # Register to receive notifications when data has been written to the
+      # socket. The number of bytes remaining in the connection's buffer is
+      # yielded to the listener.
+      #
+      # You should only call this method in your protocol handler constructor.
+      #
+      # Only one callback can be registered, if you register multiple times only
+      # the last one will receive notifications. This is not meant as a general
+      # event system, it's just for protocol handlers to receive data from their
+      # connection. If you want multiple listeners you need to implement that
+      # yourself in your protocol handler.
+      #
+      # It is very important that you don't do any heavy lifting in the callback
+      # since it is called from the IO reactor thread, and as long as the
+      # callback is working the reactor can't handle any IO and no other
+      # callbacks can be called.
+      #
+      # Errors raised by the callback will be ignored.
+      #
+      # @yield [Integer] the current number of buffered bytes
+      def on_flushed(&listener)
+        @flushed_listener = listener
+      end
+
       # Register to receive a notification when the socket is closed, both for
       # expected and unexpected reasons.
       #
@@ -133,17 +157,22 @@ module Ione
       # @private
       def flush
         if @state == :connected || @state == :draining
+          remaning_bytes = nil
           @lock.lock
           begin
             unless @write_buffer.empty?
               bytes_written = @io.write_nonblock(@write_buffer.cheap_peek)
               @write_buffer.discard(bytes_written)
+              remaning_bytes = @write_buffer.length
             end
             if @state == :draining && @write_buffer.empty?
               close
             end
           ensure
             @lock.unlock
+          end
+          if remaning_bytes && @flushed_listener
+            @flushed_listener.call(remaning_bytes) rescue nil
           end
         end
       rescue => e
