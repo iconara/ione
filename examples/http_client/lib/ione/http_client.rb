@@ -47,6 +47,8 @@ module Ione
         message << value
         message << "\r\n"
       end
+      message << 'Connection: close'
+      message << "\r\n"
       message << "\r\n"
       @connection.write(message)
       @promises << Promise.new

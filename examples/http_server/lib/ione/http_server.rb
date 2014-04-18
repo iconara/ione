@@ -3,6 +3,7 @@
 require 'ione'
 require 'ione/http_client'
 require 'puma/puma_http11'
+require 'rack'
 
 
 module Ione
@@ -39,7 +40,6 @@ module Ione
   class HttpConnection
     def initialize(connection, app)
       @http_parser = Puma::HttpParser.new
-      @env = {}
       @app = app
       @connection = connection
       @connection.on_data(&method(:handle_data))
@@ -47,8 +47,9 @@ module Ione
     end
 
     def handle_data(data)
-      consumed_bytes = @http_parser.execute(@env, data, 0)
-      status, headers, body = @app.call(@env)
+      env = RACK_ENV_PROTOTYPE.dup
+      consumed_bytes = @http_parser.execute(env, data, 0)
+      status, headers, body = @app.call(env)
       @connection.write do |buffer|
         buffer << "HTTP/1.1 200 OK\r\n"
         headers.each do |header, value|
@@ -67,5 +68,24 @@ module Ione
 
     def handle_closed(cause=nil)
     end
+
+    RACK_ENV_PROTOTYPE = {
+      'REQUEST_METHOD' => nil,
+      'SCRIPT_NAME' => nil,
+      'PATH_INFO' => nil,
+      'QUERY_STRING' => nil,
+      'SERVER_NAME' => nil,
+      'SERVER_PORT' => nil,
+      'rack.version' => Rack::VERSION,
+      'rack.url_scheme' => nil,
+      'rack.input' => nil,
+      'rack.errors' => nil,
+      'rack.multithread' => true,
+      'rack.multiprocess' => false,
+      'rack.run_once' => false,
+      'rack.hijack?' => false,
+      'rack.hijack' => nil,
+      'rack.hijack_io' => nil,
+    }.freeze
   end
 end

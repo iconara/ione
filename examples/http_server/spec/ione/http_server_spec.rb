@@ -34,7 +34,7 @@ module Ione
       end
 
       it 'responds with the requested path' do
-        f = client.get("http://localhost:#{port}/helloworld")
+        f = client.get("http://localhost:#{port}/helloworld", 'Accept' => 'text/plain')
         response = f.value
         response.status.should == 200
         response.body.should == '/helloworld'
