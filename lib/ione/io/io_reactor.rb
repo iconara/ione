@@ -92,7 +92,7 @@ module Ione
       end
 
       # Register to receive notifications when the reactor shuts down because
-      # on an irrecoverable error.
+      # of an irrecoverable error.
       #
       # The listener block will be called in the reactor thread. Any errors that
       # it raises will be ignored.
