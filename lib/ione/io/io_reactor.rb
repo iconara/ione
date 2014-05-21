@@ -255,7 +255,7 @@ module Ione
 
     # @private
     class IoLoopBody
-      DEFAULT_RESOLUTION = 1
+      DEFAULT_RESOLUTION = 0.005
 
       def initialize(options={})
         @selector = options[:selector] || IO
