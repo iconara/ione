@@ -239,7 +239,11 @@ module Ione
 
     describe IoLoopBody do
       let :loop_body do
-        described_class.new(selector: selector, clock: clock)
+        described_class.new(options)
+      end
+
+      let :options do
+        {selector: selector, clock: clock, resolution: resolution}
       end
 
       let :selector do
@@ -248,6 +252,10 @@ module Ione
 
       let :clock do
         double(:clock, now: 0)
+      end
+
+      let :resolution do
+        0.1337
       end
 
       let :socket do
@@ -312,9 +320,16 @@ module Ione
           loop_body.tick
         end
 
-        it 'allows the caller to specify a custom timeout' do
-          selector.should_receive(:select).with(anything, anything, anything, 99).and_return([[], [], []])
-          loop_body.tick(99)
+        it 'passes the given resolution as the select timeout' do
+          selector.should_receive(:select).with(anything, anything, anything, resolution)
+          loop_body.tick
+        end
+
+        it 'uses default select timeout when resolution not given' do
+          options.delete(:resolution)
+          loop_body = described_class.new(options)
+          selector.should_receive(:select).with(anything, anything, anything, described_class::DEFAULT_RESOLUTION)
+          loop_body.tick
         end
 
         it 'completes timers that have expired' do

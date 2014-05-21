@@ -255,9 +255,12 @@ module Ione
 
     # @private
     class IoLoopBody
+      DEFAULT_RESOLUTION = 1
+
       def initialize(options={})
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
+        @resolution = options[:resolution] || DEFAULT_RESOLUTION
         @lock = Mutex.new
         @sockets = []
         @timers = []
@@ -299,8 +302,8 @@ module Ione
         end
       end
 
-      def tick(timeout=1)
-        check_sockets!(timeout)
+      def tick
+        check_sockets!
         check_timers!
       end
 
@@ -310,7 +313,7 @@ module Ione
 
       private
 
-      def check_sockets!(timeout)
+      def check_sockets!
         readables, writables, connecting = [], [], []
         sockets = @sockets
         sockets.each do |s|
@@ -319,7 +322,7 @@ module Ione
           writables << s if s.connecting? || s.writable?
           connecting << s if s.connecting?
         end
-        r, w, _ = @selector.select(readables, writables, nil, timeout)
+        r, w, _ = @selector.select(readables, writables, nil, @resolution)
         connecting.each(&:connect)
         r && r.each(&:read)
         w && w.each(&:flush)
