@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-shared_examples_for 'a connection' do
+shared_examples_for 'a connection' do |options|
   describe '#close' do
     it 'closes the socket' do
       socket.should_receive(:close)
@@ -219,36 +219,38 @@ shared_examples_for 'a connection' do
     end
   end
 
-  describe '#read/#on_data' do
-    it 'reads a chunk from the socket' do
-      socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
-      handler.read
-    end
-
-    it 'calls the data listener with the new data' do
-      socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
-      data = nil
-      handler.on_data { |d| data = d }
-      handler.read
-      data.should == 'foo bar'
-    end
-
-    context 'when #read_nonblock raises an error' do
-      before do
-        socket.stub(:close)
-        socket.stub(:read_nonblock).and_raise('Bork!')
-      end
-
-      it 'closes the socket' do
-        socket.should_receive(:close)
+  if options.nil? || options.fetch(:skip_read, false) == false
+    describe '#read/#on_data' do
+      it 'reads a chunk from the socket' do
+        socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
         handler.read
       end
 
-      it 'passes the error to the close handler' do
-        error = nil
-        handler.on_closed { |e| error = e }
+      it 'calls the data listener with the new data' do
+        socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
+        data = nil
+        handler.on_data { |d| data = d }
         handler.read
-        error.should be_a(Exception)
+        data.should == 'foo bar'
+      end
+
+      context 'when #read_nonblock raises an error' do
+        before do
+          socket.stub(:close)
+          socket.stub(:read_nonblock).and_raise('Bork!')
+        end
+
+        it 'closes the socket' do
+          socket.should_receive(:close)
+          handler.read
+        end
+
+        it 'passes the error to the close handler' do
+          error = nil
+          handler.on_closed { |e| error = e }
+          handler.read
+          error.should be_a(Exception)
+        end
       end
     end
   end
