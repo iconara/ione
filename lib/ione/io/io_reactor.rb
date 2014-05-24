@@ -156,13 +156,20 @@ module Ione
       #
       # @param host [String] the host to connect to
       # @param port [Integer] the port to connect to
-      # @param timeout [Numeric] the number of seconds to wait for a connection
-      #   before failing
+      # @param options_or_timeout [Hash, Numeric] a hash of options (see below)
+      #   or the connection timeout (equivalent to using the `:timeout` option).
+      # @option options_or_timeout [Numeric] :timeout (5) the number of seconds
+      #   to wait for a connection before failing
       # @yieldparam [Ione::Io::Connection] connection the newly opened connection
       # @return [Ione::Future] a future that will resolve when the connection is
       #   open. The value will be the connection, or when a block is given to
       #   what the block returns
-      def connect(host, port, timeout, &block)
+      def connect(host, port, options={}, &block)
+        if options.is_a?(Numeric)
+          timeout = options
+        elsif options
+          timeout = options[:timeout] || 5
+        end
         connection = Connection.new(host, port, timeout, @unblocker, @clock)
         f = connection.connect
         @io_loop.add_socket(connection)
