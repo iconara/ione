@@ -5,11 +5,8 @@ module Ione
     class ServerConnection < BaseConnection
       # @private
       def initialize(socket, host, port, unblocker)
-        super(host, port)
+        super(host, port, unblocker)
         @io = socket
-        @unblocker = unblocker
-        @lock = Mutex.new
-        @write_buffer = ByteBuffer.new
         @state = :connected
       end
     end
