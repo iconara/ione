@@ -170,6 +170,12 @@ module Ione
           await { selector.last_arguments[0].length > 1 }
           selector.last_arguments[0].should include(connection)
         end
+
+        it 'upgrades the connection to SSL' do
+          reactor.start.value
+          connection = reactor.connect('example.com', 9999, ssl: true).value
+          connection.should be_a(SslConnection)
+        end
       end
 
       describe '#bind' do

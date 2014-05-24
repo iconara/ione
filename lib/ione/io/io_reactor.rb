@@ -160,6 +160,8 @@ module Ione
       #   or the connection timeout (equivalent to using the `:timeout` option).
       # @option options_or_timeout [Numeric] :timeout (5) the number of seconds
       #   to wait for a connection before failing
+      # @option options_or_timeout [Boolean] :ssl (false) when true, upgrade the
+      #   connection to SSL.
       # @yieldparam [Ione::Io::Connection] connection the newly opened connection
       # @return [Ione::Future] a future that will resolve when the connection is
       #   open. The value will be the connection, or when a block is given to
@@ -167,13 +169,25 @@ module Ione
       def connect(host, port, options={}, &block)
         if options.is_a?(Numeric)
           timeout = options
+          ssl = false
         elsif options
           timeout = options[:timeout] || 5
+          ssl = options[:ssl]
         end
         connection = Connection.new(host, port, timeout, @unblocker, @clock)
         f = connection.connect
         @io_loop.add_socket(connection)
         @unblocker.unblock!
+        if ssl
+          f = f.flat_map do
+            upgraded_connection = SslConnection.new(host, port, connection.to_io, @unblocker)
+            @io_loop.remove_socket(connection)
+            @io_loop.add_socket(upgraded_connection)
+            ff = upgraded_connection.connect
+            @unblocker.unblock!
+            ff
+          end
+        end
         f = f.map(&block) if block_given?
         f
       end
@@ -287,6 +301,12 @@ module Ione
         @sockets = sockets
       ensure
         @lock.unlock
+      end
+
+      def remove_socket(socket)
+        @lock.synchronize do
+          @sockets = @sockets.reject { |s| s == socket || s.closed? }
+        end
       end
 
       def schedule_timer(timeout, promise=Promise.new)
