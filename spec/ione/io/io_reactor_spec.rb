@@ -185,7 +185,7 @@ module Ione
           fake_ssl_context = double(:fake_ssl_context)
           reactor.start.value
           f = reactor.connect('example.com', 9999, ssl: fake_ssl_context)
-          expect { f.value }.to raise_error(TypeError)
+          expect { f.value }.to raise_error
         end
       end
 
