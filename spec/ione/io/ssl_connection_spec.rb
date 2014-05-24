@@ -8,7 +8,7 @@ module Ione
   module Io
     describe SslConnection do
       let :handler do
-        described_class.new('example.com', 55555, raw_socket, unblocker, socket_impl)
+        described_class.new('example.com', 55555, raw_socket, unblocker, ssl_context, socket_impl)
       end
 
       let :socket_impl do
@@ -27,8 +27,12 @@ module Ione
         double(:unblocker, unblock!: nil)
       end
 
+      let :ssl_context do
+        double(:ssl_context)
+      end
+
       before do
-        socket_impl.stub(:new).with(raw_socket).and_return(ssl_socket)
+        socket_impl.stub(:new).with(raw_socket, ssl_context).and_return(ssl_socket)
       end
 
       before do
@@ -47,6 +51,18 @@ module Ione
       end
 
       describe '#connect' do
+        it 'creates an SSL socket and passes in the specified SSL context' do
+          handler.connect
+          socket_impl.should have_received(:new).with(raw_socket, ssl_context)
+        end
+
+        it 'does not pass the context parameter when the SSL context is nil' do
+          socket_impl.stub(:new).and_return(ssl_socket)
+          h = described_class.new('example.com', 55555, raw_socket, unblocker, nil, socket_impl)
+          h.connect
+          socket_impl.should have_received(:new).with(raw_socket)
+        end
+
         it 'calls #connect_nonblock on the SSL socket' do
           handler.connect
           ssl_socket.should have_received(:connect_nonblock)
@@ -96,6 +112,7 @@ module Ione
               counter -= 1
               'bar'
             end
+            handler.connect
             handler.read
             read_sizes.drop(1).should == [read_sizes.first] * 3
           end
@@ -105,6 +122,7 @@ module Ione
             handler.on_data { |d| data << d }
             ssl_socket.stub(:pending).and_return(0)
             ssl_socket.stub(:read_nonblock).and_return('fooo')
+            handler.connect
             handler.read
             data.should == ['fooo']
           end
@@ -119,6 +137,7 @@ module Ione
               counter -= 1
               'bar'
             end
+            handler.connect
             handler.read
             read_sizes.drop(1).should == [3, 2, 1]
           end

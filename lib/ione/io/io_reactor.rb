@@ -160,8 +160,9 @@ module Ione
       #   or the connection timeout (equivalent to using the `:timeout` option).
       # @option options_or_timeout [Numeric] :timeout (5) the number of seconds
       #   to wait for a connection before failing
-      # @option options_or_timeout [Boolean] :ssl (false) when true, upgrade the
-      #   connection to SSL.
+      # @option options_or_timeout [Boolean, OpenSSL::SSL::SSLContext] :ssl (false)
+      #   pass an `OpenSSL::SSL::SSLContext` to upgrade the connection to SSL,
+      #   or true to upgrade the connection and create a new context.
       # @yieldparam [Ione::Io::Connection] connection the newly opened connection
       # @return [Ione::Future] a future that will resolve when the connection is
       #   open. The value will be the connection, or when a block is given to
@@ -180,10 +181,11 @@ module Ione
         @unblocker.unblock!
         if ssl
           f = f.flat_map do
-            upgraded_connection = SslConnection.new(host, port, connection.to_io, @unblocker)
+            ssl_context = ssl == true ? nil : ssl
+            upgraded_connection = SslConnection.new(host, port, connection.to_io, @unblocker, ssl_context)
+            ff = upgraded_connection.connect
             @io_loop.remove_socket(connection)
             @io_loop.add_socket(upgraded_connection)
-            ff = upgraded_connection.connect
             @unblocker.unblock!
             ff
           end

@@ -6,14 +6,20 @@ require 'openssl'
 module Ione
   module Io
     class SslConnection < BaseConnection
-      def initialize(host, port, io, unblocker, socket_impl=OpenSSL::SSL::SSLSocket)
+      def initialize(host, port, io, unblocker, ssl_context=nil, socket_impl=OpenSSL::SSL::SSLSocket)
         super(host, port, unblocker)
+        @socket_impl = socket_impl
+        @ssl_context = ssl_context
         @raw_io = io
-        @io = socket_impl.new(io)
         @connected_promise = Promise.new
       end
 
       def connect
+        if @io.nil? && @ssl_context
+          @io = @socket_impl.new(@raw_io, @ssl_context)
+        elsif @io.nil?
+          @io = @socket_impl.new(@raw_io)
+        end
         @io.connect_nonblock
         @state = :connected
         @connected_promise.fulfill(self)

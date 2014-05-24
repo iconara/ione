@@ -29,7 +29,11 @@ module Ione
         end
 
         def fake_connected(connection)
-          connection.to_io.stub(:connect_nonblock)
+          if connection.is_a?(SslConnection)
+            connection.instance_variable_get(:@io).stub(:connect_nonblock)
+          else
+            connection.to_io.stub(:connect_nonblock)
+          end
         end
 
         after do
@@ -175,6 +179,13 @@ module Ione
           reactor.start.value
           connection = reactor.connect('example.com', 9999, ssl: true).value
           connection.should be_a(SslConnection)
+        end
+
+        it 'passes an SSL context to the SSL connection' do
+          fake_ssl_context = double(:fake_ssl_context)
+          reactor.start.value
+          f = reactor.connect('example.com', 9999, ssl: fake_ssl_context)
+          expect { f.value }.to raise_error(TypeError, /expected kind of OpenSSL::SSL::SSLContext/i)
         end
       end
 
