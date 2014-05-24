@@ -12,6 +12,7 @@ module Ione
         @ssl_context = ssl_context
         @raw_io = io
         @connected_promise = Promise.new
+        on_closed(&method(:cleanup_on_close))
       end
 
       def connect
@@ -26,7 +27,7 @@ module Ione
         @connected_promise.future
       rescue OpenSSL::SSL::SSLError => e
         unless e.message.include?(WOULD_BLOCK_MESSAGE)
-          @connected_promise.fail(e)
+          close(e)
         end
         @connected_promise.future
       end
@@ -64,6 +65,15 @@ module Ione
       private
 
       WOULD_BLOCK_MESSAGE = 'would block'.freeze
+
+      def cleanup_on_close(cause)
+        if cause && !cause.is_a?(IoError)
+          cause = ConnectionError.new(cause.message)
+        end
+        unless @connected_promise.future.completed?
+          @connected_promise.fail(cause)
+        end
+      end
     end
   end
 end
