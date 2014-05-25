@@ -194,9 +194,9 @@ module Ione
         end
 
         it 'passes an SSL context to the SSL connection' do
-          fake_ssl_context = double(:fake_ssl_context)
+          ssl_context = double(:ssl_context)
           reactor.start.value
-          f = reactor.connect('example.com', 9999, ssl: fake_ssl_context)
+          f = reactor.connect('example.com', 9999, ssl: ssl_context)
           expect { f.value }.to raise_error
         end
       end
@@ -244,6 +244,13 @@ module Ione
           acceptor = reactor.bind(ENV['SERVER_HOST'], port, 5).value
           await { selector.last_arguments[0].length > 1 }
           selector.last_arguments[0].should include(acceptor)
+        end
+
+        it 'creates an SSL acceptor' do
+          ssl_context = double(:ssl_context)
+          reactor.start.value
+          acceptor = reactor.bind(ENV['SERVER_HOST'], port, ssl: ssl_context).value
+          acceptor.should be_an(SslAcceptor)
         end
       end
 

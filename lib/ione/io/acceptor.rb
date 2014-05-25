@@ -76,12 +76,10 @@ module Ione
       end
 
       def read
-        client_socket, client_sockaddr = @io.accept_nonblock
-        port, host = @socket_impl.unpack_sockaddr_in(client_sockaddr)
+        client_socket, host, port = accept
         connection = ServerConnection.new(client_socket, host, port, @unblocker)
         @reactor.accept(connection)
-        listeners = @lock.synchronize { @accept_listeners }
-        listeners.each { |l| l.call(connection) rescue nil }
+        notify_accept_listeners(connection)
       end
 
       if RUBY_ENGINE == 'jruby'
@@ -93,6 +91,19 @@ module Ione
           socket.bind(addr)
           socket.listen(backlog)
         end
+      end
+
+      private
+
+      def accept
+        client_socket, client_sockaddr = @io.accept_nonblock
+        port, host = @socket_impl.unpack_sockaddr_in(client_sockaddr)
+        return client_socket, host, port
+      end
+
+      def notify_accept_listeners(connection)
+        listeners = @lock.synchronize { @accept_listeners }
+        listeners.each { |l| l.call(connection) rescue nil }
       end
     end
   end

@@ -197,10 +197,16 @@ module Ione
       def bind(host, port, options=nil, &block)
         if options.is_a?(Integer) || options.nil?
           backlog = options || 5
+          ssl_context = nil
         elsif options
           backlog = options[:backlog] || 5
+          ssl_context = options[:ssl]
         end
-        server = Acceptor.new(host, port, backlog, @unblocker, self)
+        if ssl_context
+          server = SslAcceptor.new(host, port, backlog, @unblocker, self, ssl_context)
+        else
+          server = Acceptor.new(host, port, backlog, @unblocker, self)
+        end
         f = server.bind
         @io_loop.add_socket(server)
         @unblocker.unblock!
