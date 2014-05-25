@@ -148,6 +148,13 @@ module Ione
             read_sizes.drop(1).should == [3, 2, 1]
           end
         end
+
+        it 'closes the connection when an error occurs' do
+          ssl_socket.stub(:read_nonblock).and_raise('boork')
+          handler.connect
+          handler.read
+          handler.should be_closed
+        end
       end
     end
   end
