@@ -29,8 +29,8 @@ module Ione
         addrinfos = @socket_impl.getaddrinfo(@host, @port, nil, Socket::SOCK_STREAM)
         begin
           _, port, _, ip, address_family, socket_type = addrinfos.shift
-          @socket = @socket_impl.new(address_family, socket_type, 0)
-          bind_socket(@socket, @socket_impl.sockaddr_in(port, ip), @backlog)
+          @io = @socket_impl.new(address_family, socket_type, 0)
+          bind_socket(@io, @socket_impl.sockaddr_in(port, ip), @backlog)
         rescue Errno::EADDRNOTAVAIL => e
           if addrinfos.empty?
             raise
@@ -44,22 +44,22 @@ module Ione
       end
 
       def close
-        return false unless @socket
+        return false unless @io
         begin
-          @socket.close
+          @io.close
         rescue SystemCallError, IOError
           # nothing to do, the socket was most likely already closed
         end
-        @socket = nil
+        @io = nil
         true
       end
 
       def to_io
-        @socket
+        @io
       end
 
       def closed?
-        @socket.nil?
+        @io.nil?
       end
 
       def connected?
@@ -75,7 +75,7 @@ module Ione
       end
 
       def read
-        client_socket, client_sockaddr = @socket.accept_nonblock
+        client_socket, client_sockaddr = @io.accept_nonblock
         port, host = @socket_impl.unpack_sockaddr_in(client_sockaddr)
         connection = ServerConnection.new(client_socket, host, port, @unblocker)
         @reactor.accept(connection)
