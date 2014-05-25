@@ -168,8 +168,8 @@ module Ione
       #   open. The value will be the connection, or when a block is given to
       #   what the block returns
       def connect(host, port, options={}, &block)
-        if options.is_a?(Numeric)
-          timeout = options
+        if options.is_a?(Numeric) || options.nil?
+          timeout = options || 5
           ssl = false
         elsif options
           timeout = options[:timeout] || 5

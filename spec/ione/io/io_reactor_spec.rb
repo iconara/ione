@@ -163,6 +163,18 @@ module Ione
           x.should == :foo
         end
 
+        it 'defaults to 5 as the connection timeout' do
+          reactor.start.value
+          connection = reactor.connect('example.com', 9999).value
+          connection.connection_timeout.should == 5
+        end
+
+        it 'takes the connection timeout from the :timeout option' do
+          reactor.start.value
+          connection = reactor.connect('example.com', 9999, timeout: 9).value
+          connection.connection_timeout.should == 9
+        end
+
         it 'returns the connection when no block is given' do
           reactor.start.value
           reactor.connect('example.com', 9999, 5).value.should be_a(Connection)
