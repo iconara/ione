@@ -5,6 +5,7 @@ require 'openssl'
 
 module Ione
   module Io
+    # @private
     class SslConnection < BaseConnection
       def initialize(host, port, io, unblocker, ssl_context=nil, socket_impl=OpenSSL::SSL::SSLSocket)
         super(host, port, unblocker)
