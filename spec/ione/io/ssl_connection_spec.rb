@@ -69,12 +69,16 @@ module Ione
         end
 
         it 'does nothing when the socket raises a "would block" error' do
-          ssl_socket.stub(:connect_nonblock).and_raise(OpenSSL::SSL::SSLError.new('would block'))
+          error = OpenSSL::SSL::SSLError.new('would block')
+          error.extend(IO::WaitReadable)
+          ssl_socket.stub(:connect_nonblock).and_raise(error)
           expect { handler.connect }.to_not raise_error
         end
 
         it 'returns a future that resolves when the socket is connected' do
-          ssl_socket.stub(:connect_nonblock).and_raise(OpenSSL::SSL::SSLError.new('would block'))
+          error = OpenSSL::SSL::SSLError.new('would block')
+          error.extend(IO::WaitReadable)
+          ssl_socket.stub(:connect_nonblock).and_raise(error)
           f = handler.connect
           f.should_not be_resolved
           ssl_socket.stub(:connect_nonblock).and_return(nil)

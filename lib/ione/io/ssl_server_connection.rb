@@ -29,10 +29,8 @@ module Ione
             @io = @ssl_io
             @ssl_state = :established
             @accept_callback.call(self)
-          rescue OpenSSL::SSL::SSLError => e
-            unless e.message.include?(WOULD_BLOCK_MESSAGE)
-              close(e)
-            end
+          rescue IO::WaitReadable
+            # connection not ready yet
           rescue => e
             close(e)
           end
@@ -40,10 +38,6 @@ module Ione
           super
         end
       end
-
-      private
-
-      WOULD_BLOCK_MESSAGE = 'would block'.freeze
     end
   end
 end
