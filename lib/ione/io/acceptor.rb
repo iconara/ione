@@ -6,6 +6,8 @@ module Ione
     class Acceptor
       ServerSocket = RUBY_ENGINE == 'jruby' ? ::ServerSocket : Socket
 
+      attr_reader :backlog
+
       def initialize(host, port, backlog, unblocker, reactor, socket_impl=nil)
         @host = host
         @port = port

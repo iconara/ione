@@ -167,7 +167,7 @@ module Ione
       # @return [Ione::Future] a future that will resolve when the connection is
       #   open. The value will be the connection, or when a block is given to
       #   what the block returns
-      def connect(host, port, options={}, &block)
+      def connect(host, port, options=nil, &block)
         if options.is_a?(Numeric) || options.nil?
           timeout = options || 5
           ssl = false
@@ -194,7 +194,12 @@ module Ione
         f
       end
 
-      def bind(host, port, backlog, &block)
+      def bind(host, port, options=nil, &block)
+        if options.is_a?(Integer) || options.nil?
+          backlog = options || 5
+        elsif options
+          backlog = options[:backlog] || 5
+        end
         server = Acceptor.new(host, port, backlog, @unblocker, self)
         f = server.bind
         @io_loop.add_socket(server)
@@ -284,6 +289,7 @@ module Ione
       private
 
       PING_BYTE = "\0".freeze
+      DEFAULT_CONNECT_OPTIONS = {:timeout => 5}.freeze
     end
 
     # @private

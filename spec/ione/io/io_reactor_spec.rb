@@ -221,6 +221,18 @@ module Ione
           x.should == :foo
         end
 
+        it 'defaults to a backlog of 5' do
+          reactor.start.value
+          acceptor = reactor.bind(ENV['SERVER_HOST'], port).value
+          acceptor.backlog.should == 5
+        end
+
+        it 'takes the backlog from the :backlog option' do
+          reactor.start.value
+          acceptor = reactor.bind(ENV['SERVER_HOST'], port, backlog: 9).value
+          acceptor.backlog.should == 9
+        end
+
         it 'returns the acceptor when no block is given' do
           reactor.start.value
           acceptor = reactor.bind(ENV['SERVER_HOST'], port, 5).value
