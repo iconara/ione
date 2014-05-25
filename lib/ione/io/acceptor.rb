@@ -40,6 +40,7 @@ module Ione
         end
         Future.resolved(self)
       rescue => e
+        close
         Future.failed(e)
       end
 
