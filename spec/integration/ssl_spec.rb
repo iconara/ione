@@ -19,11 +19,14 @@ describe 'SSL' do
   let :ssl_cert do
     cert = OpenSSL::X509::Certificate.new
     cert.version = 2
-    cert.serial = 0
+    cert.serial = 1
+    name = OpenSSL::X509::Name.new([['CN', 'localhost']])
+    cert.subject = name
+    cert.issuer = name
     cert.not_before = Time.now
-    cert.not_after = Time.now + 3600
+    cert.not_after = Time.now + (365*24*60*60)
     cert.public_key = ssl_key.public_key
-    cert.subject = OpenSSL::X509::Name.parse('CN=nobody/DC=example')
+    cert.sign(ssl_key, OpenSSL::Digest::SHA1.new)
     cert
   end
 
@@ -43,6 +46,10 @@ describe 'SSL' do
   end
 
   def start_server
+    ssl_context = OpenSSL::SSL::SSLContext.new
+    ssl_context.key = OpenSSL::PKey::RSA.new(ssl_key)
+    ssl_context.cert = OpenSSL::X509::Certificate.new(ssl_cert)
+
     f = io_reactor.start
     f = f.flat_map do
       io_reactor.bind(ENV['SERVER_HOST'], port, ssl: ssl_context) do |acceptor|
@@ -58,6 +65,9 @@ describe 'SSL' do
   end
 
   it 'establishes an encrypted connection' do
+    ssl_context = OpenSSL::SSL::SSLContext.new
+    ssl_context.cert = OpenSSL::X509::Certificate.new(ssl_cert)
+
     response_received = Ione::Promise.new
     f = start_server
     f = f.flat_map do
