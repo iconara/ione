@@ -242,7 +242,7 @@ module Ione
         it 'creates an acceptor and passes it to the selector as a readable' do
           reactor.start.value
           acceptor = reactor.bind(ENV['SERVER_HOST'], port, 5).value
-          await { selector.last_arguments[0].length > 1 }
+          await { selector.last_arguments && selector.last_arguments[0].length > 1 }
           selector.last_arguments[0].should include(acceptor)
         end
 
