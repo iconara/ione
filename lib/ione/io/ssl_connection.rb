@@ -26,7 +26,8 @@ module Ione
         @state = :connected
         @connected_promise.fulfill(self)
         @connected_promise.future
-      rescue IO::WaitReadable
+      rescue IO::WaitReadable, IO::WaitWritable
+        # WaitReadable in JRuby, WaitWritable in MRI
         @connected_promise.future
       rescue => e
         close(e)
