@@ -45,7 +45,7 @@ module Ione
             new_data = @io.read_nonblock(2**16)
             @data_listener.call(new_data) if @data_listener
           end
-        rescue OpenSSL::SSL::SSLErrorWaitReadable
+        rescue IO::WaitReadable
           # no more data available
         rescue => e
           close(e)
