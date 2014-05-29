@@ -86,7 +86,7 @@ module Ione
     #   futures
     def all(*futures)
       return resolved([]) if futures.empty?
-      return futures.first if futures.size == 1
+      return futures.first.map { |v| [v] } if futures.size == 1
       CombinedFuture.new(futures)
     end
 

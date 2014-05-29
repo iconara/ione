@@ -613,6 +613,11 @@ module Ione
         it 'completes with an empty list when no futures are given' do
           Future.all.value.should == []
         end
+
+        it 'completes with a list of one item when a single future is given' do
+          f = Future.resolved(1)
+          Future.all(f).value.should == [1]
+        end
       end
     end
 
@@ -682,6 +687,10 @@ module Ione
 
         it 'completes with nil when no futures are given' do
           Future.first.value.should be_nil
+        end
+
+        it 'completes with the value of the given future, when only one is given' do
+          Future.first(Future.resolved('foo')).value.should == 'foo'
         end
       end
     end
