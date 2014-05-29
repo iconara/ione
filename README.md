@@ -29,6 +29,7 @@ The [examples](https://github.com/iconara/ione/tree/master/examples) directory h
 * [redis_client](https://github.com/iconara/ione/tree/master/examples/redis_client) is a more or less full featured Redis client that uses most of Ione's features.
 * [http_client](https://github.com/iconara/ione/tree/master/examples/http_client) is a simplistic HTTP client that uses Ione and [http_parser.rb](http://rubygems.org/gems/http_parser.rb) to make HTTP GET request.
 * [cql-rb](https://github.com/iconara/cql-rb) is a high performance Cassandra driver and where Ione was originally developed.
+* [ione-rpc](https://github.com/iconara/ione-rpc) is a RPC framework built on Ione. It makes it reasonably easy to build networked applications without having to reinvent the wheel.
 
 # How to contribute
 
