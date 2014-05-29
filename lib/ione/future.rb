@@ -86,6 +86,7 @@ module Ione
     #   futures
     def all(*futures)
       return resolved([]) if futures.empty?
+      return futures.first if futures.size == 1
       CombinedFuture.new(futures)
     end
 
@@ -97,6 +98,7 @@ module Ione
     # @return [Ione::Future] a future which represents the first completing future
     def first(*futures)
       return resolved if futures.empty?
+      return futures.first if futures.size == 1
       FirstFuture.new(futures)
     end
 
@@ -105,6 +107,7 @@ module Ione
     # @param [Object, nil] value the value of the created future
     # @return [Ione::Future] a resolved future
     def resolved(value=nil)
+      return ResolvedFuture::NIL if value.nil?
       ResolvedFuture.new(value)
     end
 
@@ -468,6 +471,8 @@ module Ione
 
     def on_failure
     end
+
+    NIL = new(nil)
   end
 
   # @private
