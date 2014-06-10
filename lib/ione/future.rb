@@ -237,10 +237,10 @@ module Ione
     def on_complete(&listener)
       run_immediately = false
       @lock.synchronize do
-        if @resolved || @failed
-          run_immediately = true
-        else
+        if @state == :pending
           @complete_listeners << listener
+        else
+          run_immediately = true
         end
       end
       if run_immediately
@@ -257,10 +257,10 @@ module Ione
     def on_value(&listener)
       run_immediately = false
       @lock.synchronize do
-        if @resolved
-          run_immediately = true
-        elsif !@failed
+        if @state == :pending
           @value_listeners << listener
+        elsif @state == :resolved
+          run_immediately = true
         end
       end
       if run_immediately
@@ -277,10 +277,10 @@ module Ione
     def on_failure(&listener)
       run_immediately = false
       @lock.synchronize do
-        if @failed
-          run_immediately = true
-        elsif !@resolved
+        if @state == :pending
           @failure_listeners << listener
+        elsif @state == :failed
+          run_immediately = true
         end
       end
       if run_immediately
@@ -300,8 +300,7 @@ module Ione
 
     def initialize
       @lock = Mutex.new
-      @resolved = false
-      @failed = false
+      @state = :pending
       @failure_listeners = []
       @value_listeners = []
       @complete_listeners = []
@@ -317,8 +316,8 @@ module Ione
     def value
       semaphore = nil
       @lock.synchronize do
-        raise @error if @failed
-        return @value if @resolved
+        raise @error if @state == :failed
+        return @value if @state == :resolved
         semaphore = Queue.new
         u = proc { semaphore << :unblock }
         @value_listeners << u
@@ -326,8 +325,8 @@ module Ione
       end
       while true
         @lock.synchronize do
-          raise @error if @failed
-          return @value if @resolved
+          raise @error if @state == :failed
+          return @value if @state == :resolved
         end
         semaphore.pop
       end
@@ -335,17 +334,17 @@ module Ione
 
     # Returns true if this future is resolved or failed
     def completed?
-      resolved? || failed?
+      @lock.synchronize { @state != :pending }
     end
 
     # Returns true if this future is resolved
     def resolved?
-      @lock.synchronize { @resolved }
+      @lock.synchronize { @state == :resolved }
     end
 
     # Returns true if this future has failed
     def failed?
-      @lock.synchronize { @failed }
+      @lock.synchronize { @state == :failed }
     end
   end
 
@@ -355,8 +354,8 @@ module Ione
       value_listeners = nil
       complete_listeners = nil
       @lock.synchronize do
-        raise FutureError, 'Future already completed' if @resolved || @failed
-        @resolved = true
+        raise FutureError, 'Future already completed' unless @state == :pending
+        @state = :resolved
         @value = v
         value_listeners = @value_listeners
         complete_listeners = @complete_listeners
@@ -377,8 +376,8 @@ module Ione
       failure_listeners = nil
       complete_listeners = nil
       @lock.synchronize do
-        raise FutureError, 'Future already completed' if @failed || @resolved
-        @failed = true
+        raise FutureError, 'Future already completed' unless @state == :pending
+        @state = :failed
         @error = error
         failure_listeners = @failure_listeners
         complete_listeners = @complete_listeners
@@ -439,8 +438,7 @@ module Ione
   # @private
   class ResolvedFuture < Future
     def initialize(value=nil)
-      @resolved = true
-      @failed = false
+      @state = :resolved
       @value = value
       @error = nil
     end
@@ -478,8 +476,7 @@ module Ione
   # @private
   class FailedFuture < Future
     def initialize(error)
-      @resolved = false
-      @failed = true
+      @state = :failed
       @value = nil
       @error = error
     end
