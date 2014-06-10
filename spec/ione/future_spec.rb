@@ -148,6 +148,10 @@ module Ione
         promise.fail(StandardError.new('bork'))
         future.should be_completed
       end
+
+      it 'is false before the future has been resolved or failed' do
+        future.should_not be_completed
+      end
     end
 
     describe '#resolved?' do
@@ -165,6 +169,10 @@ module Ione
         promise.fail(StandardError.new('bork'))
         future.should_not be_resolved
       end
+
+      it 'is false before the future has been resolved or failed' do
+        future.should_not be_resolved
+      end
     end
 
     describe '#failed?' do
@@ -175,6 +183,10 @@ module Ione
 
       it 'is false when the promise is fulfilled' do
         promise.fulfill
+        future.should_not be_failed
+      end
+
+      it 'is false before the future has been resolved or failed' do
         future.should_not be_failed
       end
     end

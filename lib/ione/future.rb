@@ -239,12 +239,15 @@ module Ione
       if @state != :pending
         run_immediately = true
       else
-        @lock.synchronize do
+        @lock.lock
+        begin
           if @state == :pending
             @complete_listeners << listener
           else
             run_immediately = true
           end
+        ensure
+          @lock.unlock
         end
       end
       if run_immediately
@@ -263,12 +266,15 @@ module Ione
       if @state == :resolved
         run_immediately = true
       else
-        @lock.synchronize do
+        @lock.lock
+        begin
           if @state == :pending
             @value_listeners << listener
           elsif @state == :resolved
             run_immediately = true
           end
+        ensure
+          @lock.unlock
         end
       end
       if run_immediately
@@ -287,12 +293,15 @@ module Ione
       if @state == :failed
         run_immediately = true
       else
-        @lock.synchronize do
+        @lock.lock
+        begin
           if @state == :pending
             @failure_listeners << listener
           elsif @state == :failed
             run_immediately = true
           end
+        ensure
+          @lock.unlock
         end
       end
       if run_immediately
@@ -329,18 +338,24 @@ module Ione
       raise @error if @state == :failed
       return @value if @state == :resolved
       semaphore = nil
-      @lock.synchronize do
+      @lock.lock
+      begin
         raise @error if @state == :failed
         return @value if @state == :resolved
         semaphore = Queue.new
         u = proc { semaphore << :unblock }
         @value_listeners << u
         @failure_listeners << u
+      ensure
+        @lock.unlock
       end
       while true
-        @lock.synchronize do
+        @lock.lock
+        begin
           raise @error if @state == :failed
           return @value if @state == :resolved
+        ensure
+          @lock.unlock
         end
         semaphore.pop
       end
@@ -348,17 +363,35 @@ module Ione
 
     # Returns true if this future is resolved or failed
     def completed?
-      @state != :pending || @lock.synchronize { @state != :pending }
+      return true unless @state == :pending
+      @lock.lock
+      begin
+        @state != :pending
+      ensure
+        @lock.unlock
+      end
     end
 
     # Returns true if this future is resolved
     def resolved?
-      @state != :pending ? @state == :resolved : @lock.synchronize { @state == :resolved }
+      return @state == :resolved unless @state == :pending
+      @lock.lock
+      begin
+        @state == :resolved
+      ensure
+        @lock.unlock
+      end
     end
 
     # Returns true if this future has failed
     def failed?
-      @state != :pending ? @state == :failed : @lock.synchronize { @state == :failed }
+      return @state == :failed unless @state == :pending
+      @lock.lock
+      begin
+        @state == :failed
+      ensure
+        @lock.unlock
+      end
     end
   end
 
@@ -367,7 +400,8 @@ module Ione
     def resolve(v=nil)
       value_listeners = nil
       complete_listeners = nil
-      @lock.synchronize do
+      @lock.lock
+      begin
         raise FutureError, 'Future already completed' unless @state == :pending
         @value = v
         @state = :resolved
@@ -376,6 +410,8 @@ module Ione
         @value_listeners = nil
         @failure_listeners = nil
         @complete_listeners = nil
+      ensure
+        @lock.unlock
       end
       value_listeners.each do |listener|
         listener.call(v) rescue nil
@@ -389,7 +425,8 @@ module Ione
     def fail(error)
       failure_listeners = nil
       complete_listeners = nil
-      @lock.synchronize do
+      @lock.lock
+      begin
         raise FutureError, 'Future already completed' unless @state == :pending
         @error = error
         @state = :failed
@@ -398,6 +435,8 @@ module Ione
         @value_listeners = nil
         @failure_listeners = nil
         @complete_listeners = nil
+      ensure
+        @lock.unlock
       end
       failure_listeners.each do |listener|
         listener.call(error) rescue nil
@@ -417,9 +456,12 @@ module Ione
       remaining = futures.size
       futures.each_with_index do |f, i|
         f.on_value do |v|
-          @lock.synchronize do
+          @lock.lock
+          begin
             values[i] = v
             remaining -= 1
+          ensure
+            @lock.unlock
           end
           if remaining == 0
             resolve(values)
