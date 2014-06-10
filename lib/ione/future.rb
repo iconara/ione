@@ -236,11 +236,15 @@ module Ione
     # @yieldparam [Ione::Future] future the future
     def on_complete(&listener)
       run_immediately = false
-      @lock.synchronize do
-        if @state == :pending
-          @complete_listeners << listener
-        else
-          run_immediately = true
+      if @state != :pending
+        run_immediately = true
+      else
+        @lock.synchronize do
+          if @state == :pending
+            @complete_listeners << listener
+          else
+            run_immediately = true
+          end
         end
       end
       if run_immediately
@@ -256,11 +260,15 @@ module Ione
     # @yieldparam [Object] value the value of the resolved future
     def on_value(&listener)
       run_immediately = false
-      @lock.synchronize do
-        if @state == :pending
-          @value_listeners << listener
-        elsif @state == :resolved
-          run_immediately = true
+      if @state == :resolved
+        run_immediately = true
+      else
+        @lock.synchronize do
+          if @state == :pending
+            @value_listeners << listener
+          elsif @state == :resolved
+            run_immediately = true
+          end
         end
       end
       if run_immediately
@@ -276,11 +284,15 @@ module Ione
     # @yieldparam [Error] error the error that failed the future
     def on_failure(&listener)
       run_immediately = false
-      @lock.synchronize do
-        if @state == :pending
-          @failure_listeners << listener
-        elsif @state == :failed
-          run_immediately = true
+      if @state == :failed
+        run_immediately = true
+      else
+        @lock.synchronize do
+          if @state == :pending
+            @failure_listeners << listener
+          elsif @state == :failed
+            run_immediately = true
+          end
         end
       end
       if run_immediately
@@ -314,6 +326,8 @@ module Ione
     #
     # @return [Object] the value of this future
     def value
+      raise @error if @state == :failed
+      return @value if @state == :resolved
       semaphore = nil
       @lock.synchronize do
         raise @error if @state == :failed
@@ -334,17 +348,17 @@ module Ione
 
     # Returns true if this future is resolved or failed
     def completed?
-      @lock.synchronize { @state != :pending }
+      @state != :pending || @lock.synchronize { @state != :pending }
     end
 
     # Returns true if this future is resolved
     def resolved?
-      @lock.synchronize { @state == :resolved }
+      @state != :pending ? @state == :resolved : @lock.synchronize { @state == :resolved }
     end
 
     # Returns true if this future has failed
     def failed?
-      @lock.synchronize { @state == :failed }
+      @state != :pending ? @state == :failed : @lock.synchronize { @state == :failed }
     end
   end
 
@@ -355,8 +369,8 @@ module Ione
       complete_listeners = nil
       @lock.synchronize do
         raise FutureError, 'Future already completed' unless @state == :pending
-        @state = :resolved
         @value = v
+        @state = :resolved
         value_listeners = @value_listeners
         complete_listeners = @complete_listeners
         @value_listeners = nil
@@ -377,8 +391,8 @@ module Ione
       complete_listeners = nil
       @lock.synchronize do
         raise FutureError, 'Future already completed' unless @state == :pending
-        @state = :failed
         @error = error
+        @state = :failed
         failure_listeners = @failure_listeners
         complete_listeners = @complete_listeners
         @value_listeners = nil
