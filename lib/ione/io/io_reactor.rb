@@ -224,9 +224,10 @@ module Ione
       end
 
       def unblock!
-        @lock.synchronize do
-          @in.write(PING_BYTE)
-        end
+        @lock.lock
+        @in.write(PING_BYTE)
+      ensure
+        @lock.unlock
       end
 
       def read
@@ -264,20 +265,22 @@ module Ione
       end
 
       def add_socket(socket)
-        @lock.synchronize do
-          sockets = @sockets.reject { |s| s.closed? }
-          sockets << socket
-          @sockets = sockets
-        end
+        @lock.lock
+        sockets = @sockets.reject { |s| s.closed? }
+        sockets << socket
+        @sockets = sockets
+      ensure
+        @lock.unlock
       end
 
       def schedule_timer(timeout, promise=Promise.new)
-        @lock.synchronize do
-          timers = @timers.reject { |pair| pair[1].nil? }
-          timers << [@clock.now + timeout, promise]
-          @timers = timers
-        end
+        @lock.lock
+        timers = @timers.reject { |pair| pair[1].nil? }
+        timers << [@clock.now + timeout, promise]
+        @timers = timers
         promise.future
+      ensure
+        @lock.unlock
       end
 
       def close_sockets

@@ -63,8 +63,11 @@ module Ione
 
       # @private
       def writable?
-        empty_buffer = @lock.synchronize do
-          @write_buffer.empty?
+        @lock.lock
+        begin
+          empty_buffer = @write_buffer.empty?
+        ensure
+          @lock.unlock
         end
         !(closed? || empty_buffer)
       end
@@ -113,12 +116,15 @@ module Ione
       # @param bytes [String, Ione::ByteBuffer] the data to write to the socket
       def write(bytes=nil)
         if @state == :connected || @state == :connecting
-          @lock.synchronize do
+          @lock.lock
+          begin
             if block_given?
               yield @write_buffer
             elsif bytes
               @write_buffer.append(bytes)
             end
+          ensure
+            @lock.unlock
           end
           @unblocker.unblock!
         end
@@ -127,7 +133,8 @@ module Ione
       # @private
       def flush
         if @state == :connected || @state == :draining
-          @lock.synchronize do
+          @lock.lock
+          begin
             unless @write_buffer.empty?
               bytes_written = @io.write_nonblock(@write_buffer.cheap_peek)
               @write_buffer.discard(bytes_written)
@@ -135,6 +142,8 @@ module Ione
             if @state == :draining && @write_buffer.empty?
               close
             end
+          ensure
+            @lock.unlock
           end
         end
       rescue => e
