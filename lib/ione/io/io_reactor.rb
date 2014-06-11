@@ -195,6 +195,15 @@ module Ione
         @io_loop.schedule_timer(timeout)
       end
 
+      # Cancels a previously scheduled timer.
+      #
+      # The timer will fail with a {Ione::CancelledError}.
+      #
+      # @param timer_future [Ione::Future] the future returned by {#schedule_timer}
+      def cancel_timer(timer_future)
+        @io_loop.cancel_timer(timer_future)
+      end
+
       def to_s
         @io_loop.to_s
       end
@@ -279,6 +288,16 @@ module Ione
         timers << [@clock.now + timeout, promise]
         @timers = timers
         promise.future
+      ensure
+        @lock.unlock
+      end
+
+      def cancel_timer(timer_future)
+        @lock.lock
+        timer_pair = @timers.find { |pair| (p = pair[1]) && p.future == timer_future }
+        @timers = @timers.reject { |pair| pair[1].nil? || pair == timer_pair }
+        timer_pair && timer_pair[1].fail(CancelledError.new)
+        nil
       ensure
         @lock.unlock
       end

@@ -223,6 +223,59 @@ module Ione
         end
       end
 
+      describe '#cancel_timer' do
+        before do
+          reactor.start.value
+        end
+
+        after do
+          reactor.stop.value
+        end
+
+        it 'fails the timer future' do
+          clock.stub(:now).and_return(1)
+          f = reactor.schedule_timer(0.1)
+          reactor.cancel_timer(f)
+          await { f.failed? }
+        end
+
+        it 'does not trigger the timer future when it expires' do
+          clock.stub(:now).and_return(1)
+          f = reactor.schedule_timer(0.1)
+          reactor.cancel_timer(f)
+          clock.stub(:now).and_return(1.1)
+          await { f.failed? }
+        end
+
+        it 'fails the future with a CancelledError' do
+          clock.stub(:now).and_return(1)
+          f = reactor.schedule_timer(0.1)
+          reactor.cancel_timer(f)
+          await { f.failed? }
+          expect { f.value }.to raise_error(CancelledError)
+        end
+
+        it 'does nothing when the timer has already expired' do
+          clock.stub(:now).and_return(1)
+          f = reactor.schedule_timer(0.1)
+          clock.stub(:now).and_return(1.1)
+          await { f.resolved? }
+          reactor.cancel_timer(f)
+        end
+
+        it 'does nothing when given a future that is not a timer' do
+          reactor.cancel_timer(Ione::Promise.new.future)
+        end
+
+        it 'does nothing when given something that is not a future' do
+          reactor.cancel_timer(:foobar)
+        end
+
+        it 'does nothing when given nil' do
+          reactor.cancel_timer(nil)
+        end
+      end
+
       describe '#to_s' do
         context 'returns a string that' do
           it 'includes the class name' do
