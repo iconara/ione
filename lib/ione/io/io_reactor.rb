@@ -341,10 +341,13 @@ module Ione
           writables << s if s.connecting? || s.writable?
           connecting << s if s.connecting?
         end
-        r, w, _ = @selector.select(readables, writables, nil, timeout)
-        connecting.each(&:connect)
-        r && r.each(&:read)
-        w && w.each(&:flush)
+        begin
+          r, w, _ = @selector.select(readables, writables, nil, timeout)
+          connecting.each(&:connect)
+          r && r.each(&:read)
+          w && w.each(&:flush)
+        rescue Errno::EBADF
+        end
       end
 
       def check_timers!
