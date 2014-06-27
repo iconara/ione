@@ -346,7 +346,7 @@ module Ione
           connecting.each(&:connect)
           r && r.each(&:read)
           w && w.each(&:flush)
-        rescue Errno::EBADF
+        rescue IOError, Errno::EBADF
         end
       end
 

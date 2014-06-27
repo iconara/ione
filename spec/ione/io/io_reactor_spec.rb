@@ -347,6 +347,13 @@ module Ione
           loop_body.tick
         end
 
+        it 'does nothing when IO.select raises IOError' do
+          selector.should_receive(:select) do
+            raise IOError
+          end
+          loop_body.tick
+        end
+
         it 'calls #read on all readable sockets returned by the selector' do
           socket.stub(:connected?).and_return(true)
           socket.should_receive(:read)
