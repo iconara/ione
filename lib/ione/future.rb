@@ -116,7 +116,7 @@ module Ione
     # @yieldparam [Object] value each element from the array
     # @yieldreturn [Ione::Future] a future
     # @return [Ione::Future] a future that will resolve to an array of the values
-    #  of the futures returned by the block
+    #   of the futures returned by the block
     def traverse(values, &block)
       all(*values.map(&block))
     rescue => e
