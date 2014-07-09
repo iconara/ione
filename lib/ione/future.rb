@@ -188,7 +188,7 @@ module Ione
     # Returns a new future which represents either the value of the original
     # future, or the result of the given block, if the original future fails.
     #
-    # This method is similar to{#map}, but is triggered by a failure. You can
+    # This method is similar to {#map}, but is triggered by a failure. You can
     # also think of it as a `rescue` block for asynchronous operations.
     #
     # If the block raises an error a failed future with that error will be
