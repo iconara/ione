@@ -154,6 +154,35 @@ module Ione
       on_value { |v| chain(f, block, v) }
       f
     end
+
+    # Returns a new future representing a transformation of this future's value,
+    # similarily to {#map}, but acts as {#flat_map} when the block returns a
+    # {Future}.
+    #
+    # This method is useful when you want to transform the value of a future,
+    # but whether or not it can be done synchronously or require an asynchronous
+    # operation depends on the value of the future.
+    #
+    # @example
+    #   future1 = load_something
+    #   future2 = future1.then do |result|
+    #     if result.empty?
+    #       # make a new async call to load fallback value
+    #       load_something_else
+    #     else
+    #       result
+    #     end
+    #   end
+    #
+    # @yieldparam [Object] value the value of this future
+    # @yieldreturn [Object, Ione::Future] the transformed value, or a future
+    #   that will resolve to the transformed value.
+    # @return [Ione::Future] a new future representing the transformed value
+    def then(&block)
+      f = CompletableFuture.new
+      on_failure { |e| f.fail(e) }
+      on_value { |v| chain(f, block, v, true) }
+      f
     end
 
     # Returns a new future which represents either the value of the original
@@ -220,10 +249,14 @@ module Ione
       f.fail(e)
     end
 
-    def chain(f, constructor, arg)
+    def chain(f, constructor, arg, lenient=false)
       ff = constructor.call(arg)
-      ff.on_failure { |e| f.fail(e) }
-      ff.on_value { |v| f.resolve(v) }
+      if lenient && !(ff.respond_to?(:on_value) && ff.respond_to?(:on_failure))
+        f.resolve(ff)
+      else
+        ff.on_failure { |e| f.fail(e) }
+        ff.on_value { |v| f.resolve(v) }
+      end
     rescue => e
       f.fail(e)
     end

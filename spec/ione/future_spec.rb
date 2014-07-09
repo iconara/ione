@@ -471,6 +471,36 @@ module Ione
       end
     end
 
+    describe '#then' do
+      context 'when the block returns a future' do
+        it 'works like #flat_map' do
+          p = Promise.new
+          f = p.future.then { |v| Future.resolved(v * 2) }
+          p.fulfill(3)
+          f.value.should == 3 * 2
+        end
+      end
+
+      context 'when the block returns something that is not a future' do
+        it 'works like #map' do
+          p = Promise.new
+          f = p.future.then { |v| v * 2 }
+          p.fulfill(3)
+          f.value.should == 3 * 2
+        end
+      end
+
+      it 'returns a failed future when the block raises an error' do
+        p = Promise.new
+        f = p.future.then { |v| raise 'blurgh' }
+        d = delayed do
+          p.fulfill
+        end
+        d.value
+        expect { f.value }.to raise_error('blurgh')
+      end
+    end
+
     describe '#recover' do
       context 'returns a new future that' do
         it 'resolves to a value created by the block when the source future fails' do
