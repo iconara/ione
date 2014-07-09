@@ -366,7 +366,7 @@ module Ione
         future.value.should == 'bar'
       end
 
-      it 'blocks on #value until fulfilled, when value is nil' do
+      it 'blocks on #value until completed, when value is nil' do
         d = delayed(promise) do |p|
           p.fulfill
         end
@@ -382,7 +382,7 @@ module Ione
         expect { future.value }.to raise_error('bork')
       end
 
-      it 'allows multiple threads to block on #value until fulfilled' do
+      it 'allows multiple threads to block on #value until completed' do
         listeners = Array.new(10) do
           async(future) do |f|
             f.value
@@ -396,7 +396,7 @@ module Ione
 
     describe '#map' do
       context 'returns a new future that' do
-        it 'will be fulfilled with the result of the given block' do
+        it 'will be resolved with the result of the given block' do
           mapped_value = nil
           p = Promise.new
           f = p.future.map { |v| v * 2 }
@@ -405,7 +405,7 @@ module Ione
           mapped_value.should == 3 * 2
         end
 
-        it 'will be fulfilled with the specified value' do
+        it 'will be resolved with the specified value' do
           mapped_value = nil
           p = Promise.new
           f = p.future.map(7)
@@ -414,7 +414,7 @@ module Ione
           mapped_value.should == 7
         end
 
-        it 'will be fulfilled with the result of the given block, even if a value is specified' do
+        it 'will be resolved with the result of the given block, even if a value is specified' do
           mapped_value = nil
           p = Promise.new
           f = p.future.map(7) { |v| v * 2 }
@@ -423,7 +423,7 @@ module Ione
           mapped_value.should == 3 * 2
         end
 
-        it 'will be fulfilled with nil when neither value nor block is specified' do
+        it 'will be resolved with nil when neither value nor block is specified' do
           mapped_value = 3
           p = Promise.new
           f = p.future.map
@@ -471,28 +471,28 @@ module Ione
 
     describe '#recover' do
       context 'returns a new future that' do
-        it 'becomes fulfilled with a value created by the block when the source future fails' do
+        it 'resolves to a value created by the block when the source future fails' do
           p = Promise.new
           f = p.future.recover { 'foo' }
           p.fail(error)
           f.value.should == 'foo'
         end
 
-        it 'becomes fulfilled with a specfied value when the source future fails' do
+        it 'resolves to a specfied value when the source future fails' do
           p = Promise.new
           f = p.future.recover('bar')
           p.fail(error)
           f.value.should == 'bar'
         end
 
-        it 'becomes fulfilled with a value created by the block even when a value is specified when the source future fails' do
+        it 'resovles to a value created by the block even when a value is specified when the source future fails' do
           p = Promise.new
           f = p.future.recover('bar') { 'foo' }
           p.fail(error)
           f.value.should == 'foo'
         end
 
-        it 'becomes fulfilled with nil value when no value nor block is specified and the source future fails' do
+        it 'resolves to nil value when no value nor block is specified and the source future fails' do
           p = Promise.new
           f = p.future.recover
           p.fail(error)
@@ -506,7 +506,7 @@ module Ione
           f.value.should == error.message
         end
 
-        it 'becomes fulfilled with the value of the source future when the source future is fulfilled' do
+        it 'resolves to the value of the source future when the source future is resolved' do
           p = Promise.new
           f = p.future.recover { 'foo' }
           p.fulfill('bar')
