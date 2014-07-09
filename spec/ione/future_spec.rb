@@ -454,18 +454,20 @@ module Ione
     end
 
     describe '#flat_map' do
-      it 'works like #map, but expects that the block returns a future' do
-        p = Promise.new
-        f = p.future.flat_map { |v| Future.resolved(v * 2) }
-        p.fulfill(3)
-        f.value.should == 3 * 2
-      end
+      context 'returns a future that' do
+        it 'passes the value of the source future to the block, and resolves to the value of the future returned by the block' do
+          p = Promise.new
+          f = p.future.flat_map { |v| Future.resolved(v * 2) }
+          p.fulfill(3)
+          f.value.should == 3 * 2
+        end
 
-      it 'fails when the block raises an error' do
-        p = Promise.new
-        f = p.future.flat_map { |v| raise 'Hurgh' }
-        p.fulfill(3)
-        expect { f.value }.to raise_error('Hurgh')
+        it 'fails when the block raises an error' do
+          p = Promise.new
+          f = p.future.flat_map { |v| raise 'Hurgh' }
+          p.fulfill(3)
+          expect { f.value }.to raise_error('Hurgh')
+        end
       end
     end
 
