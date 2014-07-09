@@ -648,13 +648,6 @@ module Ione
       @remaining = futures.size
       @accumulator = initial_value
       @reducer = reducer
-      futures.each do |f|
-        f.on_failure do |e|
-          unless failed?
-            fail(e)
-          end
-        end
-      end
     end
 
     private
@@ -694,8 +687,10 @@ module Ione
 
     def reduce_next(i)
       @futures[i].on_complete do |_, v, e|
-        unless e || failed?
-          if reduce_one(v) == :continue
+        unless failed?
+          if e
+            fail(e)
+          elsif reduce_one(v) == :continue
             reduce_next(i + 1)
           end
         end
@@ -709,7 +704,13 @@ module Ione
       super
       futures.each do |f|
         f.on_complete do |_, v, e|
-          !e && reduce_one(v)
+          unless failed?
+            if e
+              fail(e)
+            else
+              reduce_one(v)
+            end
+          end
         end
       end
     end
