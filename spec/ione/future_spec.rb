@@ -633,6 +633,92 @@ module Ione
       end
     end
 
+    describe '.reduce' do
+      it 'returns a future which represents the value of reducing the values of the inputs' do
+        futures = [
+          Future.resolved({'foo' => 'bar'}),
+          Future.resolved({'qux' => 'baz'}),
+          Future.resolved({'hello' => 'world'})
+        ]
+        future = Future.reduce(futures, {}) do |accumulator, value|
+          accumulator.merge(value)
+        end
+        future.value.should == {'foo' => 'bar', 'qux' => 'baz', 'hello' => 'world'}
+      end
+
+      it 'calls the block with the values in the order of the source futures' do
+        promises = [Promise.new, Promise.new, Promise.new, Promise.new, Promise.new]
+        futures = promises.map(&:future)
+        future = Future.reduce(futures, []) do |accumulator, value|
+          accumulator.push(value)
+        end
+        promises[1].fulfill(1)
+        promises[0].fulfill(0)
+        promises[2].fulfill(2)
+        promises[4].fulfill(4)
+        promises[3].fulfill(3)
+        future.value.should == [0, 1, 2, 3, 4]
+      end
+
+      it 'fails if any of the source futures fail' do
+        futures = [Future.resolved(0), Future.failed(StandardError.new('BORK')), Future.resolved(2)]
+        future = Future.reduce(futures, []) do |accumulator, value|
+          accumulator.push(value)
+        end
+        future.should be_failed
+      end
+
+      it 'fails if any of the block invocations fail' do
+        futures = [Future.resolved(0), Future.resolved(1), Future.resolved(2)]
+        future = Future.reduce(futures, []) do |accumulator, value|
+          if value == 2
+            raise 'BORK'
+          else
+            accumulator.push(value)
+          end
+        end
+        future.should be_failed
+      end
+
+      it 'returns a future that resolves to nil when the list of futures is empty' do
+        Future.reduce([], {}).value.should be_nil
+      end
+
+      context 'when the :ordered option is false' do
+        it 'calls the block with the values in the order of completion, when the :ordered option is false' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future)
+          future = Future.reduce(futures, [], ordered: false) do |accumulator, value|
+            accumulator.push(value)
+          end
+          promises[1].fulfill(1)
+          promises[0].fulfill(0)
+          promises[2].fulfill(2)
+          future.value.should == [1, 0, 2]
+        end
+
+        it 'fails if any of the source futures fail' do
+          futures = [Future.resolved(0), Future.failed(StandardError.new('BORK')), Future.resolved(2)]
+          future = Future.reduce(futures, [], ordered: false) do |accumulator, value|
+            accumulator.push(value)
+          end
+          future.should be_failed
+        end
+
+        it 'fails if any of the block invocations fail' do
+          futures = [Future.resolved(0), Future.resolved(1), Future.resolved(2)]
+          future = Future.reduce(futures, [], ordered: false) do |accumulator, value|
+            if value == 1
+              raise 'BORK'
+            else
+              accumulator.push(value)
+            end
+          end
+          future.should be_failed
+        end
+      end
+    end
+
     describe '.all' do
       context 'returns a new future which' do
         it 'is resolved when the source futures are resolved' do

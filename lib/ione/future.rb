@@ -123,6 +123,67 @@ module Ione
       failed(e)
     end
 
+    # Returns a future that will resolve to a value which is the reduction of
+    # the values of a list of source futures.
+    #
+    # This is essentially a parallel, streaming version of {Enumerable#reduce}.
+    # If you have multiple futures whose values you want to combine in some way
+    # you can do `Future.all(*futures).map { |values| values.reduce { ... } }`,
+    # or you can use this method.
+    #
+    # Even better, if the operation you want to perform is associative and
+    # commutative (i.e. the order of the operations and operands does not matter)
+    # you can pass `ordered: false` as options. This means that the reduction
+    # will be done in order of completion instead of the order that the futures
+    # have in the input. As soon as a value is available the reduction of that
+    # value will happen. In contrast, when `ordered: false` is not given, or when
+    # the option is true, the reduction will happen when a value becomes available
+    # provided that the previous value has already been reduced. In the end the
+    # time it takes to reduce all of the values will not be very different, but
+    # if the order is not important this method will need to do less to bookkeeping
+    # to keep track of the values and what has been reduced.
+    #
+    # The block will not be called concurrently, which means that unless you're
+    # handling the initial value or other values in the scope of the block you
+    # don't need (and shouldn't) do any locking to ensure that the accumulator
+    # passed to the block is safe to modify. It is, of course, even better if
+    # you don't modify the accumulator, but return a new, immutable value on
+    # each invocation.
+    #
+    # @example Merging the results of multipe asynchronous calls
+    #   futures = ... # a list of futures that will resolve to hashes
+    #   merged_future = Future.reduce(futures, {}) do |accumulator, value|
+    #     accumulator.merge(value)
+    #   end
+    #
+    # @example Reducing with an associative and commutative function, like addition
+    #   futures = ... # a list of futures that will resolve to numbers
+    #   sum_future = Future.reduce(futures, 0, ordered: false) do |accumulator, value|
+    #     accumulator + value
+    #   end
+    #
+    # @param [Array<Ione::Future>] futures an array of futures whose values
+    #   should be reduced
+    # @param [Object] initial_value the initial value of the accumulator
+    # @param [Hash] options
+    # @option options [Boolean] :ordered (true) whether or not to respect the
+    #   order of the input when reducing – when true the block will be called
+    #   with the values of the source futures in the order they have in the
+    #   given list, when false the block will be called in the order that the
+    #   futures resolve (which means that your reducer function needs to be
+    #   associative and commutative).
+    # @yieldparam [Object] accumulator the value of the last invocation of the
+    #   block, or the initial value if this is the first invocation
+    # @yieldparam [Object] value the value of one of the source futures
+    # @yieldreturn [Object] the value to pass as accumulator to the next
+    #   invocation of the block
+    # @return [Ione::Future] a future that will resolve to the value returned
+    #   from the last invocation of the block
+    def reduce(futures, initial_value, options=nil, &reducer)
+      return resolved if futures.empty?
+      ReducingFuture.new(futures, initial_value, reducer, options)
+    end
+
     # Creates a new pre-resolved future.
     #
     # @param [Object, nil] value the value of the created future
@@ -520,6 +581,56 @@ module Ione
           end
           if remaining == 0
             resolve(values)
+          end
+        end
+        f.on_failure do |e|
+          unless failed?
+            fail(e)
+          end
+        end
+      end
+    end
+  end
+
+  # @private
+  class ReducingFuture < CompletableFuture
+    def initialize(futures, initial_value, reducer, options)
+      super()
+      accumulator = initial_value
+      remaining = futures.size
+      ordered = options.nil? || options[:ordered]
+      if ordered
+        values = Array.new(futures.size)
+        completed = Array.new(futures.size, false)
+        reduced = Array.new(futures.size, false)
+      end
+      futures.each_with_index do |f, i|
+        f.on_value do |v|
+          unless failed?
+            @lock.lock
+            begin
+              if ordered
+                values[i] = v
+                completed[i] = true
+                ii = i
+                while ii == 0 || (reduced[ii - 1] && completed[ii])
+                  accumulator = reducer.call(accumulator, values[ii])
+                  reduced[ii] = true
+                  ii += 1
+                end
+              else
+                accumulator = reducer.call(accumulator, v)
+              end
+              remaining -= 1
+            rescue => e
+              @lock.unlock
+              fail(e)
+            else
+              @lock.unlock
+            end
+          end
+          if remaining == 0
+            resolve(accumulator)
           end
         end
         f.on_failure do |e|
