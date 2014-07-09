@@ -597,7 +597,7 @@ module Ione
           sequence.should == [2, 1, 3]
         end
 
-        it 'returns an array of the values of the source futures, in order ' do
+        it 'returns an array of the values of the source futures, in order' do
           p1 = Promise.new
           p2 = Promise.new
           p3 = Promise.new
