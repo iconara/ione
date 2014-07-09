@@ -131,10 +131,10 @@ module Ione
     # @yieldreturn [Object] the transformed value
     # @return [Ione::Future] a new future representing the transformed value
     def map(value=nil, &block)
-      CompletableFuture.new.tap do |f|
-        on_failure { |e| f.fail(e) }
-        on_value { |v| run(f, value, block, v) }
-      end
+      f = CompletableFuture.new
+      on_failure { |e| f.fail(e) }
+      on_value { |v| run(f, value, block, v) }
+      f
     end
 
     # Returns a new future representing a transformation of this future's value,
@@ -149,10 +149,11 @@ module Ione
     # @yieldreturn [Ione::Future] a future representing the transformed value
     # @return [Ione::Future] a new future representing the transformed value
     def flat_map(&block)
-      CompletableFuture.new.tap do |f|
-        on_failure { |e| f.fail(e) }
-        on_value { |v| chain(f, block, v) }
-      end
+      f = CompletableFuture.new
+      on_failure { |e| f.fail(e) }
+      on_value { |v| chain(f, block, v) }
+      f
+    end
     end
 
     # Returns a new future which represents either the value of the original
@@ -175,10 +176,10 @@ module Ione
     # @yieldreturn [Object] the value of the new future
     # @return [Ione::Future] a new future representing a value recovered from the error
     def recover(value=nil, &block)
-      CompletableFuture.new.tap do |f|
-        on_failure { |e| run(f, value, block, e) }
-        on_value { |v| f.resolve(v) }
-      end
+      f = CompletableFuture.new
+      on_failure { |e| run(f, value, block, e) }
+      on_value { |v| f.resolve(v) }
+      f
     end
 
     # Returns a new future which represents either the value of the original
@@ -204,10 +205,10 @@ module Ione
     # @return [Ione::Future] a new future representing a value recovered from the
     #   error
     def fallback(&block)
-      CompletableFuture.new.tap do |f|
-        on_failure { |e| chain(f, block, e) }
-        on_value { |v| f.resolve(v) }
-      end
+      f = CompletableFuture.new
+      on_failure { |e| chain(f, block, e) }
+      on_value { |v| f.resolve(v) }
+      f
     end
 
     private
