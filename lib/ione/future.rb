@@ -86,11 +86,13 @@ module Ione
     # The value of the combined future is an array of the values of the
     # constituent futures.
     #
-    # @param [Array<Ione::Future>] futures the futures to combine
+    # @param [Array<Ione::Future>] futures the futures to combine (this argument
+    #   can be a splatted array or a regular array passed as sole argument)
     # @return [Ione::Future<Array>] an array of the values of the constituent
     #   futures
     def all(*futures)
       return resolved([]) if futures.empty?
+      futures = futures.first.is_a?(Enumerable) ? futures.first : futures
       return futures.first.map { |v| [v] } if futures.size == 1
       CombinedFuture.new(futures)
     end
@@ -99,10 +101,12 @@ module Ione
     # (resolved) of the specified futures. If all of the futures fail, the
     # returned future will also fail (with the error of the last failed future).
     #
-    # @param [Array<Ione::Future>] futures the futures to monitor
+    # @param [Array<Ione::Future>] futures the futures to monitor (this argument
+    #   can be a splatted array or a regular array passed as sole argument)
     # @return [Ione::Future] a future which represents the first completing future
     def first(*futures)
       return resolved if futures.empty?
+      futures = futures.first.is_a?(Enumerable) ? futures.first : futures
       return futures.first if futures.size == 1
       FirstFuture.new(futures)
     end

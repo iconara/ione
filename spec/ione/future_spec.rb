@@ -862,6 +862,14 @@ module Ione
           Future.all(f).value.should == [1]
         end
 
+        it 'accepts a list of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future)
+          f = Future.all(futures)
+          promises.each(&:fulfill)
+          f.value.should have(3).items
+        end
+
         it 'accepts anything that implements #on_complete as futures' do
           ff1, ff2, ff3 = double, double, double
           ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
@@ -943,6 +951,14 @@ module Ione
 
         it 'completes with the value of the given future, when only one is given' do
           Future.first(Future.resolved('foo')).value.should == 'foo'
+        end
+
+        it 'accepts a list of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future)
+          f = Future.first(futures)
+          promises.each(&:fulfill)
+          f.should be_resolved
         end
 
         it 'accepts anything that implements #on_complete as futures' do
