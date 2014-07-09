@@ -102,6 +102,27 @@ module Ione
       FirstFuture.new(futures)
     end
 
+    # Takes calls the block once for each element in an array, expecting each
+    # invocation to return a future, and returns a future that resolves to
+    # an array of the values of those futures.
+    #
+    # @example
+    #   ids = [1, 2, 3]
+    #   future = Future.traverse(ids) { |id| load_thing(id) }
+    #   future.value # => [thing1, thing2, thing3]
+    #
+    # @param [Array<Object>] values an array whose elements will be passed to
+    #   the block, one by one
+    # @yieldparam [Object] value each element from the array
+    # @yieldreturn [Ione::Future] a future
+    # @return [Ione::Future] a future that will resolve to an array of the values
+    #  of the futures returned by the block
+    def traverse(values, &block)
+      all(*values.map(&block))
+    rescue => e
+      failed(e)
+    end
+
     # Creates a new pre-resolved future.
     #
     # @param [Object, nil] value the value of the created future

@@ -602,6 +602,37 @@ module Ione
       end
     end
 
+    describe '.traverse' do
+      it 'combines Array#map and Future.all' do
+        future = Future.traverse([1, 2, 3]) do |element|
+          Future.resolved(element * 2)
+        end
+        future.value.should == [2, 4, 6]
+      end
+
+      it 'fails if any of the source futures fail' do
+        future = Future.traverse([1, 2, 3]) do |element|
+          if element == 2
+            Future.failed(StandardError.new('BORK'))
+          else
+            Future.resolved(element * 2)
+          end
+        end
+        future.should be_failed
+      end
+
+      it 'fails if any of the block invocations fail' do
+        future = Future.traverse([1, 2, 3]) do |element|
+          if element == 2
+            raise 'BORK'
+          else
+            Future.resolved(element * 2)
+          end
+        end
+        future.should be_failed
+      end
+    end
+
     describe '.all' do
       context 'returns a new future which' do
         it 'is resolved when the source futures are resolved' do
