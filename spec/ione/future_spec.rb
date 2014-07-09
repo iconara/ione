@@ -828,21 +828,6 @@ module Ione
           f.should be_resolved
         end
 
-        it 'resolves when the source futures are resolved' do
-          sequence = []
-          p1 = Promise.new
-          p2 = Promise.new
-          p3 = Promise.new
-          f = Future.all(p1.future, p2.future, p3.future)
-          p1.future.on_value { sequence << 1 } 
-          p2.future.on_value { sequence << 2 } 
-          p3.future.on_value { sequence << 3 }
-          p2.fulfill
-          p1.fulfill
-          p3.fulfill
-          sequence.should == [2, 1, 3]
-        end
-
         it 'returns an array of the values of the source futures, in order' do
           p1 = Promise.new
           p2 = Promise.new
