@@ -194,21 +194,48 @@ module Ione
     describe '#on_complete' do
       context 'registers listeners and' do
         it 'notifies all listeners when the promise is fulfilled' do
+          c1, c2 = false, false
+          future.on_complete { c1 = true }
+          future.on_complete { c2 = true }
+          promise.fulfill('bar')
+          c1.should be_true
+          c2.should be_true
+        end
+
+        it 'passes the future as the first parameter to the block' do
+          f1, f2 = nil, nil
+          future.on_complete { |f| f1 = f }
+          future.on_complete { |f| f2 = f }
+          promise.fulfill('bar')
+          f1.should equal(future)
+          f2.should equal(future)
+        end
+
+        it 'passes the value as the second parameter to the block' do
           v1, v2 = nil, nil
-          future.on_complete { |f| v1 = f.value }
-          future.on_complete { |f| v2 = f.value }
+          future.on_complete { |_, v| v1 = v }
+          future.on_complete { |_, v| v2 = v }
           promise.fulfill('bar')
           v1.should == 'bar'
           v2.should == 'bar'
         end
 
         it 'notifies all listeners when the promise fails' do
-          e1, e2 = nil, nil
-          future.on_complete { |f| begin; f.value; rescue => err; e1 = err; end }
-          future.on_complete { |f| begin; f.value; rescue => err; e2 = err; end }
+          c1, c2 = nil, nil
+          future.on_complete { c1 = true }
+          future.on_complete { c2 = true }
           future.fail(error)
-          e1.message.should == error.message
-          e2.message.should == error.message
+          c1.should be_true
+          c2.should be_true
+        end
+
+        it 'passes the error as the third parameter' do
+          e1, e2 = nil, nil
+          future.on_complete { |_, _, e| e1 = e }
+          future.on_complete { |_, _, e| e2 = e }
+          future.fail(error)
+          e1.should equal(error)
+          e2.should equal(error)
         end
 
         it 'notifies all listeners when the promise is fulfilled, even when one raises an error' do
@@ -228,8 +255,21 @@ module Ione
         end
 
         it 'notifies listeners registered after the promise was fulfilled' do
+          f, v, e = nil, nil, nil
           promise.fulfill('bar')
-          expect { future.on_complete { |v| raise 'blurgh' } }.to_not raise_error
+          future.on_complete { |ff, vv, ee| f = ff; v = vv; e = ee }
+          f.should equal(future)
+          v.should == 'bar'
+          e.should be_nil
+        end
+
+        it 'notifies listeners registered after the promise failed' do
+          f, v, e = nil, nil, nil
+          promise.fail(StandardError.new('bork'))
+          future.on_complete { |ff, vv, ee| f = ff; v = vv; e = ee }
+          f.should equal(future)
+          v.should be_nil
+          e.message.should == 'bork'
         end
 
         it 'notifies listeners registered after the promise failed' do
@@ -881,9 +921,10 @@ module Ione
         end
 
         it 'calls its complete callbacks immediately' do
-          f = nil
-          future.on_complete { |ff| f = ff }
-          f.should_not be_nil
+          f, v = nil, nil
+          future.on_complete { |ff, vv| f = ff; v = vv }
+          f.should equal(future)
+          v.should == 'hello world'
         end
 
         it 'does not block on #value' do
@@ -921,9 +962,10 @@ module Ione
         end
 
         it 'calls its complete callbacks immediately' do
-          f = nil
-          future.on_complete { |ff| f = ff }
-          f.should_not be_nil
+          f, e = nil, nil
+          future.on_complete { |ff, _, ee| f = ff; e = ee }
+          f.should equal(future)
+          e.message.should == 'bork'
         end
 
         it 'does not block on #value' do

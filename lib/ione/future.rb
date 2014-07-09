@@ -360,7 +360,7 @@ module Ione
         end
       end
       if run_immediately
-        listener.call(self) rescue nil
+        listener.call(self, @value, @error) rescue nil
       end
       nil
     end
@@ -526,7 +526,7 @@ module Ione
         listener.call(v) rescue nil
       end
       complete_listeners.each do |listener|
-        listener.call(self) rescue nil
+        listener.call(self, v, nil) rescue nil
       end
       nil
     end
@@ -551,7 +551,7 @@ module Ione
         listener.call(error) rescue nil
       end
       complete_listeners.each do |listener|
-        listener.call(self) rescue nil
+        listener.call(self, nil, error) rescue nil
       end
       nil
     end
@@ -698,7 +698,7 @@ module Ione
     end
 
     def on_complete(&listener)
-      listener.call(self) rescue nil
+      listener.call(self, @value, nil) rescue nil
     end
 
     def on_value(&listener)
@@ -736,7 +736,7 @@ module Ione
     end
 
     def on_complete(&listener)
-      listener.call(self) rescue nil
+      listener.call(self, nil, @error) rescue nil
     end
 
     def on_value
