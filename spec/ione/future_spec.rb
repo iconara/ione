@@ -509,6 +509,15 @@ module Ione
           expect { f.value }.to raise_error('Hurgh')
         end
       end
+
+      it 'accepts anything that implements #on_complete as a chained future' do
+        fake_future = double(:fake_future)
+        fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
+        p = Promise.new
+        f = p.future.flat_map { fake_future }
+        p.fulfill
+        f.value.should == :foobar
+      end
     end
 
     describe '#then' do
@@ -521,7 +530,18 @@ module Ione
         end
       end
 
-      context 'when the block returns something that is not a future' do
+      context 'when the block returns something that quacks like a future' do
+        it 'works like #flat_map' do
+          fake_future = double(:fake_future)
+          fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
+          p = Promise.new
+          f = p.future.then { |v| fake_future }
+          p.fulfill
+          f.value.should == :foobar
+        end
+      end
+
+      context 'when the block returns something that does not quack like a future' do
         it 'works like #map' do
           p = Promise.new
           f = p.future.then { |v| v * 2 }
@@ -639,6 +659,15 @@ module Ione
           p1.fail(StandardError.new('fnork'))
           expect { f.value }.to raise_error('bork')
         end
+
+        it 'accepts anything that implements #on_complete as a fallback future' do
+          fake_future = double(:fake_future)
+          fake_future.stub(:on_complete) { |&listener| listener.call(nil, 'foo') }
+          p = Promise.new
+          f = p.future.fallback { fake_future }
+          p.fail(error)
+          f.value.should == 'foo'
+        end
       end
     end
 
@@ -670,6 +699,13 @@ module Ione
           end
         end
         future.should be_failed
+      end
+
+      it 'accepts anything that implements #on_complete as futures' do
+        fake_future = double(:fake_future)
+        fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
+        future = Future.traverse([1, 2, 3]) { fake_future }
+        future.value.should == [:foobar, :foobar, :foobar]
       end
     end
 
@@ -722,6 +758,15 @@ module Ione
 
       it 'returns a future that resolves to nil when the list of futures is empty' do
         Future.reduce([], {}).value.should be_nil
+      end
+
+      it 'accepts anything that implements #on_complete as futures' do
+        ff1, ff2, ff3 = double, double, double
+        ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
+        ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
+        ff3.stub(:on_complete) { |&listener| listener.call(nil, 3) }
+        future = Future.reduce([ff1, ff2, ff3], 0) { |sum, n| sum + n }
+        future.value.should == 6
       end
 
       context 'when the :ordered option is false' do
@@ -819,6 +864,15 @@ module Ione
           f = Future.resolved(1)
           Future.all(f).value.should == [1]
         end
+
+        it 'accepts anything that implements #on_complete as futures' do
+          ff1, ff2, ff3 = double, double, double
+          ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
+          ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
+          ff3.stub(:on_complete) { |&listener| listener.call(nil, 3) }
+          future = Future.all(ff1, ff2, ff3)
+          future.value.should == [1, 2, 3]
+        end
       end
     end
 
@@ -892,6 +946,14 @@ module Ione
 
         it 'completes with the value of the given future, when only one is given' do
           Future.first(Future.resolved('foo')).value.should == 'foo'
+        end
+
+        it 'accepts anything that implements #on_complete as futures' do
+          ff1, ff2 = double, double
+          ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
+          ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
+          future = Future.first(ff1, ff2)
+          future.value.should == 1
         end
       end
     end
