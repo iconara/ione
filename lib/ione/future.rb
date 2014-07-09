@@ -126,22 +126,10 @@ module Ione
     # Returns a future that will resolve to a value which is the reduction of
     # the values of a list of source futures.
     #
-    # This is essentially a parallel, streaming version of {Enumerable#reduce}.
-    # If you have multiple futures whose values you want to combine in some way
-    # you can do `Future.all(*futures).map { |values| values.reduce { ... } }`,
-    # or you can use this method.
-    #
-    # Even better, if the operation you want to perform is associative and
-    # commutative (i.e. the order of the operations and operands does not matter)
-    # you can pass `ordered: false` as options. This means that the reduction
-    # will be done in order of completion instead of the order that the futures
-    # have in the input. As soon as a value is available the reduction of that
-    # value will happen. In contrast, when `ordered: false` is not given, or when
-    # the option is true, the reduction will happen when a value becomes available
-    # provided that the previous value has already been reduced. In the end the
-    # time it takes to reduce all of the values will not be very different, but
-    # if the order is not important this method will need to do less to bookkeeping
-    # to keep track of the values and what has been reduced.
+    # This is essentially a parallel, streaming version of {Enumerable#reduce},
+    # but for futures. Use this method for example when you want to do a number
+    # of asynchronous operations in parallel and then merge the results together
+    # when all are done.
     #
     # The block will not be called concurrently, which means that unless you're
     # handling the initial value or other values in the scope of the block you
@@ -178,10 +166,15 @@ module Ione
     # @yieldreturn [Object] the value to pass as accumulator to the next
     #   invocation of the block
     # @return [Ione::Future] a future that will resolve to the value returned
-    #   from the last invocation of the block
+    #   from the last invocation of the block, or nil when the list of futures
+    #   is empty.
     def reduce(futures, initial_value, options=nil, &reducer)
       return resolved if futures.empty?
-      ReducingFuture.new(futures, initial_value, reducer, options)
+      if options && options[:ordered] == false
+        UnorderedReducingFuture.new(futures, initial_value, reducer)
+      else
+        OrderedReducingFuture.new(futures, initial_value, reducer)
+      end
     end
 
     # Creates a new pre-resolved future.
@@ -594,50 +587,73 @@ module Ione
 
   # @private
   class ReducingFuture < CompletableFuture
-    def initialize(futures, initial_value, reducer, options)
+    def initialize(futures, initial_value, reducer)
       super()
-      accumulator = initial_value
-      remaining = futures.size
-      ordered = options.nil? || options[:ordered]
-      if ordered
-        values = Array.new(futures.size)
-        completed = Array.new(futures.size, false)
-        reduced = Array.new(futures.size, false)
-      end
-      futures.each_with_index do |f, i|
-        f.on_value do |v|
-          unless failed?
-            @lock.lock
-            begin
-              if ordered
-                values[i] = v
-                completed[i] = true
-                ii = i
-                while ii == 0 || (reduced[ii - 1] && completed[ii])
-                  accumulator = reducer.call(accumulator, values[ii])
-                  reduced[ii] = true
-                  ii += 1
-                end
-              else
-                accumulator = reducer.call(accumulator, v)
-              end
-              remaining -= 1
-            rescue => e
-              @lock.unlock
-              fail(e)
-            else
-              @lock.unlock
-            end
-          end
-          if remaining == 0
-            resolve(accumulator)
-          end
-        end
+      @futures = futures
+      @remaining = futures.size
+      @accumulator = initial_value
+      @reducer = reducer
+      futures.each do |f|
         f.on_failure do |e|
           unless failed?
             fail(e)
           end
         end
+      end
+    end
+
+    private
+
+    def reduce_one(value)
+      unless failed?
+        @lock.lock
+        begin
+          @accumulator = @reducer.call(@accumulator, value)
+          @remaining -= 1
+        rescue => e
+          @lock.unlock
+          fail(e)
+        else
+          @lock.unlock
+        end
+        unless failed?
+          if @remaining == 0
+            resolve(@accumulator)
+            :done
+          else
+            :continue
+          end
+        end
+      end
+    end
+  end
+
+  # @private
+  class OrderedReducingFuture < ReducingFuture
+    def initialize(futures, initial_value, reducer)
+      super
+      reduce_next(0)
+    end
+
+    private
+
+    def reduce_next(i)
+      @futures[i].on_value do |v|
+        unless failed?
+          if reduce_one(v) == :continue
+            reduce_next(i + 1)
+          end
+        end
+      end
+    end
+  end
+
+  # @private
+  class UnorderedReducingFuture < ReducingFuture
+    def initialize(futures, initial_value, reducer)
+      super
+      futures.each do |f|
+        f.on_value { |v| reduce_one(v) }
       end
     end
   end
