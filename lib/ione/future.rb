@@ -44,8 +44,13 @@ module Ione
     #
     # @param [Ione::Future] future the future to observe
     def observe(future)
-      future.on_value { |v| fulfill(v) }
-      future.on_failure { |e| fail(e) }
+      future.on_complete do |_, v, e|
+        if e
+          fail(e)
+        else
+          fulfill(v)
+        end
+      end
     end
 
     # Run the given block and fulfill this promise with its result. If the block
@@ -207,8 +212,17 @@ module Ione
     # @return [Ione::Future] a new future representing the transformed value
     def map(value=nil, &block)
       f = CompletableFuture.new
-      on_failure { |e| f.fail(e) }
-      on_value { |v| run(f, value, block, v) }
+      on_complete do |_, v, e|
+        if e
+          f.fail(e)
+        else
+          begin
+            f.resolve(block ? block.call(v) : value)
+          rescue => e
+            f.fail(e)
+          end
+        end
+      end
       f
     end
 
@@ -225,8 +239,24 @@ module Ione
     # @return [Ione::Future] a new future representing the transformed value
     def flat_map(&block)
       f = CompletableFuture.new
-      on_failure { |e| f.fail(e) }
-      on_value { |v| chain(f, block, v) }
+      on_complete do |_, v, e|
+        if e
+          f.fail(e)
+        else
+          begin
+            ff = block.call(v)
+            ff.on_complete do |_, vv, ee|
+              if ee
+                f.fail(ee)
+              else
+                f.resolve(vv)
+              end
+            end
+          rescue => e
+            f.fail(e)
+          end
+        end
+      end
       f
     end
 
@@ -255,8 +285,28 @@ module Ione
     # @return [Ione::Future] a new future representing the transformed value
     def then(&block)
       f = CompletableFuture.new
-      on_failure { |e| f.fail(e) }
-      on_value { |v| chain(f, block, v, true) }
+      on_complete do |_, v, e|
+        if e
+          f.fail(e)
+        else
+          begin
+            fv = block.call(v)
+            if fv.respond_to?(:on_complete)
+              fv.on_complete do |_, vv, ee|
+                if ee
+                  f.fail(ee)
+                else
+                  f.resolve(vv)
+                end
+              end
+            else
+              f.resolve(fv)
+            end
+          rescue => e
+            f.fail(e)
+          end
+        end
+      end
       f
     end
 
@@ -281,8 +331,17 @@ module Ione
     # @return [Ione::Future] a new future representing a value recovered from the error
     def recover(value=nil, &block)
       f = CompletableFuture.new
-      on_failure { |e| run(f, value, block, e) }
-      on_value { |v| f.resolve(v) }
+      on_complete do |_, v, e|
+        if e
+          begin
+            f.resolve(block ? block.call(e) : value)
+          rescue => e
+            f.fail(e)
+          end
+        else
+          f.resolve(v)
+        end
+      end
       f
     end
 
@@ -310,30 +369,25 @@ module Ione
     #   error
     def fallback(&block)
       f = CompletableFuture.new
-      on_failure { |e| chain(f, block, e) }
-      on_value { |v| f.resolve(v) }
-      f
-    end
-
-    private
-
-    def run(f, value, producer, arg)
-      value = producer ? producer.call(arg) : value
-      f.resolve(value)
-    rescue => e
-      f.fail(e)
-    end
-
-    def chain(f, constructor, arg, lenient=false)
-      ff = constructor.call(arg)
-      if lenient && !(ff.respond_to?(:on_value) && ff.respond_to?(:on_failure))
-        f.resolve(ff)
-      else
-        ff.on_failure { |e| f.fail(e) }
-        ff.on_value { |v| f.resolve(v) }
+      on_complete do |_, v, e|
+        if e
+          begin
+            ff = block.call(e)
+            ff.on_complete do |_, vv, ee|
+              if ee
+                f.fail(ee)
+              else
+                f.resolve(vv)
+              end
+            end
+          rescue => e
+            f.fail(e)
+          end
+        else
+          f.resolve(v)
+        end
       end
-    rescue => e
-      f.fail(e)
+      f
     end
   end
 
@@ -564,21 +618,22 @@ module Ione
       values = Array.new(futures.size)
       remaining = futures.size
       futures.each_with_index do |f, i|
-        f.on_value do |v|
-          @lock.lock
-          begin
-            values[i] = v
-            remaining -= 1
-          ensure
-            @lock.unlock
-          end
-          if remaining == 0
-            resolve(values)
-          end
-        end
-        f.on_failure do |e|
+        f.on_complete do |_, v, e|
           unless failed?
-            fail(e)
+            if e
+              fail(e)
+            else
+              @lock.lock
+              begin
+                values[i] = v
+                remaining -= 1
+              ensure
+                @lock.unlock
+              end
+              if remaining == 0
+                resolve(values)
+              end
+            end
           end
         end
       end
@@ -638,8 +693,8 @@ module Ione
     private
 
     def reduce_next(i)
-      @futures[i].on_value do |v|
-        unless failed?
+      @futures[i].on_complete do |_, v, e|
+        unless e || failed?
           if reduce_one(v) == :continue
             reduce_next(i + 1)
           end
@@ -653,7 +708,9 @@ module Ione
     def initialize(futures, initial_value, reducer)
       super
       futures.each do |f|
-        f.on_value { |v| reduce_one(v) }
+        f.on_complete do |_, v, e|
+          !e && reduce_one(v)
+        end
       end
     end
   end
@@ -663,11 +720,16 @@ module Ione
     def initialize(futures)
       super()
       futures.each do |f|
-        f.on_value do |value|
-          resolve(value) unless completed?
-        end
-        f.on_failure do |e|
-          fail(e) if futures.all?(&:failed?)
+        f.on_complete do |_, v, e|
+          unless completed?
+            if e
+              if futures.all?(&:failed?)
+                fail(e)
+              end
+            else
+              resolve(v)
+            end
+          end
         end
       end
     end
