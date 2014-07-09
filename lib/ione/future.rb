@@ -178,7 +178,6 @@ module Ione
     #   from the last invocation of the block, or nil when the list of futures
     #   is empty.
     def reduce(futures, initial_value=nil, options=nil, &reducer)
-      return resolved if futures.empty?
       if options && options[:ordered] == false
         UnorderedReducingFuture.new(futures, initial_value, reducer)
       else
@@ -619,8 +618,8 @@ module Ione
   class CombinedFuture < CompletableFuture
     def initialize(futures)
       super()
-      values = Array.new(futures.size)
-      remaining = futures.size
+      remaining = futures.count
+      values = Array.new(remaining)
       futures.each_with_index do |f, i|
         f.on_complete do |_, v, e|
           unless failed?
@@ -648,8 +647,8 @@ module Ione
   class ReducingFuture < CompletableFuture
     def initialize(futures, initial_value, reducer)
       super()
-      @futures = futures
-      @remaining = futures.size
+      @futures = Array(futures)
+      @remaining = @futures.size
       @initial_value = initial_value
       @accumulator = initial_value
       @reducer = reducer

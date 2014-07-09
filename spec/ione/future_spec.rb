@@ -707,6 +707,11 @@ module Ione
         future = Future.traverse([1, 2, 3]) { fake_future }
         future.value.should == [:foobar, :foobar, :foobar]
       end
+
+      it 'accepts an enumerable of values' do
+        future = Future.traverse([1, 2, 3].to_enum) { |v| Future.resolved(v * 2) }
+        future.value.should == [2, 4, 6]
+      end
     end
 
     describe '.reduce' do
@@ -784,6 +789,12 @@ module Ione
         ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
         ff3.stub(:on_complete) { |&listener| listener.call(nil, 3) }
         future = Future.reduce([ff1, ff2, ff3], 0) { |sum, n| sum + n }
+        future.value.should == 6
+      end
+
+      it 'accepts an enumerable of futures' do
+        futures = [Future.resolved(1), Future.resolved(2), Future.resolved(3)].to_enum
+        future = Future.reduce(futures, 0) { |sum, n| sum + n }
         future.value.should == 6
       end
 
@@ -886,6 +897,14 @@ module Ione
           f.value.should have(3).items
         end
 
+        it 'accepts an enumerable of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future).to_enum
+          f = Future.all(futures)
+          promises.each(&:fulfill)
+          f.value.should have(3).items
+        end
+
         it 'accepts anything that implements #on_complete as futures' do
           ff1, ff2, ff3 = double, double, double
           ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
@@ -972,6 +991,14 @@ module Ione
         it 'accepts a list of futures' do
           promises = [Promise.new, Promise.new, Promise.new]
           futures = promises.map(&:future)
+          f = Future.first(futures)
+          promises.each(&:fulfill)
+          f.should be_resolved
+        end
+
+        it 'accepts an enumerable of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future).to_enum
           f = Future.first(futures)
           promises.each(&:fulfill)
           f.should be_resolved
