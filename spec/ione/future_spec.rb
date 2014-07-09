@@ -736,6 +736,18 @@ module Ione
         future.value.should == [0, 1, 2, 3, 4]
       end
 
+      it 'uses the first value as initial value when no intial value is given' do
+        promises = [Promise.new, Promise.new, Promise.new]
+        futures = promises.map(&:future)
+        future = Future.reduce(futures) do |sum, n|
+          sum + n
+        end
+        promises[1].fulfill(2)
+        promises[0].fulfill(1)
+        promises[2].fulfill(3)
+        future.value.should == 6
+      end
+
       it 'fails if any of the source futures fail' do
         futures = [Future.resolved(0), Future.failed(StandardError.new('BORK')), Future.resolved(2)]
         future = Future.reduce(futures, []) do |accumulator, value|

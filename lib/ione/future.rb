@@ -173,7 +173,7 @@ module Ione
     # @return [Ione::Future] a future that will resolve to the value returned
     #   from the last invocation of the block, or nil when the list of futures
     #   is empty.
-    def reduce(futures, initial_value, options=nil, &reducer)
+    def reduce(futures, initial_value=nil, options=nil, &reducer)
       return resolved if futures.empty?
       if options && options[:ordered] == false
         UnorderedReducingFuture.new(futures, initial_value, reducer)
@@ -646,6 +646,7 @@ module Ione
       super()
       @futures = futures
       @remaining = futures.size
+      @initial_value = initial_value
       @accumulator = initial_value
       @reducer = reducer
     end
@@ -656,7 +657,11 @@ module Ione
       unless failed?
         @lock.lock
         begin
-          @accumulator = @reducer.call(@accumulator, value)
+          if @accumulator
+            @accumulator = @reducer.call(@accumulator, value)
+          else
+            @accumulator = value
+          end
           @remaining -= 1
         rescue => e
           @lock.unlock
