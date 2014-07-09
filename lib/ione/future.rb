@@ -689,7 +689,11 @@ module Ione
   class OrderedReducingFuture < ReducingFuture
     def initialize(futures, initial_value, reducer)
       super
-      reduce_next(0)
+      if @remaining > 0
+        reduce_next(0)
+      else
+        resolve(@initial_value)
+      end
     end
 
     private
@@ -711,16 +715,20 @@ module Ione
   class UnorderedReducingFuture < ReducingFuture
     def initialize(futures, initial_value, reducer)
       super
-      futures.each do |f|
-        f.on_complete do |_, v, e|
-          unless failed?
-            if e
-              fail(e)
-            else
-              reduce_one(v)
+      if @remaining > 0
+        futures.each do |f|
+          f.on_complete do |_, v, e|
+            unless failed?
+              if e
+                fail(e)
+              else
+                reduce_one(v)
+              end
             end
           end
         end
+      else
+        resolve(@initial_value)
       end
     end
   end

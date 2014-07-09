@@ -768,8 +768,14 @@ module Ione
         future.should be_failed
       end
 
-      it 'returns a future that resolves to nil when the list of futures is empty' do
-        Future.reduce([], {}).value.should be_nil
+      context 'when the list of futures is empty' do
+        it 'returns a future that resolves to the initial value' do
+          Future.reduce([], :foo).value.should == :foo
+        end
+
+        it 'returns a future that resolves to nil there is also no initial value' do
+          Future.reduce([]).value.should be_nil
+        end
       end
 
       it 'accepts anything that implements #on_complete as futures' do
@@ -812,6 +818,16 @@ module Ione
             end
           end
           future.should be_failed
+        end
+
+        context 'when the list of futures is empty' do
+          it 'returns a future that resolves to the initial value' do
+            Future.reduce([], :foo, ordered: false).value.should == :foo
+          end
+
+          it 'returns a future that resolves to nil there is also no initial value' do
+            Future.reduce([], nil, ordered: false).value.should be_nil
+          end
         end
       end
     end
