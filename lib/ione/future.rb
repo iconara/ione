@@ -92,8 +92,8 @@ module Ione
     #   futures
     def all(*futures)
       return resolved([]) if futures.empty?
-      futures = futures.first.is_a?(Enumerable) ? futures.first : futures
-      return futures.first.map { |v| [v] } if futures.size == 1
+      futures = futures.size == 1 && futures.first.is_a?(Enumerable) ? futures.first : futures
+      return futures.first.map { |v| [v] } if futures.is_a?(Array) && futures.size == 1
       CombinedFuture.new(futures)
     end
 
@@ -106,8 +106,8 @@ module Ione
     # @return [Ione::Future] a future which represents the first completing future
     def first(*futures)
       return resolved if futures.empty?
-      futures = futures.first.is_a?(Enumerable) ? futures.first : futures
-      return futures.first if futures.size == 1
+      futures = futures.size == 1 && futures.first.is_a?(Enumerable) ? futures.first : futures
+      return futures.first if futures.is_a?(Array) && futures.size == 1
       FirstFuture.new(futures)
     end
 
