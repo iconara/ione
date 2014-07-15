@@ -111,7 +111,7 @@ module Ione
         response.headers.should_not have_key('Transfer-Encoding')
       end
 
-      it 'handles body that only responds to #each' do
+      it 'handles a body that only responds to #each' do
         body = double(:body)
         body.stub(:each).and_yield('foo').and_yield('bar').and_yield('baz')
         app.stub(:call).and_return([200, {}, body])
