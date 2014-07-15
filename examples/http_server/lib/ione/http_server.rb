@@ -63,7 +63,8 @@ module Ione
     end
 
     def respond(status, headers, body)
-      @connection.write do |buffer|
+      buffer = ''
+      begin
         buffer << "HTTP/1.1 #{status} #{STATUS_MESSAGES[status]}\r\n"
         headers.each do |header, value|
           buffer << "#{header}: #{value}\r\n"
@@ -85,7 +86,10 @@ module Ione
           end
           buffer << END_CHUNK
         end
+      rescue
+        buffer = "HTTP/1.1 500 #{STATUS_MESSAGES[500]}\r\n#{CONTENT_LENGTH_ZERO}"
       end
+      @connection.write(buffer)
       @connection.drain
     end
 
