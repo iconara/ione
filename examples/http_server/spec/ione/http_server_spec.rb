@@ -90,6 +90,19 @@ module Ione
         response.headers.should_not have_key('Transfer-Encoding')
       end
 
+      it 'correctly handles the length of bodies with multi-byte characters' do
+        app.stub(:call).and_return([200, {}, ['Lörëm ipsüm dölör sït']])
+        response = client.get("http://localhost:#{port}/hello").value
+        response.body.force_encoding(::Encoding::UTF_8).should eq('Lörëm ipsüm dölör sït')
+        response.headers.should include('Content-Length' => '27')
+      end
+
+      it 'correctly handles the length of bodies with multi-byte characters when chunking' do
+        app.stub(:call).and_return([200, {}, ['Lörëm ipsüm dölör sït'] * 20])
+        response = client.get("http://localhost:#{port}/hello").value
+        response.body.force_encoding(::Encoding::UTF_8).should eq('Lörëm ipsüm dölör sït' * 20)
+      end
+
       it 'handles an empty body' do
         app.stub(:call).and_return([200, {}, []])
         response = client.get("http://localhost:#{port}/hello").value
