@@ -12,6 +12,9 @@ module Ione
       @port = port
       @app = app
       @reactor = Io::IoReactor.new
+      @env_prototype = RACK_ENV_PROTOTYPE.dup
+      @env_prototype['SERVER_NAME'] = Socket.gethostname
+      @env_prototype['SERVER_PORT'] = @port
     end
 
     def start
@@ -33,31 +36,52 @@ module Ione
     private
 
     def accept_connection(connection)
-      HttpConnection.new(connection, @app)
+      HttpConnection.new(connection, @app, @env_prototype)
     end
+
+    RACK_ENV_PROTOTYPE = {
+      'REQUEST_METHOD' => nil,
+      'SCRIPT_NAME' => ''.freeze,
+      'PATH_INFO' => nil,
+      'QUERY_STRING' => nil,
+      'SERVER_NAME' => nil,
+      'SERVER_PORT' => nil,
+      'rack.version' => Rack::VERSION,
+      'rack.url_scheme' => 'http',
+      'rack.input' => nil,
+      'rack.errors' => nil,
+      'rack.multithread' => true,
+      'rack.multiprocess' => false,
+      'rack.run_once' => false,
+      'rack.hijack?' => false,
+      'rack.hijack' => nil,
+      'rack.hijack_io' => nil,
+    }.freeze
   end
 
   class HttpConnection
-    def initialize(connection, app)
+    def initialize(connection, app, env_prototype)
       @http_parser = Puma::HttpParser.new
       @app = app
+      @env_prototype = env_prototype
       @connection = connection
       @connection.on_data(&method(:handle_data))
       @connection.on_closed(&method(:handle_closed))
     end
 
     def handle_data(data)
-      env = RACK_ENV_PROTOTYPE.dup
+      env = @env_prototype.dup
       status = nil
       headers = nil
       body = nil
       begin
         consumed_bytes = @http_parser.execute(env, data, 0)
+        env[PATH_INFO_KEY] = env[REQUEST_PATH_KEY]
         status, headers, body = @app.call(env)
       rescue => e
         status = 500
-        headers = {}
-        body = []
+        headers = NO_HEADERS
+        body = NO_BODY
       end
       respond(status, headers, body)
     end
@@ -96,24 +120,8 @@ module Ione
     def handle_closed(cause=nil)
     end
 
-    RACK_ENV_PROTOTYPE = {
-      'REQUEST_METHOD' => nil,
-      'SCRIPT_NAME' => nil,
-      'PATH_INFO' => nil,
-      'QUERY_STRING' => nil,
-      'SERVER_NAME' => nil,
-      'SERVER_PORT' => nil,
-      'rack.version' => Rack::VERSION,
-      'rack.url_scheme' => nil,
-      'rack.input' => nil,
-      'rack.errors' => nil,
-      'rack.multithread' => true,
-      'rack.multiprocess' => false,
-      'rack.run_once' => false,
-      'rack.hijack?' => false,
-      'rack.hijack' => nil,
-      'rack.hijack_io' => nil,
-    }.freeze
+    PATH_INFO_KEY = 'PATH_INFO'.freeze
+    REQUEST_PATH_KEY = 'REQUEST_PATH'.freeze
 
     STATUS_MESSAGES = {
       200 => 'OK',
@@ -124,5 +132,7 @@ module Ione
     CONTENT_LENGTH_ZERO = "Content-Length: 0\r\n\r\n".freeze
     CHUNKED_TRANSFER_ENCODING = "Transfer-Encoding: chunked\r\n\r\n".freeze
     END_CHUNK = "0\r\n\r\n".freeze
+    NO_HEADERS = {}.freeze
+    NO_BODY = [].freeze
   end
 end

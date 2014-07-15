@@ -120,34 +120,63 @@ module Ione
         response.headers['Transfer-Encoding'].should eq('chunked')
       end
 
-      it 'exposes the request method to the app' do
-        env = nil
-        app.stub(:call) do |e|
-          env = e
-          [200, {}, []]
+      context 'for Rack compliance the environment' do
+        let :env do
+          {}
         end
-        client.get("http://localhost:#{port}/hello").value
-        env.should include('REQUEST_METHOD' => 'GET')
-      end
 
-      it 'exposes the request path to the app' do
-        env = nil
-        app.stub(:call) do |e|
-          env = e
-          [200, {}, []]
+        before do
+          app.stub(:call) do |e|
+            env.replace(e)
+            [200, {}, []]
+          end
+          client.get("http://localhost:#{port}/hello/world?foo=bar&baz=qux").value
         end
-        client.get("http://localhost:#{port}/hello/world?foo=bar").value
-        env.should include('REQUEST_PATH' => '/hello/world')
-      end
 
-      it 'exposes the query string to the app' do
-        env = nil
-        app.stub(:call) do |e|
-          env = e
-          [200, {}, []]
+        it 'contains the request method under REQUEST_METHOD' do
+          env.should include('REQUEST_METHOD' => 'GET')
         end
-        client.get("http://localhost:#{port}/hello/world?foo=bar&baz=qux").value
-        env.should include('QUERY_STRING' => 'foo=bar&baz=qux')
+
+        it 'contains the request path under REQUEST_PATH and PATH_INFO' do
+          env.should include('REQUEST_PATH' => '/hello/world', 'PATH_INFO' => '/hello/world')
+        end
+
+        it 'contains the query string under QUERY_STRING' do
+          env.should include('QUERY_STRING' => 'foo=bar&baz=qux')
+        end
+
+        it 'contains the server host and port under SERVER_NAME and SERVER_PORT' do
+          env.should include('SERVER_NAME' => Socket.gethostname, 'SERVER_PORT' => port)
+        end
+
+        it 'contains an empty string under SCRIPT_NAME' do
+          env.should include('SCRIPT_NAME' => '')
+        end
+
+        it 'contains an entry for each request header' do
+          app.stub(:call) do |e|
+            env.replace(e)
+            [200, {}, []]
+          end
+          client.get("http://localhost:#{port}/hello/world?foo=bar&baz=qux", {'Accept' => 'text/plain', 'X-Forwarded-For' => '1.2.3.4'}).value
+          env.should include('HTTP_ACCEPT' => 'text/plain', 'HTTP_X_FORWARDED_FOR' => '1.2.3.4')
+        end
+
+        it 'contains the Rack version' do
+          env.should include('rack.version' => Rack::VERSION)
+        end
+
+        it 'contains the URL scheme' do
+          env.should include('rack.url_scheme' => 'http')
+        end
+
+        it 'contains info about the execution model' do
+          env.should include('rack.multithread' => true, 'rack.multiprocess' => false, 'rack.run_once' => false)
+        end
+
+        it 'contains info about hijack support' do
+          env.should include('rack.hijack?' => false, 'rack.hijack' => nil, 'rack.hijack_io' => nil)
+        end
       end
     end
   end
