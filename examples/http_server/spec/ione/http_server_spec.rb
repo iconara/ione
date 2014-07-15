@@ -153,13 +153,22 @@ module Ione
           env.should include('SCRIPT_NAME' => '')
         end
 
-        it 'contains an entry for each request header' do
+        it 'contains an entry for each request header, uppercased and prefixed with "HTTP_"' do
           app.stub(:call) do |e|
             env.replace(e)
             [200, {}, []]
           end
           client.get("http://localhost:#{port}/hello/world?foo=bar&baz=qux", {'Accept' => 'text/plain', 'X-Forwarded-For' => '1.2.3.4'}).value
           env.should include('HTTP_ACCEPT' => 'text/plain', 'HTTP_X_FORWARDED_FOR' => '1.2.3.4')
+        end
+
+        it 'contains CONTENT_{LENGTH,TYPE} and not HTTP_CONTENT_{LENGTH,TYPE}' do
+          app.stub(:call) do |e|
+            env.replace(e)
+            [200, {}, []]
+          end
+          client.get("http://localhost:#{port}/hello/world?foo=bar&baz=qux", {'Content-Type' => 'text/plain', 'Content-Length' => 3}).value
+          env.should include('CONTENT_TYPE' => 'text/plain', 'CONTENT_LENGTH' => '3')
         end
 
         it 'contains the Rack version' do
