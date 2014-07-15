@@ -44,7 +44,7 @@ module Ione
       headers.each do |key, value|
         message << key
         message << ':'
-        message << value
+        message << value.to_s
         message << "\r\n"
       end
       message << 'Connection: close'

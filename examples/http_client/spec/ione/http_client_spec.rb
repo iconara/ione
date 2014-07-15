@@ -69,6 +69,11 @@ module Ione
       response.headers.should include('Content-Type' => 'text/html')
       response.body.should == '<h1>Hello, World!</h1>'
     end
+
+    it 'sends a headers as strings' do
+      response = client.get("http://localhost:#{port}/helloworld", 'X-Echo' => 7).value
+      response.headers.should include('X-Echo' => '7')
+    end
   end
 end
 
@@ -79,6 +84,7 @@ module HttpClientSpec
       case request.path_info
       when '/helloworld'
         response.body = 'Hello, World!'
+        response['X-Echo'] = request['X-Echo'] if request['X-Echo']
         case request.header['accept'].first
         when 'text/html'
           response.body = "<h1>#{response.body}</h1>"
