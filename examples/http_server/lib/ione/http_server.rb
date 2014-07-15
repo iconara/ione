@@ -48,20 +48,43 @@ module Ione
 
     def handle_data(data)
       env = RACK_ENV_PROTOTYPE.dup
-      consumed_bytes = @http_parser.execute(env, data, 0)
-      status, headers, body = @app.call(env)
+      status = nil
+      headers = nil
+      body = nil
+      begin
+        consumed_bytes = @http_parser.execute(env, data, 0)
+        status, headers, body = @app.call(env)
+      rescue => e
+        status = 500
+        headers = {}
+        body = []
+      end
+      respond(status, headers, body)
+    end
+
+    def respond(status, headers, body)
       @connection.write do |buffer|
-        buffer << "HTTP/1.1 200 OK\r\n"
+        buffer << "HTTP/1.1 #{status} #{STATUS_MESSAGES[status]}\r\n"
         headers.each do |header, value|
           buffer << "#{header}: #{value}\r\n"
         end
-        buffer << "Transfer-Encoding: chunked\r\n"
-        buffer << "\r\n"
-        body.each do |part|
-          chunk = part.to_s
-          buffer << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+        sizeable_body = body.respond_to?(:size)
+        body_size = sizeable_body && body.reduce(0) { |sum, part| sum + part.bytesize }
+        if sizeable_body && body_size == 0
+          buffer << CONTENT_LENGTH_ZERO
+        elsif sizeable_body && body_size < 256
+          buffer << "Content-Length: #{body_size}\r\n\r\n"
+          body.each do |part|
+            buffer << part
+          end
+        else
+          buffer << CHUNKED_TRANSFER_ENCODING
+          body.each do |part|
+            chunk = part.to_s
+            buffer << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+          end
+          buffer << END_CHUNK
         end
-        buffer << "0\r\n\r\n"
       end
       @connection.drain
     end
@@ -87,5 +110,15 @@ module Ione
       'rack.hijack' => nil,
       'rack.hijack_io' => nil,
     }.freeze
+
+    STATUS_MESSAGES = {
+      200 => 'OK',
+      404 => 'Not Found',
+      500 => 'Internal Server Error',
+    }.freeze
+
+    CONTENT_LENGTH_ZERO = "Content-Length: 0\r\n\r\n".freeze
+    CHUNKED_TRANSFER_ENCODING = "Transfer-Encoding: chunked\r\n\r\n".freeze
+    END_CHUNK = "0\r\n\r\n".freeze
   end
 end
