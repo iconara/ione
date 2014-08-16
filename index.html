@@ -28,37 +28,64 @@
         </ul>
       </header>
       <section>
-        <h3>
-<a name="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
+        <h1>
+<a name="ione" class="anchor" href="#ione"><span class="octicon octicon-link"></span></a>Ione</h1>
 
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
+<p><a href="https://travis-ci.org/iconara/ione"><img src="https://travis-ci.org/iconara/ione.png?branch=master" alt="Build Status"></a>
+<a href="https://coveralls.io/r/iconara/ione"><img src="https://coveralls.io/repos/iconara/ione/badge.png" alt="Coverage Status"></a>
+<a href="http://architecturalatrocities.com/tagged/ione"><img src="http://b.repl.ca/v1/blog-ione-ff69b4.png" alt="Blog"></a></p>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
+<p><em>If you're reading this on GitHub, please note that this is the readme for the development version and that some features described here might not yet have been released. You can find the readme for a specific version either through <a href="http://rubydoc.info/find/gems?q=ione">rubydoc.info</a> or via the release tags (<a href="https://github.com/iconara/ione/tree/v1.0.0.pre0">here is an example</a>).</em></p>
 
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+<p>Ione is a framework for reactive programming in Ruby. It is based on the reactive core of <a href="http://github.com/iconara/cql-rb">cql-rb</a>, the Ruby driver for Cassandra.</p>
 
-<h3>
-<a name="designer-templates" class="anchor" href="#designer-templates"><span class="octicon octicon-link"></span></a>Designer Templates</h3>
+<h1>
+<a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h1>
 
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+<h2>
+<a name="futures--promises" class="anchor" href="#futures--promises"><span class="octicon octicon-link"></span></a>Futures &amp; promises</h2>
 
-<h3>
-<a name="rather-drive-stick" class="anchor" href="#rather-drive-stick"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+<p>At the core of Ione is a futures API. Futures make it easy to compose asynchronous operations.</p>
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+<h2>
+<a name="evented-io" class="anchor" href="#evented-io"><span class="octicon octicon-link"></span></a>Evented IO</h2>
 
-<h3>
-<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
-
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+<p>A key piece of the framework is an IO reactor with which you can easily build network clients and servers.</p>
 
 <h3>
-<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+<a name="byte-buffer" class="anchor" href="#byte-buffer"><span class="octicon octicon-link"></span></a>Byte buffer</h3>
 
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+<p>Networking usually means pushing lots of bytes around and in Ruby it's easy to make the mistake of using strings as buffers. Ione provides an efficient byte buffer implementation as an alternative.</p>
+
+<h1>
+<a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>Examples</h1>
+
+<p>The <a href="https://github.com/iconara/ione/tree/master/examples">examples</a> directory has some examples of what you can do with Ione, for example:</p>
+
+<ul>
+<li>
+<a href="https://github.com/iconara/ione/tree/master/examples/redis_client">redis_client</a> is a more or less full featured Redis client that uses most of Ione's features.</li>
+<li>
+<a href="https://github.com/iconara/ione/tree/master/examples/http_client">http_client</a> is a simplistic HTTP client that uses Ione and <a href="http://rubygems.org/gems/http_parser.rb">http_parser.rb</a> to make HTTP GET request.</li>
+<li>
+<a href="https://github.com/iconara/cql-rb">cql-rb</a> is a high performance Cassandra driver and where Ione was originally developed.</li>
+<li>
+<a href="https://github.com/iconara/ione-rpc">ione-rpc</a> is a RPC framework built on Ione. It makes it reasonably easy to build networked applications without having to reinvent the wheel.</li>
+</ul><h1>
+<a name="how-to-contribute" class="anchor" href="#how-to-contribute"><span class="octicon octicon-link"></span></a>How to contribute</h1>
+
+<p><a href="CONTRIBUTING.md">See CONTRIBUTING.md</a></p>
+
+<h1>
+<a name="copyright" class="anchor" href="#copyright"><span class="octicon octicon-link"></span></a>Copyright</h1>
+
+<p>Copyright 2013–2014 Theo Hultberg/Iconara and contributors.</p>
+
+<p><em>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License You may obtain a copy of the License at</em></p>
+
+<p><a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a></p>
+
+<p><em>Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.</em></p>
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/iconara">iconara</a></p>
