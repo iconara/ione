@@ -194,21 +194,48 @@ module Ione
     describe '#on_complete' do
       context 'registers listeners and' do
         it 'notifies all listeners when the promise is fulfilled' do
+          c1, c2 = false, false
+          future.on_complete { c1 = true }
+          future.on_complete { c2 = true }
+          promise.fulfill('bar')
+          c1.should be_true
+          c2.should be_true
+        end
+
+        it 'passes the future as the first parameter to the block' do
+          f1, f2 = nil, nil
+          future.on_complete { |f| f1 = f }
+          future.on_complete { |f| f2 = f }
+          promise.fulfill('bar')
+          f1.should equal(future)
+          f2.should equal(future)
+        end
+
+        it 'passes the value as the second parameter to the block' do
           v1, v2 = nil, nil
-          future.on_complete { |f| v1 = f.value }
-          future.on_complete { |f| v2 = f.value }
+          future.on_complete { |_, v| v1 = v }
+          future.on_complete { |_, v| v2 = v }
           promise.fulfill('bar')
           v1.should == 'bar'
           v2.should == 'bar'
         end
 
         it 'notifies all listeners when the promise fails' do
-          e1, e2 = nil, nil
-          future.on_complete { |f| begin; f.value; rescue => err; e1 = err; end }
-          future.on_complete { |f| begin; f.value; rescue => err; e2 = err; end }
+          c1, c2 = nil, nil
+          future.on_complete { c1 = true }
+          future.on_complete { c2 = true }
           future.fail(error)
-          e1.message.should == error.message
-          e2.message.should == error.message
+          c1.should be_true
+          c2.should be_true
+        end
+
+        it 'passes the error as the third parameter' do
+          e1, e2 = nil, nil
+          future.on_complete { |_, _, e| e1 = e }
+          future.on_complete { |_, _, e| e2 = e }
+          future.fail(error)
+          e1.should equal(error)
+          e2.should equal(error)
         end
 
         it 'notifies all listeners when the promise is fulfilled, even when one raises an error' do
@@ -228,8 +255,21 @@ module Ione
         end
 
         it 'notifies listeners registered after the promise was fulfilled' do
+          f, v, e = nil, nil, nil
           promise.fulfill('bar')
-          expect { future.on_complete { |v| raise 'blurgh' } }.to_not raise_error
+          future.on_complete { |ff, vv, ee| f = ff; v = vv; e = ee }
+          f.should equal(future)
+          v.should == 'bar'
+          e.should be_nil
+        end
+
+        it 'notifies listeners registered after the promise failed' do
+          f, v, e = nil, nil, nil
+          promise.fail(StandardError.new('bork'))
+          future.on_complete { |ff, vv, ee| f = ff; v = vv; e = ee }
+          f.should equal(future)
+          v.should be_nil
+          e.message.should == 'bork'
         end
 
         it 'notifies listeners registered after the promise failed' do
@@ -366,7 +406,7 @@ module Ione
         future.value.should == 'bar'
       end
 
-      it 'blocks on #value until fulfilled, when value is nil' do
+      it 'blocks on #value until completed, when value is nil' do
         d = delayed(promise) do |p|
           p.fulfill
         end
@@ -382,7 +422,7 @@ module Ione
         expect { future.value }.to raise_error('bork')
       end
 
-      it 'allows multiple threads to block on #value until fulfilled' do
+      it 'allows multiple threads to block on #value until completed' do
         listeners = Array.new(10) do
           async(future) do |f|
             f.value
@@ -396,7 +436,7 @@ module Ione
 
     describe '#map' do
       context 'returns a new future that' do
-        it 'will be fulfilled with the result of the given block' do
+        it 'will be resolved with the result of the given block' do
           mapped_value = nil
           p = Promise.new
           f = p.future.map { |v| v * 2 }
@@ -405,7 +445,7 @@ module Ione
           mapped_value.should == 3 * 2
         end
 
-        it 'will be fulfilled with the specified value' do
+        it 'will be resolved with the specified value' do
           mapped_value = nil
           p = Promise.new
           f = p.future.map(7)
@@ -414,7 +454,7 @@ module Ione
           mapped_value.should == 7
         end
 
-        it 'will be fulfilled with the result of the given block, even if a value is specified' do
+        it 'will be resolved with the result of the given block, even if a value is specified' do
           mapped_value = nil
           p = Promise.new
           f = p.future.map(7) { |v| v * 2 }
@@ -423,7 +463,7 @@ module Ione
           mapped_value.should == 3 * 2
         end
 
-        it 'will be fulfilled with nil when neither value nor block is specified' do
+        it 'will be resolved with nil when neither value nor block is specified' do
           mapped_value = 3
           p = Promise.new
           f = p.future.map
@@ -454,45 +494,97 @@ module Ione
     end
 
     describe '#flat_map' do
-      it 'works like #map, but expects that the block returns a future' do
-        p = Promise.new
-        f = p.future.flat_map { |v| Future.resolved(v * 2) }
-        p.fulfill(3)
-        f.value.should == 3 * 2
+      context 'returns a future that' do
+        it 'passes the value of the source future to the block, and resolves to the value of the future returned by the block' do
+          p = Promise.new
+          f = p.future.flat_map { |v| Future.resolved(v * 2) }
+          p.fulfill(3)
+          f.value.should == 3 * 2
+        end
+
+        it 'fails when the block raises an error' do
+          p = Promise.new
+          f = p.future.flat_map { |v| raise 'Hurgh' }
+          p.fulfill(3)
+          expect { f.value }.to raise_error('Hurgh')
+        end
       end
 
-      it 'fails when the block raises an error' do
+      it 'accepts anything that implements #on_complete as a chained future' do
+        fake_future = double(:fake_future)
+        fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
         p = Promise.new
-        f = p.future.flat_map { |v| raise 'Hurgh' }
-        p.fulfill(3)
-        expect { f.value }.to raise_error('Hurgh')
+        f = p.future.flat_map { fake_future }
+        p.fulfill
+        f.value.should == :foobar
+      end
+    end
+
+    describe '#then' do
+      context 'when the block returns a future' do
+        it 'works like #flat_map' do
+          p = Promise.new
+          f = p.future.then { |v| Future.resolved(v * 2) }
+          p.fulfill(3)
+          f.value.should == 3 * 2
+        end
+      end
+
+      context 'when the block returns something that quacks like a future' do
+        it 'works like #flat_map' do
+          fake_future = double(:fake_future)
+          fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
+          p = Promise.new
+          f = p.future.then { |v| fake_future }
+          p.fulfill
+          f.value.should == :foobar
+        end
+      end
+
+      context 'when the block returns something that does not quack like a future' do
+        it 'works like #map' do
+          p = Promise.new
+          f = p.future.then { |v| v * 2 }
+          p.fulfill(3)
+          f.value.should == 3 * 2
+        end
+      end
+
+      it 'returns a failed future when the block raises an error' do
+        p = Promise.new
+        f = p.future.then { |v| raise 'blurgh' }
+        d = delayed do
+          p.fulfill
+        end
+        d.value
+        expect { f.value }.to raise_error('blurgh')
       end
     end
 
     describe '#recover' do
       context 'returns a new future that' do
-        it 'becomes fulfilled with a value created by the block when the source future fails' do
+        it 'resolves to a value created by the block when the source future fails' do
           p = Promise.new
           f = p.future.recover { 'foo' }
           p.fail(error)
           f.value.should == 'foo'
         end
 
-        it 'becomes fulfilled with a specfied value when the source future fails' do
+        it 'resolves to a specfied value when the source future fails' do
           p = Promise.new
           f = p.future.recover('bar')
           p.fail(error)
           f.value.should == 'bar'
         end
 
-        it 'becomes fulfilled with a value created by the block even when a value is specified when the source future fails' do
+        it 'resovles to a value created by the block even when a value is specified when the source future fails' do
           p = Promise.new
           f = p.future.recover('bar') { 'foo' }
           p.fail(error)
           f.value.should == 'foo'
         end
 
-        it 'becomes fulfilled with nil value when no value nor block is specified and the source future fails' do
+        it 'resolves to nil value when no value nor block is specified and the source future fails' do
           p = Promise.new
           f = p.future.recover
           p.fail(error)
@@ -506,7 +598,7 @@ module Ione
           f.value.should == error.message
         end
 
-        it 'becomes fulfilled with the value of the source future when the source future is fulfilled' do
+        it 'resolves to the value of the source future when the source future is resolved' do
           p = Promise.new
           f = p.future.recover { 'foo' }
           p.fulfill('bar')
@@ -567,6 +659,187 @@ module Ione
           p1.fail(StandardError.new('fnork'))
           expect { f.value }.to raise_error('bork')
         end
+
+        it 'accepts anything that implements #on_complete as a fallback future' do
+          fake_future = double(:fake_future)
+          fake_future.stub(:on_complete) { |&listener| listener.call(nil, 'foo') }
+          p = Promise.new
+          f = p.future.fallback { fake_future }
+          p.fail(error)
+          f.value.should == 'foo'
+        end
+      end
+    end
+
+    describe '.traverse' do
+      it 'combines Array#map and Future.all' do
+        future = Future.traverse([1, 2, 3]) do |element|
+          Future.resolved(element * 2)
+        end
+        future.value.should == [2, 4, 6]
+      end
+
+      it 'fails if any of the source futures fail' do
+        future = Future.traverse([1, 2, 3]) do |element|
+          if element == 2
+            Future.failed(StandardError.new('BORK'))
+          else
+            Future.resolved(element * 2)
+          end
+        end
+        future.should be_failed
+      end
+
+      it 'fails if any of the block invocations fail' do
+        future = Future.traverse([1, 2, 3]) do |element|
+          if element == 2
+            raise 'BORK'
+          else
+            Future.resolved(element * 2)
+          end
+        end
+        future.should be_failed
+      end
+
+      it 'accepts anything that implements #on_complete as futures' do
+        fake_future = double(:fake_future)
+        fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
+        future = Future.traverse([1, 2, 3]) { fake_future }
+        future.value.should == [:foobar, :foobar, :foobar]
+      end
+
+      it 'accepts an enumerable of values' do
+        future = Future.traverse([1, 2, 3].to_enum) { |v| Future.resolved(v * 2) }
+        future.value.should == [2, 4, 6]
+      end
+    end
+
+    describe '.reduce' do
+      it 'returns a future which represents the value of reducing the values of the inputs' do
+        futures = [
+          Future.resolved({'foo' => 'bar'}),
+          Future.resolved({'qux' => 'baz'}),
+          Future.resolved({'hello' => 'world'})
+        ]
+        future = Future.reduce(futures, {}) do |accumulator, value|
+          accumulator.merge(value)
+        end
+        future.value.should == {'foo' => 'bar', 'qux' => 'baz', 'hello' => 'world'}
+      end
+
+      it 'calls the block with the values in the order of the source futures' do
+        promises = [Promise.new, Promise.new, Promise.new, Promise.new, Promise.new]
+        futures = promises.map(&:future)
+        future = Future.reduce(futures, []) do |accumulator, value|
+          accumulator.push(value)
+        end
+        promises[1].fulfill(1)
+        promises[0].fulfill(0)
+        promises[2].fulfill(2)
+        promises[4].fulfill(4)
+        promises[3].fulfill(3)
+        future.value.should == [0, 1, 2, 3, 4]
+      end
+
+      it 'uses the first value as initial value when no intial value is given' do
+        promises = [Promise.new, Promise.new, Promise.new]
+        futures = promises.map(&:future)
+        future = Future.reduce(futures) do |sum, n|
+          sum + n
+        end
+        promises[1].fulfill(2)
+        promises[0].fulfill(1)
+        promises[2].fulfill(3)
+        future.value.should == 6
+      end
+
+      it 'fails if any of the source futures fail' do
+        futures = [Future.resolved(0), Future.failed(StandardError.new('BORK')), Future.resolved(2)]
+        future = Future.reduce(futures, []) do |accumulator, value|
+          accumulator.push(value)
+        end
+        future.should be_failed
+      end
+
+      it 'fails if any of the block invocations fail' do
+        futures = [Future.resolved(0), Future.resolved(1), Future.resolved(2)]
+        future = Future.reduce(futures, []) do |accumulator, value|
+          if value == 2
+            raise 'BORK'
+          else
+            accumulator.push(value)
+          end
+        end
+        future.should be_failed
+      end
+
+      context 'when the list of futures is empty' do
+        it 'returns a future that resolves to the initial value' do
+          Future.reduce([], :foo).value.should == :foo
+        end
+
+        it 'returns a future that resolves to nil there is also no initial value' do
+          Future.reduce([]).value.should be_nil
+        end
+      end
+
+      it 'accepts anything that implements #on_complete as futures' do
+        ff1, ff2, ff3 = double, double, double
+        ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
+        ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
+        ff3.stub(:on_complete) { |&listener| listener.call(nil, 3) }
+        future = Future.reduce([ff1, ff2, ff3], 0) { |sum, n| sum + n }
+        future.value.should == 6
+      end
+
+      it 'accepts an enumerable of futures' do
+        futures = [Future.resolved(1), Future.resolved(2), Future.resolved(3)].to_enum
+        future = Future.reduce(futures, 0) { |sum, n| sum + n }
+        future.value.should == 6
+      end
+
+      context 'when the :ordered option is false' do
+        it 'calls the block with the values in the order of completion, when the :ordered option is false' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future)
+          future = Future.reduce(futures, [], ordered: false) do |accumulator, value|
+            accumulator.push(value)
+          end
+          promises[1].fulfill(1)
+          promises[0].fulfill(0)
+          promises[2].fulfill(2)
+          future.value.should == [1, 0, 2]
+        end
+
+        it 'fails if any of the source futures fail' do
+          futures = [Future.resolved(0), Future.failed(StandardError.new('BORK')), Future.resolved(2)]
+          future = Future.reduce(futures, [], ordered: false) do |accumulator, value|
+            accumulator.push(value)
+          end
+          future.should be_failed
+        end
+
+        it 'fails if any of the block invocations fail' do
+          futures = [Future.resolved(0), Future.resolved(1), Future.resolved(2)]
+          future = Future.reduce(futures, [], ordered: false) do |accumulator, value|
+            if value == 1
+              raise 'BORK'
+            else
+              accumulator.push(value)
+            end
+          end
+          future.should be_failed
+        end
+
+        context 'when the list of futures is empty' do
+          it 'returns a future that resolves to the initial value' do
+            Future.reduce([], :foo, ordered: false).value.should == :foo
+          end
+
+          it 'returns a future that resolves to nil there is also no initial value' do
+            Future.reduce([], nil, ordered: false).value.should be_nil
+          end
+        end
       end
     end
 
@@ -582,22 +855,7 @@ module Ione
           f.should be_resolved
         end
 
-        it 'resolves when the source futures are resolved' do
-          sequence = []
-          p1 = Promise.new
-          p2 = Promise.new
-          p3 = Promise.new
-          f = Future.all(p1.future, p2.future, p3.future)
-          p1.future.on_value { sequence << 1 } 
-          p2.future.on_value { sequence << 2 } 
-          p3.future.on_value { sequence << 3 }
-          p2.fulfill
-          p1.fulfill
-          p3.fulfill
-          sequence.should == [2, 1, 3]
-        end
-
-        it 'returns an array of the values of the source futures, in order ' do
+        it 'returns an array of the values of the source futures, in order' do
           p1 = Promise.new
           p2 = Promise.new
           p3 = Promise.new
@@ -629,6 +887,31 @@ module Ione
         it 'completes with a list of one item when a single future is given' do
           f = Future.resolved(1)
           Future.all(f).value.should == [1]
+        end
+
+        it 'accepts a list of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future)
+          f = Future.all(futures)
+          promises.each(&:fulfill)
+          f.value.should have(3).items
+        end
+
+        it 'accepts an enumerable of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future).to_enum
+          f = Future.all(futures)
+          promises.each(&:fulfill)
+          f.value.should have(3).items
+        end
+
+        it 'accepts anything that implements #on_complete as futures' do
+          ff1, ff2, ff3 = double, double, double
+          ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
+          ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
+          ff3.stub(:on_complete) { |&listener| listener.call(nil, 3) }
+          future = Future.all(ff1, ff2, ff3)
+          future.value.should == [1, 2, 3]
         end
       end
     end
@@ -704,6 +987,30 @@ module Ione
         it 'completes with the value of the given future, when only one is given' do
           Future.first(Future.resolved('foo')).value.should == 'foo'
         end
+
+        it 'accepts a list of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future)
+          f = Future.first(futures)
+          promises.each(&:fulfill)
+          f.should be_resolved
+        end
+
+        it 'accepts an enumerable of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future).to_enum
+          f = Future.first(futures)
+          promises.each(&:fulfill)
+          f.should be_resolved
+        end
+
+        it 'accepts anything that implements #on_complete as futures' do
+          ff1, ff2 = double, double
+          ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
+          ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
+          future = Future.first(ff1, ff2)
+          future.value.should == 1
+        end
       end
     end
 
@@ -732,9 +1039,10 @@ module Ione
         end
 
         it 'calls its complete callbacks immediately' do
-          f = nil
-          future.on_complete { |ff| f = ff }
-          f.should_not be_nil
+          f, v = nil, nil
+          future.on_complete { |ff, vv| f = ff; v = vv }
+          f.should equal(future)
+          v.should == 'hello world'
         end
 
         it 'does not block on #value' do
@@ -772,9 +1080,10 @@ module Ione
         end
 
         it 'calls its complete callbacks immediately' do
-          f = nil
-          future.on_complete { |ff| f = ff }
-          f.should_not be_nil
+          f, e = nil, nil
+          future.on_complete { |ff, _, ee| f = ff; e = ee }
+          f.should equal(future)
+          e.message.should == 'bork'
         end
 
         it 'does not block on #value' do
