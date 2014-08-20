@@ -395,56 +395,14 @@ module Ione
   end
 
   module FutureCallbacks
-    # Registers a listener that will be called when this future completes,
-    # i.e. resolves or fails. The listener will be called with the future as
-    # solve argument
-    #
-    # @yieldparam [Ione::Future] future the future
-    def on_complete(&listener)
-      run_immediately = false
-      if @state != :pending
-        run_immediately = true
-      else
-        @lock.lock
-        begin
-          if @state == :pending
-            @complete_listeners << listener
-          else
-            run_immediately = true
-          end
-        ensure
-          @lock.unlock
-        end
-      end
-      if run_immediately
-        listener.call(self, @value, @error) rescue nil
-      end
-      nil
-    end
-
     # Registers a listener that will be called when this future becomes
     # resolved. The listener will be called with the value of the future as
     # sole argument.
     #
     # @yieldparam [Object] value the value of the resolved future
     def on_value(&listener)
-      run_immediately = false
-      if @state == :resolved
-        run_immediately = true
-      else
-        @lock.lock
-        begin
-          if @state == :pending
-            @value_listeners << listener
-          elsif @state == :resolved
-            run_immediately = true
-          end
-        ensure
-          @lock.unlock
-        end
-      end
-      if run_immediately
-        listener.call(value) rescue nil
+      on_complete do |f, value|
+        listener.call(value) if f.resolved?
       end
       nil
     end
@@ -455,23 +413,8 @@ module Ione
     #
     # @yieldparam [Error] error the error that failed the future
     def on_failure(&listener)
-      run_immediately = false
-      if @state == :failed
-        run_immediately = true
-      else
-        @lock.lock
-        begin
-          if @state == :pending
-            @failure_listeners << listener
-          elsif @state == :failed
-            run_immediately = true
-          end
-        ensure
-          @lock.unlock
-        end
-      end
-      if run_immediately
-        listener.call(@error) rescue nil
+      on_complete do |f, _, error|
+        listener.call(error) if f.failed?
       end
       nil
     end
@@ -488,9 +431,34 @@ module Ione
     def initialize
       @lock = Mutex.new
       @state = :pending
-      @failure_listeners = []
-      @value_listeners = []
-      @complete_listeners = []
+      @listeners = []
+    end
+
+    # Registers a listener that will be called when this future completes,
+    # i.e. resolves or fails. The listener will be called with the future as
+    # solve argument
+    #
+    # @yieldparam [Ione::Future] future the future
+    def on_complete(&listener)
+      run_immediately = false
+      if @state != :pending
+        run_immediately = true
+      else
+        @lock.lock
+        begin
+          if @state == :pending
+            @listeners << listener
+          else
+            run_immediately = true
+          end
+        ensure
+          @lock.unlock
+        end
+      end
+      if run_immediately
+        listener.call(self, @value, @error) rescue nil
+      end
+      nil
     end
 
     # Returns the value of this future, blocking until it is available if
@@ -510,8 +478,7 @@ module Ione
         return @value if @state == :resolved
         semaphore = Queue.new
         u = proc { semaphore << :unblock }
-        @value_listeners << u
-        @failure_listeners << u
+        @listeners << u
       ensure
         @lock.unlock
       end
@@ -564,50 +531,36 @@ module Ione
   # @private
   class CompletableFuture < Future
     def resolve(v=nil)
-      value_listeners = nil
-      complete_listeners = nil
+      listeners = nil
       @lock.lock
       begin
         raise FutureError, 'Future already completed' unless @state == :pending
         @value = v
         @state = :resolved
-        value_listeners = @value_listeners
-        complete_listeners = @complete_listeners
-        @value_listeners = nil
-        @failure_listeners = nil
-        @complete_listeners = nil
+        listeners = @listeners
+        @listeners = nil
       ensure
         @lock.unlock
       end
-      value_listeners.each do |listener|
-        listener.call(v) rescue nil
-      end
-      complete_listeners.each do |listener|
+      listeners.each do |listener|
         listener.call(self, v, nil) rescue nil
       end
       nil
     end
 
     def fail(error)
-      failure_listeners = nil
-      complete_listeners = nil
+      listeners = nil
       @lock.lock
       begin
         raise FutureError, 'Future already completed' unless @state == :pending
         @error = error
         @state = :failed
-        failure_listeners = @failure_listeners
-        complete_listeners = @complete_listeners
-        @value_listeners = nil
-        @failure_listeners = nil
-        @complete_listeners = nil
+        listeners = @listeners
+        @listeners = nil
       ensure
         @lock.unlock
       end
-      failure_listeners.each do |listener|
-        listener.call(error) rescue nil
-      end
-      complete_listeners.each do |listener|
+      listeners.each do |listener|
         listener.call(self, nil, error) rescue nil
       end
       nil
