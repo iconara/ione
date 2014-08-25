@@ -432,6 +432,12 @@ module Ione
         promise.fulfill(:hello)
         listeners.map(&:value).should == Array.new(10, :hello)
       end
+
+      it 'is aliased as #get' do
+        obj = 'hello world'
+        promise.fulfill(obj)
+        future.get.should equal(obj)
+      end
     end
 
     describe '#map' do

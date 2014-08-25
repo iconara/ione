@@ -493,6 +493,7 @@ module Ione
         semaphore.pop
       end
     end
+    alias_method :get, :value
 
     # Returns true if this future is resolved or failed
     def completed?
