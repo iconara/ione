@@ -211,13 +211,88 @@ module Ione
           f2.should equal(future)
         end
 
-        it 'passes the value as the second parameter to the block' do
+        it 'passes the value as the first parameter to the block when it expects two arguments' do
           v1, v2 = nil, nil
-          future.on_complete { |_, v| v1 = v }
-          future.on_complete { |_, v| v2 = v }
+          future.on_complete { |v, _| v1 = v }
+          future.on_complete { |v, _| v2 = v }
           promise.fulfill('bar')
           v1.should == 'bar'
           v2.should == 'bar'
+        end
+
+        it 'passes future as the third parameter to the block when it expects three arguments' do
+          f1, f2 = nil, nil
+          future.on_complete { |_, _, f| f1 = f }
+          future.on_complete { |_, _, f| f2 = f }
+          promise.fulfill('bar')
+          f1.should equal(future)
+          f2.should equal(future)
+        end
+
+        it 'passes the value, error and future to the block when it expects any number of arguments' do
+          value = 'bar'
+          error = StandardError.new('bork')
+          args1, args2 = nil, nil
+          p1 = Promise.new
+          p2 = Promise.new
+          p1.future.on_complete { |*a| args1 = a }
+          p2.future.on_complete { |*a| args2 = a }
+          p1.fulfill(value)
+          p2.fail(error)
+          args1[0].should equal(value)
+          args1[1].should be_nil
+          args1[2].should equal(p1.future)
+          args2[0].should be_nil
+          args2[1].should equal(error)
+          args2[2].should equal(p2.future)
+        end
+
+        it 'passes the value, error and future to the listener when the listener is a lambda' do
+          value = 'bar'
+          error = StandardError.new('bork')
+          args1, args2 = nil, nil
+          p1 = Promise.new
+          p2 = Promise.new
+          p1.future.on_complete(&lambda { |v, e, f| args1 = [v, e, f] })
+          p2.future.on_complete(&lambda { |v, e, f| args2 = [v, e, f] })
+          p1.fulfill(value)
+          p2.fail(error)
+          args1[0].should equal(value)
+          args1[1].should be_nil
+          args1[2].should equal(p1.future)
+          args2[0].should be_nil
+          args2[1].should equal(error)
+          args2[2].should equal(p2.future)
+        end
+
+        it 'ignores optional arguments for lambdas' do
+          value = 'bar'
+          error = StandardError.new('bork')
+          args1, args2 = nil, nil
+          p1 = Promise.new
+          p2 = Promise.new
+          p1.future.on_complete(&lambda { |v, e, f=nil| args1 = [v, e, f] })
+          p2.future.on_complete(&lambda { |v, e, f, x=1, y=2| args2 = [v, e, f, x, y] })
+          p1.fulfill(value)
+          p2.fail(error)
+          args1[0].should equal(value)
+          args1[1].should be_nil
+          args1[2].should be_nil
+          args2[0].should be_nil
+          args2[1].should equal(error)
+          args2[2].should equal(p2.future)
+        end
+
+        it 'does not handle listeners that are lambdas and have one optional argument' do
+          called1, called2 = false, false
+          p1 = Promise.new
+          p2 = Promise.new
+          p1.future.on_complete(&lambda { |v, e=nil| called1 = true })
+          p2.future.on_complete(&lambda { |v, e=nil| called2 = true })
+          p1.fulfill('bar')
+          p2.fail(StandardError.new('bork'))
+          called1.should be_false
+          called2.should be_false
         end
 
         it 'notifies all listeners when the promise fails' do
@@ -229,10 +304,10 @@ module Ione
           c2.should be_true
         end
 
-        it 'passes the error as the third parameter' do
+        it 'passes the error as the second parameter to the block when it expects two arguments' do
           e1, e2 = nil, nil
-          future.on_complete { |_, _, e| e1 = e }
-          future.on_complete { |_, _, e| e2 = e }
+          future.on_complete { |_, e| e1 = e }
+          future.on_complete { |_, e| e2 = e }
           future.fail(error)
           e1.should equal(error)
           e2.should equal(error)
@@ -257,7 +332,7 @@ module Ione
         it 'notifies listeners registered after the promise was fulfilled' do
           f, v, e = nil, nil, nil
           promise.fulfill('bar')
-          future.on_complete { |ff, vv, ee| f = ff; v = vv; e = ee }
+          future.on_complete { |vv, ee, ff| v = vv; e = ee; f = ff }
           f.should equal(future)
           v.should == 'bar'
           e.should be_nil
@@ -266,7 +341,7 @@ module Ione
         it 'notifies listeners registered after the promise failed' do
           f, v, e = nil, nil, nil
           promise.fail(StandardError.new('bork'))
-          future.on_complete { |ff, vv, ee| f = ff; v = vv; e = ee }
+          future.on_complete { |vv, ee, ff| v = vv; e = ee; f = ff }
           f.should equal(future)
           v.should be_nil
           e.message.should == 'bork'
@@ -274,7 +349,7 @@ module Ione
 
         it 'notifies listeners registered after the promise failed' do
           promise.fail(error)
-          expect { future.on_complete { |v| raise 'blurgh' } }.to_not raise_error
+          expect { future.on_complete { raise 'blurgh' } }.to_not raise_error
         end
 
         it 'returns nil' do
@@ -518,7 +593,7 @@ module Ione
 
       it 'accepts anything that implements #on_complete as a chained future' do
         fake_future = double(:fake_future)
-        fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
+        fake_future.stub(:on_complete) { |&listener| listener.call(:foobar, nil) }
         p = Promise.new
         f = p.future.flat_map { fake_future }
         p.fulfill
@@ -537,13 +612,26 @@ module Ione
       end
 
       context 'when the block returns something that quacks like a future' do
-        it 'works like #flat_map' do
-          fake_future = double(:fake_future)
-          fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
-          p = Promise.new
-          f = p.future.then { |v| fake_future }
-          p.fulfill
-          f.value.should == :foobar
+        context 'and yields a value from #on_complete' do
+          it 'works like #flat_map' do
+            fake_future = double(:fake_future)
+            fake_future.stub(:on_complete) { |&listener| listener.call(:foobar) }
+            p = Promise.new
+            f = p.future.then { |v| fake_future }
+            p.fulfill
+            f.value.should == :foobar
+          end
+        end
+
+        context 'and yields an error from #on_complete' do
+          it 'works like #flat_map' do
+            fake_future = double(:fake_future)
+            fake_future.stub(:on_complete) { |&listener| listener.call(nil, StandardError.new('bork')) }
+            p = Promise.new
+            f = p.future.then { |v| fake_future }
+            p.fulfill
+            expect { f.value }.to raise_error(StandardError, 'bork')
+          end
         end
       end
 
@@ -668,7 +756,7 @@ module Ione
 
         it 'accepts anything that implements #on_complete as a fallback future' do
           fake_future = double(:fake_future)
-          fake_future.stub(:on_complete) { |&listener| listener.call(nil, 'foo') }
+          fake_future.stub(:on_complete) { |&listener| listener.call('foo', nil) }
           p = Promise.new
           f = p.future.fallback { fake_future }
           p.fail(error)
@@ -709,7 +797,7 @@ module Ione
 
       it 'accepts anything that implements #on_complete as futures' do
         fake_future = double(:fake_future)
-        fake_future.stub(:on_complete) { |&listener| listener.call(nil, :foobar) }
+        fake_future.stub(:on_complete) { |&listener| listener.call(:foobar, nil) }
         future = Future.traverse([1, 2, 3]) { fake_future }
         future.value.should == [:foobar, :foobar, :foobar]
       end
@@ -791,9 +879,9 @@ module Ione
 
       it 'accepts anything that implements #on_complete as futures' do
         ff1, ff2, ff3 = double, double, double
-        ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
-        ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
-        ff3.stub(:on_complete) { |&listener| listener.call(nil, 3) }
+        ff1.stub(:on_complete) { |&listener| listener.call(1, nil) }
+        ff2.stub(:on_complete) { |&listener| listener.call(2, nil) }
+        ff3.stub(:on_complete) { |&listener| listener.call(3, nil) }
         future = Future.reduce([ff1, ff2, ff3], 0) { |sum, n| sum + n }
         future.value.should == 6
       end
@@ -913,9 +1001,9 @@ module Ione
 
         it 'accepts anything that implements #on_complete as futures' do
           ff1, ff2, ff3 = double, double, double
-          ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
-          ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
-          ff3.stub(:on_complete) { |&listener| listener.call(nil, 3) }
+          ff1.stub(:on_complete) { |&listener| listener.call(1, nil) }
+          ff2.stub(:on_complete) { |&listener| listener.call(2, nil) }
+          ff3.stub(:on_complete) { |&listener| listener.call(3, nil) }
           future = Future.all(ff1, ff2, ff3)
           future.value.should == [1, 2, 3]
         end
@@ -1012,8 +1100,8 @@ module Ione
 
         it 'accepts anything that implements #on_complete as futures' do
           ff1, ff2 = double, double
-          ff1.stub(:on_complete) { |&listener| listener.call(nil, 1) }
-          ff2.stub(:on_complete) { |&listener| listener.call(nil, 2) }
+          ff1.stub(:on_complete) { |&listener| listener.call(1, nil) }
+          ff2.stub(:on_complete) { |&listener| listener.call(2, nil) }
           future = Future.first(ff1, ff2)
           future.value.should == 1
         end
@@ -1046,7 +1134,7 @@ module Ione
 
         it 'calls its complete callbacks immediately' do
           f, v = nil, nil
-          future.on_complete { |ff, vv| f = ff; v = vv }
+          future.on_complete { |vv, _, ff| f = ff; v = vv }
           f.should equal(future)
           v.should == 'hello world'
         end
@@ -1087,7 +1175,7 @@ module Ione
 
         it 'calls its complete callbacks immediately' do
           f, e = nil, nil
-          future.on_complete { |ff, _, ee| f = ff; e = ee }
+          future.on_complete { |_, ee, ff| f = ff; e = ee }
           f.should equal(future)
           e.message.should == 'bork'
         end
