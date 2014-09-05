@@ -750,7 +750,7 @@ module Ione
     end
 
     def on_complete(&listener)
-      listener.call(@value, nil, self) rescue nil
+      call_listener(listener)
     end
 
     def on_value(&listener)
@@ -788,7 +788,7 @@ module Ione
     end
 
     def on_complete(&listener)
-      listener.call(nil, @error, self) rescue nil
+      call_listener(listener)
     end
 
     def on_value

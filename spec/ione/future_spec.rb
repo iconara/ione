@@ -1139,6 +1139,16 @@ module Ione
           v.should == 'hello world'
         end
 
+        it 'calls its complete callbacks with the right arity' do
+          f1, v, f2 = nil, nil, nil
+          future.on_complete { |ff| f1 = ff }
+          future.on_complete { |vv, ee| v = vv }
+          future.on_complete { |vv, ee, ff| f2 = ff }
+          f1.should equal(future)
+          f2.should equal(future)
+          v.should == 'hello world'
+        end
+
         it 'does not block on #value' do
           future.value.should == 'hello world'
         end
@@ -1177,6 +1187,16 @@ module Ione
           f, e = nil, nil
           future.on_complete { |_, ee, ff| f = ff; e = ee }
           f.should equal(future)
+          e.message.should == 'bork'
+        end
+
+        it 'calls its complete callbacks with the right arity' do
+          f1, e, f2 = nil, nil, nil
+          future.on_complete { |ff| f1 = ff }
+          future.on_complete { |vv, ee| e = ee }
+          future.on_complete { |vv, ee, ff| f2 = ff }
+          f1.should equal(future)
+          f2.should equal(future)
           e.message.should == 'bork'
         end
 
