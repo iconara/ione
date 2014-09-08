@@ -284,6 +284,7 @@ module Ione
         end
 
         it 'does not handle listeners that are lambdas and have one optional argument' do
+          pending 'MRI 1.9.3 thinks these lambas have arity 1 and not -2' if RUBY_ENGINE == 'ruby' && RUBY_VERSION < '2.0.0'
           called1, called2 = false, false
           p1 = Promise.new
           p2 = Promise.new
