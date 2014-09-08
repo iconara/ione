@@ -5,10 +5,13 @@ module Ione
     class BaseConnection
       attr_reader :host, :port
 
-      def initialize(host, port)
+      def initialize(host, port, unblocker)
         @host = host
         @port = port
+        @unblocker = unblocker
         @state = :connecting
+        @lock = Mutex.new
+        @write_buffer = ByteBuffer.new
         @closed_promise = Promise.new
       end
 

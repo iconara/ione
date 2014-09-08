@@ -156,23 +156,57 @@ module Ione
       #
       # @param host [String] the host to connect to
       # @param port [Integer] the port to connect to
-      # @param timeout [Numeric] the number of seconds to wait for a connection
-      #   before failing
+      # @param options_or_timeout [Hash, Numeric] a hash of options (see below)
+      #   or the connection timeout (equivalent to using the `:timeout` option).
+      # @option options_or_timeout [Numeric] :timeout (5) the number of seconds
+      #   to wait for a connection before failing
+      # @option options_or_timeout [Boolean, OpenSSL::SSL::SSLContext] :ssl (false)
+      #   pass an `OpenSSL::SSL::SSLContext` to upgrade the connection to SSL,
+      #   or true to upgrade the connection and create a new context.
       # @yieldparam [Ione::Io::Connection] connection the newly opened connection
       # @return [Ione::Future] a future that will resolve when the connection is
       #   open. The value will be the connection, or when a block is given to
       #   what the block returns
-      def connect(host, port, timeout, &block)
+      def connect(host, port, options=nil, &block)
+        if options.is_a?(Numeric) || options.nil?
+          timeout = options || 5
+          ssl = false
+        elsif options
+          timeout = options[:timeout] || 5
+          ssl = options[:ssl]
+        end
         connection = Connection.new(host, port, timeout, @unblocker, @clock)
         f = connection.connect
         @io_loop.add_socket(connection)
         @unblocker.unblock!
+        if ssl
+          f = f.flat_map do
+            ssl_context = ssl == true ? nil : ssl
+            upgraded_connection = SslConnection.new(host, port, connection.to_io, @unblocker, ssl_context)
+            ff = upgraded_connection.connect
+            @io_loop.remove_socket(connection)
+            @io_loop.add_socket(upgraded_connection)
+            @unblocker.unblock!
+            ff
+          end
+        end
         f = f.map(&block) if block_given?
         f
       end
 
-      def bind(host, port, backlog, &block)
-        server = Acceptor.new(host, port, backlog, @unblocker, self)
+      def bind(host, port, options=nil, &block)
+        if options.is_a?(Integer) || options.nil?
+          backlog = options || 5
+          ssl_context = nil
+        elsif options
+          backlog = options[:backlog] || 5
+          ssl_context = options[:ssl]
+        end
+        if ssl_context
+          server = SslAcceptor.new(host, port, backlog, @unblocker, self, ssl_context)
+        else
+          server = Acceptor.new(host, port, backlog, @unblocker, self)
+        end
         f = server.bind
         @io_loop.add_socket(server)
         @unblocker.unblock!
@@ -261,6 +295,7 @@ module Ione
       private
 
       PING_BYTE = "\0".freeze
+      DEFAULT_CONNECT_OPTIONS = {:timeout => 5}.freeze
     end
 
     # @private
@@ -280,6 +315,12 @@ module Ione
         @sockets = sockets
       ensure
         @lock.unlock
+      end
+
+      def remove_socket(socket)
+        @lock.synchronize do
+          @sockets = @sockets.reject { |s| s == socket || s.closed? }
+        end
       end
 
       def schedule_timer(timeout, promise=Promise.new)

@@ -29,7 +29,11 @@ module Ione
         end
 
         def fake_connected(connection)
-          connection.to_io.stub(:connect_nonblock)
+          if connection.is_a?(SslConnection)
+            connection.instance_variable_get(:@io).stub(:connect_nonblock)
+          else
+            connection.to_io.stub(:connect_nonblock)
+          end
         end
 
         after do
@@ -159,6 +163,18 @@ module Ione
           x.should == :foo
         end
 
+        it 'defaults to 5 as the connection timeout' do
+          reactor.start.value
+          connection = reactor.connect('example.com', 9999).value
+          connection.connection_timeout.should == 5
+        end
+
+        it 'takes the connection timeout from the :timeout option' do
+          reactor.start.value
+          connection = reactor.connect('example.com', 9999, timeout: 9).value
+          connection.connection_timeout.should == 9
+        end
+
         it 'returns the connection when no block is given' do
           reactor.start.value
           reactor.connect('example.com', 9999, 5).value.should be_a(Connection)
@@ -169,6 +185,19 @@ module Ione
           connection = reactor.connect('example.com', 9999, 5).value
           await { selector.last_arguments[0].length > 1 }
           selector.last_arguments[0].should include(connection)
+        end
+
+        it 'upgrades the connection to SSL' do
+          reactor.start.value
+          connection = reactor.connect('example.com', 9999, ssl: true).value
+          connection.should be_a(SslConnection)
+        end
+
+        it 'passes an SSL context to the SSL connection' do
+          ssl_context = double(:ssl_context)
+          reactor.start.value
+          f = reactor.connect('example.com', 9999, ssl: ssl_context)
+          expect { f.value }.to raise_error
         end
       end
 
@@ -192,6 +221,18 @@ module Ione
           x.should == :foo
         end
 
+        it 'defaults to a backlog of 5' do
+          reactor.start.value
+          acceptor = reactor.bind(ENV['SERVER_HOST'], port).value
+          acceptor.backlog.should == 5
+        end
+
+        it 'takes the backlog from the :backlog option' do
+          reactor.start.value
+          acceptor = reactor.bind(ENV['SERVER_HOST'], port, backlog: 9).value
+          acceptor.backlog.should == 9
+        end
+
         it 'returns the acceptor when no block is given' do
           reactor.start.value
           acceptor = reactor.bind(ENV['SERVER_HOST'], port, 5).value
@@ -201,8 +242,15 @@ module Ione
         it 'creates an acceptor and passes it to the selector as a readable' do
           reactor.start.value
           acceptor = reactor.bind(ENV['SERVER_HOST'], port, 5).value
-          await { selector.last_arguments[0].length > 1 }
+          await { selector.last_arguments && selector.last_arguments[0].length > 1 }
           selector.last_arguments[0].should include(acceptor)
+        end
+
+        it 'creates an SSL acceptor' do
+          ssl_context = double(:ssl_context)
+          reactor.start.value
+          acceptor = reactor.bind(ENV['SERVER_HOST'], port, ssl: ssl_context).value
+          acceptor.should be_an(SslAcceptor)
         end
       end
 

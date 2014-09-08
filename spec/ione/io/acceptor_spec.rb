@@ -63,6 +63,7 @@ module Ione
         socket_impl.stub(:new)
           .with('FAMILY2', 'TYPE2', 0)
           .and_return(socket)
+        socket.stub(:close)
         socket.stub(:bind)
         socket.stub(:listen)
       end
@@ -98,6 +99,12 @@ module Ione
           socket.stub(:bind).and_raise(Errno::EADDRNOTAVAIL)
           f = acceptor.bind
           expect { f.value }.to raise_error(Errno::EADDRNOTAVAIL)
+        end
+
+        it 'closes the socket when none of the addresses worked' do
+          socket.stub(:bind).and_raise(Errno::EADDRNOTAVAIL)
+          acceptor.bind.value rescue nil
+          socket.should have_received(:close)
         end
 
         it 'returns a future that resolves to itself when the socket has been bound' do

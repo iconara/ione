@@ -9,13 +9,10 @@ module Ione
 
       # @private
       def initialize(host, port, connection_timeout, unblocker, clock, socket_impl=Socket)
-        super(host, port)
+        super(host, port, unblocker)
         @connection_timeout = connection_timeout
-        @unblocker = unblocker
         @clock = clock
         @socket_impl = socket_impl
-        @lock = Mutex.new
-        @write_buffer = ByteBuffer.new
         @connected_promise = Promise.new
         on_closed(&method(:cleanup_on_close))
       end
