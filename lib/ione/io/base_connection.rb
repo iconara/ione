@@ -29,6 +29,9 @@ module Ione
           end
         end
         @state = :closed
+        if cause && !cause.is_a?(IoError)
+          cause = ConnectionClosedError.new(cause.message)
+        end
         if cause
           @closed_promise.fail(cause)
         else

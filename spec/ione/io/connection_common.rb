@@ -245,11 +245,12 @@ shared_examples_for 'a connection' do |options|
           handler.read
         end
 
-        it 'passes the error to the close handler' do
+        it 'passes an IoError to the close handler' do
           error = nil
           handler.on_closed { |e| error = e }
           handler.read
-          error.should be_a(Exception)
+          error.should be_a(Ione::Io::ConnectionClosedError)
+          error.message.should match(/Bork\!/)
         end
       end
     end
