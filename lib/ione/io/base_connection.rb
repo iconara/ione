@@ -19,7 +19,13 @@ module Ione
       #
       # @return [true, false] returns false if the connection was already closed
       def close(cause=nil)
-        return false if @state == :closed
+        @lock.lock
+        begin
+          return false if @state == :closed
+          @state = :closed
+        ensure
+          @lock.unlock
+        end
         if @io
           begin
             @io.close
@@ -28,7 +34,6 @@ module Ione
             # nothing to do, the socket was most likely already closed
           end
         end
-        @state = :closed
         if cause && !cause.is_a?(IoError)
           cause = ConnectionClosedError.new(cause.message)
         end
