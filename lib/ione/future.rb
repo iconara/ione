@@ -741,7 +741,7 @@ module Ione
       true
     end
 
-    def resolvesd?
+    def resolved?
       true
     end
 
