@@ -9,6 +9,7 @@ module Ione
         @host = host
         @port = port
         @state = :connecting
+        @lock = Mutex.new
         @closed_promise = Promise.new
       end
 
@@ -16,7 +17,13 @@ module Ione
       #
       # @return [true, false] returns false if the connection was already closed
       def close(cause=nil)
-        return false if @state == :closed
+        @lock.lock
+        begin
+          return false if @state == :closed
+          @state = :closed
+        ensure
+          @lock.unlock
+        end
         if @io
           begin
             @io.close

@@ -14,7 +14,6 @@ module Ione
         @unblocker = unblocker
         @clock = clock
         @socket_impl = socket_impl
-        @lock = Mutex.new
         @write_buffer = ByteBuffer.new
         @connected_promise = Promise.new
         on_closed(&method(:cleanup_on_close))
