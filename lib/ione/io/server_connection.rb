@@ -8,7 +8,6 @@ module Ione
         super(host, port)
         @io = socket
         @unblocker = unblocker
-        @lock = Mutex.new
         @write_buffer = ByteBuffer.new
         @state = :connected
       end

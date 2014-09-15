@@ -9,6 +9,7 @@ module Ione
         @host = host
         @port = port
         @state = :connecting
+        @lock = Mutex.new
         @closed_promise = Promise.new
       end
 
