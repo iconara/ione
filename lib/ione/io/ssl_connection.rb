@@ -45,7 +45,7 @@ module Ione
             new_data = @io.read_nonblock(2**16)
             @data_listener.call(new_data) if @data_listener
           end
-        rescue IO::WaitReadable
+        rescue IO::WaitReadable, IO::WaitWritable
           # no more data available
         rescue => e
           close(e)
@@ -59,6 +59,8 @@ module Ione
             @data_listener.call(new_data) if @data_listener
             read_size = @io.pending
           end
+        rescue IO::WaitReadable, IO::WaitWritable
+          # no more data available
         rescue => e
           close(e)
         end
