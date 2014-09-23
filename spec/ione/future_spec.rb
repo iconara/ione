@@ -979,6 +979,14 @@ module Ione
           Future.all.value.should == []
         end
 
+        it 'completes with an empty list when an empty list is given' do
+          Future.all([]).value.should == []
+        end
+
+        it 'completes with an empty list when an empty enumerable is given' do
+          Future.all([].to_enum).value.should == []
+        end
+
         it 'completes with a list of one item when a single future is given' do
           f = Future.resolved(1)
           Future.all(f).value.should == [1]
@@ -998,6 +1006,14 @@ module Ione
           f = Future.all(futures)
           promises.each(&:fulfill)
           f.value.should have(3).items
+        end
+
+        it 'accepts an enumerable of one future' do
+          promises = [Promise.new]
+          futures = promises.map(&:future).to_enum
+          f = Future.all(futures)
+          promises.each(&:fulfill)
+          f.value.should have(1).item
         end
 
         it 'accepts anything that implements #on_complete as futures' do

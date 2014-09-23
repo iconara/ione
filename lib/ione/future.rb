@@ -91,10 +91,14 @@ module Ione
     # @return [Ione::Future<Array>] an array of the values of the constituent
     #   futures
     def all(*futures)
-      return resolved([]) if futures.empty?
-      futures = futures.size == 1 && futures.first.is_a?(Enumerable) ? futures.first : futures
-      return futures.first.map { |v| [v] } if futures.is_a?(Array) && futures.size == 1
-      CombinedFuture.new(futures)
+      if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
+        futures = fs
+      end
+      if futures.count == 0
+        resolved([])
+      else
+        CombinedFuture.new(futures)
+      end
     end
 
     # Returns a future which will be resolved with the value of the first
