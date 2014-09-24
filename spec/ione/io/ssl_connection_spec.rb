@@ -153,6 +153,20 @@ module Ione
           end
         end
 
+        it 'does not close the socket when #read_nonblock raises IO::WaitWritable' do
+          ssl_socket.stub(:read_nonblock).and_raise(OpenSSL::SSL::SSLErrorWaitWritable)
+          handler.connect
+          handler.read
+          ssl_socket.should_not have_received(:close)
+        end
+
+        it 'does not close the socket when #read_nonblock raises IO::WaitReadable' do
+          ssl_socket.stub(:read_nonblock).and_raise(OpenSSL::SSL::SSLErrorWaitReadable)
+          handler.connect
+          handler.read
+          ssl_socket.should_not have_received(:close)
+        end
+
         it 'closes the connection when an error occurs' do
           ssl_socket.stub(:read_nonblock).and_raise('boork')
           handler.connect
