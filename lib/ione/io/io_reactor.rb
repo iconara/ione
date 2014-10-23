@@ -356,7 +356,7 @@ module Ione
       def cancel_timers
         @timers.each do |pair|
           if pair[1]
-            pair[1].fail(CancelledError.new)
+            pair[1].fail(CancelledError.new) rescue nil
             pair[1] = nil
           end
         end
@@ -395,7 +395,7 @@ module Ione
         timers = @timers
         timers.each do |pair|
           if pair[1] && pair[0] <= @clock.now
-            pair[1].fulfill
+            pair[1].fulfill rescue nil
             pair[1] = nil
           end
         end
