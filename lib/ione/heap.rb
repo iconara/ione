@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 module Ione
+  # @private
   class Heap
     def initialize
       @items = []
