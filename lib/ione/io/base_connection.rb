@@ -134,7 +134,7 @@ module Ione
           ensure
             @lock.unlock
           end
-          @unblocker.unblock!
+          @unblocker.unblock
         end
       end
 

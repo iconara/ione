@@ -95,7 +95,7 @@ shared_examples_for 'a connection' do |options|
   describe '#write/#flush' do
     before do
       socket.stub(:write_nonblock)
-      unblocker.stub(:unblock!)
+      unblocker.stub(:unblock)
     end
 
     it 'appends to its buffer when #write is called' do
@@ -103,7 +103,7 @@ shared_examples_for 'a connection' do |options|
     end
 
     it 'unblocks the reactor' do
-      unblocker.should_receive(:unblock!)
+      unblocker.should_receive(:unblock)
       handler.write('hello world')
     end
 
@@ -190,7 +190,7 @@ shared_examples_for 'a connection' do |options|
         handler.close
         handler.write('hello world')
         handler.flush
-        unblocker.should_not have_received(:unblock!)
+        unblocker.should_not have_received(:unblock)
       end
     end
 
@@ -214,7 +214,7 @@ shared_examples_for 'a connection' do |options|
         handler.drain
         handler.write('hello world')
         handler.flush
-        unblocker.should_not have_received(:unblock!)
+        unblocker.should_not have_received(:unblock)
       end
     end
   end

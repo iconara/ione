@@ -16,7 +16,7 @@ module Ione
       end
 
       let :unblocker do
-        double(:unblocker, unblock!: nil)
+        double(:unblocker, unblock: nil)
       end
 
       it_behaves_like 'a connection'

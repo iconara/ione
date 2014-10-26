@@ -181,7 +181,7 @@ module Ione
         connection = Connection.new(host, port, timeout, @unblocker, @clock)
         f = connection.connect
         @io_loop.add_socket(connection)
-        @unblocker.unblock!
+        @unblocker.unblock
         if ssl
           f = f.flat_map do
             ssl_context = ssl == true ? nil : ssl
@@ -189,7 +189,7 @@ module Ione
             ff = upgraded_connection.connect
             @io_loop.remove_socket(connection)
             @io_loop.add_socket(upgraded_connection)
-            @unblocker.unblock!
+            @unblocker.unblock
             ff
           end
         end
@@ -212,7 +212,7 @@ module Ione
         end
         f = server.bind
         @io_loop.add_socket(server)
-        @unblocker.unblock!
+        @unblocker.unblock
         f = f.map(&block) if block_given?
         f
       end
@@ -220,7 +220,7 @@ module Ione
       # @private
       def accept(socket)
         @io_loop.add_socket(socket)
-        @unblocker.unblock!
+        @unblocker.unblock
       end
 
       # Returns a future that completes after the specified number of seconds.
@@ -269,7 +269,7 @@ module Ione
         @in.nil?
       end
 
-      def unblock!
+      def unblock
         @lock.lock
         @in.write(PING_BYTE)
       ensure
@@ -396,8 +396,8 @@ module Ione
       end
 
       def tick(timeout=1)
-        check_sockets!(timeout)
-        check_timers!
+        check_sockets(timeout)
+        check_timers
       end
 
       def to_s
@@ -406,7 +406,7 @@ module Ione
 
       private
 
-      def check_sockets!(timeout)
+      def check_sockets(timeout)
         readables, writables, connecting = [], [], []
         sockets = @sockets
         sockets.each do |s|
@@ -424,7 +424,7 @@ module Ione
         end
       end
 
-      def check_timers!
+      def check_timers
         now = @clock.now
         first_timer = @timer_queue.peek
         if first_timer && first_timer.time <= now

@@ -92,15 +92,15 @@ module Ione
           end
 
           it 'has a reference to the unblocker' do
-            unblocker.stub(:unblock!)
+            unblocker.stub(:unblock)
             acceptor.bind
             acceptor.read
             accepted_handlers.first.write('foo')
-            unblocker.should have_received(:unblock!)
+            unblocker.should have_received(:unblock)
           end
 
           it 'writes to the SSL socket' do
-            unblocker.stub(:unblock!)
+            unblocker.stub(:unblock)
             ssl_socket.stub(:write_nonblock) { |b| b.bytesize }
             acceptor.bind
             acceptor.read

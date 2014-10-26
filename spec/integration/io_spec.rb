@@ -18,32 +18,32 @@ describe 'An IO reactor' do
     end
 
     before do
-      fake_server.start!
+      fake_server.start
       io_reactor.start
     end
 
     after do
       io_reactor.stop
-      fake_server.stop!
+      fake_server.stop
     end
 
     it 'connects to the server' do
       io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1, &protocol_handler_factory)
-      fake_server.await_connects!(1)
+      fake_server.await_connects(1)
     end
 
     it 'receives data' do
       protocol_handler = io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1, &protocol_handler_factory).value
-      fake_server.await_connects!(1)
-      fake_server.broadcast!('hello world')
+      fake_server.await_connects(1)
+      fake_server.broadcast('hello world')
       await { protocol_handler.data.bytesize > 0 }
       protocol_handler.data.should == 'hello world'
     end
 
     it 'receives data on multiple connections' do
       protocol_handlers = Array.new(10) { io_reactor.connect(ENV['SERVER_HOST'], fake_server.port, 1, &protocol_handler_factory).value }
-      fake_server.await_connects!(10)
-      fake_server.broadcast!('hello world')
+      fake_server.await_connects(10)
+      fake_server.broadcast('hello world')
       await { protocol_handlers.all? { |c| c.data.bytesize > 0 } }
       protocol_handlers.sample.data.should == 'hello world'
     end

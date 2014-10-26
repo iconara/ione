@@ -99,18 +99,18 @@ module Ione
         @result_handler = result_handler
       end
 
-      def complete!(result)
+      def complete(result)
         @result_handler.call(result)
       end
 
-      def fail!(message)
+      def fail(message)
         @result_handler.call(message, true)
       end
     end
 
     class BulkState < State
       def handle_line(line)
-        complete!(line)
+        complete(line)
         BaseState.new(@result_handler)
       end
     end
@@ -132,7 +132,7 @@ module Ione
           @elements << line
         end
         if @elements.size == @expected_elements
-          complete!(@elements)
+          complete(@elements)
           BaseState.new(@result_handler)
         else
           self
@@ -145,12 +145,12 @@ module Ione
         next_state = self
         first_char = line.slice!(0, 1)
         case first_char
-        when '+' then complete!(line)
-        when ':' then complete!(line.to_i)
-        when '-' then fail!(line)
+        when '+' then complete(line)
+        when ':' then complete(line.to_i)
+        when '-' then fail(line)
         when '$'
           if line.to_i == -1
-            complete!(nil)
+            complete(nil)
           else
             next_state = BulkState.new(@result_handler)
           end

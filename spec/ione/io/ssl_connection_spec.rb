@@ -24,7 +24,7 @@ module Ione
       end
 
       let :unblocker do
-        double(:unblocker, unblock!: nil)
+        double(:unblocker, unblock: nil)
       end
 
       let :ssl_context do

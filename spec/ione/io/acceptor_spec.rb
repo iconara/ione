@@ -179,11 +179,11 @@ module Ione
         end
 
         it 'passes the unblocker along to the connection handler' do
-          unblocker.stub(:unblock!)
+          unblocker.stub(:unblock)
           acceptor.bind
           acceptor.read
           accepted_handlers.first.write('foo')
-          unblocker.should have_received(:unblock!)
+          unblocker.should have_received(:unblock)
         end
       end
 

@@ -13,7 +13,7 @@ class FakeServer
     @received_bytes = ''
   end
 
-  def start!(options={})
+  def start(options={})
     @lock.synchronize do
       return if @running
       @running = true
@@ -30,7 +30,7 @@ class FakeServer
     self
   end
 
-  def stop!
+  def stop
     @lock.synchronize do
       return unless @running
       @running = false
@@ -41,13 +41,13 @@ class FakeServer
     end
   end
 
-  def broadcast!(bytes)
+  def broadcast(bytes)
     @lock.synchronize do
       @connections.each { |c| c.write_nonblock(bytes) }
     end
   end
 
-  def await_connects!(n=1)
+  def await_connects(n=1)
     started_at = Time.now
     until @connects >= n
       sleep(0.01)
@@ -55,7 +55,7 @@ class FakeServer
     end
   end
 
-  def await_disconnects!(n=1)
+  def await_disconnects(n=1)
     started_at = Time.now
     until @disconnects >= n
       sleep(0.01)

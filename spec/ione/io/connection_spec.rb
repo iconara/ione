@@ -12,7 +12,7 @@ module Ione
       end
 
       let :unblocker do
-        double(:unblocker, unblock!: nil)
+        double(:unblocker, unblock: nil)
       end
 
       let :socket_impl do
