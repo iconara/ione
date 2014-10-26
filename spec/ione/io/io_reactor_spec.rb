@@ -435,25 +435,22 @@ module Ione
         it 'completes timers that have expired' do
           selector.stub(:select).and_return([nil, nil, nil])
           clock.stub(:now).and_return(1)
-          promise = Promise.new
-          loop_body.schedule_timer(1, promise)
+          future = loop_body.schedule_timer(1)
           loop_body.tick
-          promise.future.should_not be_completed
+          future.should_not be_completed
           clock.stub(:now).and_return(2)
           loop_body.tick
-          promise.future.should be_completed
+          future.should be_completed
         end
 
         it 'clears out timers that have expired' do
           selector.stub(:select).and_return([nil, nil, nil])
           clock.stub(:now).and_return(1)
-          promise = Promise.new
-          loop_body.schedule_timer(1, promise)
+          future = loop_body.schedule_timer(1)
           clock.stub(:now).and_return(2)
           loop_body.tick
-          promise.future.should be_completed
-          promise.should_not_receive(:fulfill)
-          loop_body.tick
+          future.should be_completed
+          expect { loop_body.tick }.to_not raise_error
         end
       end
 
@@ -492,20 +489,17 @@ module Ione
         end
 
         it 'fails all active timers with a CancelledError' do
-          p1 = Promise.new
-          p2 = Promise.new
-          p3 = Promise.new
           clock.stub(:now).and_return(1)
-          loop_body.schedule_timer(1, p1)
-          loop_body.schedule_timer(3, p2)
-          loop_body.schedule_timer(3, p3)
+          f1 = loop_body.schedule_timer(1)
+          f2 = loop_body.schedule_timer(3)
+          f3 = loop_body.schedule_timer(3)
           clock.stub(:now).and_return(2)
           loop_body.tick
           loop_body.cancel_timers
-          p1.future.should be_completed
-          p2.future.should be_failed
-          p3.future.should be_failed
-          expect { p3.future.value }.to raise_error(CancelledError)
+          f1.should be_completed
+          f2.should be_failed
+          f3.should be_failed
+          expect { f3.value }.to raise_error(CancelledError)
         end
       end
     end

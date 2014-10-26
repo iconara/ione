@@ -1,5 +1,8 @@
 # encoding: utf-8
 
+require 'ione/heap'
+
+
 module Ione
   module Io
     ReactorError = Class.new(IoError)
@@ -299,13 +302,40 @@ module Ione
     end
 
     # @private
+    class Timer < Promise
+      include Comparable
+
+      attr_reader :time
+
+      def initialize(time)
+        super()
+        @time = time
+      end
+
+      def <=>(other)
+        cmp = @time <=> other.time
+        if cmp == 0
+          self.object_id <=> other.object_id
+        else
+          cmp
+        end
+      end
+
+      def to_s
+        "#<Timer #{@time}>"
+      end
+      alias_method :inspect, :to_s
+    end
+
+    # @private
     class IoLoopBody
       def initialize(options={})
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
         @lock = Mutex.new
         @sockets = []
-        @timers = []
+        @timer_queue = Heap.new
+        @pending_timers = {}
       end
 
       def add_socket(socket)
@@ -323,24 +353,29 @@ module Ione
         end
       end
 
-      def schedule_timer(timeout, promise=Promise.new)
+      def schedule_timer(timeout)
         @lock.lock
-        timers = @timers.reject { |pair| pair[1].nil? }
-        timers << [@clock.now + timeout, promise]
-        @timers = timers
-        promise.future
+        timer = Timer.new(@clock.now + timeout)
+        @timer_queue << timer
+        @pending_timers[timer.future] = timer
+        timer.future
       ensure
         @lock.unlock
       end
 
       def cancel_timer(timer_future)
+        timer = nil
         @lock.lock
-        timer_pair = @timers.find { |pair| (p = pair[1]) && p.future == timer_future }
-        @timers = @timers.reject { |pair| pair[1].nil? || pair == timer_pair }
-        timer_pair && timer_pair[1].fail(CancelledError.new)
-        nil
-      ensure
-        @lock.unlock
+        begin
+          if (timer = @pending_timers.delete(timer_future))
+            @timer_queue.delete(timer)
+          end
+        ensure
+          @lock.unlock
+        end
+        if timer
+          timer.fail(CancelledError.new)
+        end
       end
 
       def close_sockets
@@ -354,11 +389,9 @@ module Ione
       end
 
       def cancel_timers
-        @timers.each do |pair|
-          if pair[1]
-            pair[1].fail(CancelledError.new)
-            pair[1] = nil
-          end
+        while (timer = @timer_queue.pop)
+          @pending_timers.delete(timer.future)
+          timer.fail(CancelledError.new)
         end
       end
 
@@ -392,11 +425,22 @@ module Ione
       end
 
       def check_timers!
-        timers = @timers
-        timers.each do |pair|
-          if pair[1] && pair[0] <= @clock.now
-            pair[1].fulfill
-            pair[1] = nil
+        now = @clock.now
+        first_timer = @timer_queue.peek
+        if first_timer && first_timer.time <= now
+          expired_timers = []
+          @lock.lock
+          begin
+            while (timer = @timer_queue.peek) && timer.time <= now
+              @timer_queue.pop
+              @pending_timers.delete(timer.future)
+              expired_timers << timer
+            end
+          ensure
+            @lock.unlock
+          end
+          expired_timers.each do |timer|
+            timer.fulfill
           end
         end
       end
