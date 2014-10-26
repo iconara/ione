@@ -17,6 +17,7 @@ module Ione
         @socket_impl = socket_impl || ServerSocket
         @accept_listeners = []
         @lock = Mutex.new
+        @state = :binding
       end
 
       def on_accept(&listener)
@@ -38,6 +39,7 @@ module Ione
             retry
           end
         end
+        @state = :connected
         Future.resolved(self)
       rescue => e
         close
@@ -45,13 +47,19 @@ module Ione
       end
 
       def close
-        return false unless @io
-        begin
-          @io.close
-        rescue SystemCallError, IOError
-          # nothing to do, the socket was most likely already closed
+        @lock.synchronize do
+          return false if @state == :closed
+          @state = :closed
         end
-        @io = nil
+        if @io
+          begin
+            @io.close
+          rescue SystemCallError, IOError
+            # nothing to do, the socket was most likely already closed
+          ensure
+            @io = nil
+          end
+        end
         true
       end
 
@@ -60,11 +68,11 @@ module Ione
       end
 
       def closed?
-        @io.nil?
+        @state == :closed
       end
 
       def connected?
-        !closed?
+        @state != :closed
       end
 
       def connecting?
