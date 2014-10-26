@@ -10,6 +10,7 @@ module Ione
         @port = port
         @unblocker = unblocker
         @state = :connecting
+        @writable = false
         @lock = Mutex.new
         @write_buffer = ByteBuffer.new
         @closed_promise = Promise.new
@@ -22,6 +23,7 @@ module Ione
         @lock.synchronize do
           return false if @state == :closed
           @state = :closed
+          @writable = false
         end
         if @io
           begin
@@ -50,7 +52,7 @@ module Ione
       #   has closed
       def drain
         @state = :draining
-        close if @write_buffer.empty?
+        close unless @writable
         @closed_promise.future
       end
 
@@ -71,13 +73,7 @@ module Ione
 
       # @private
       def writable?
-        @lock.lock
-        begin
-          empty_buffer = @write_buffer.empty?
-        ensure
-          @lock.unlock
-        end
-        !(closed? || empty_buffer)
+        @writable
       end
 
       # Register to receive notifications when new data is read from the socket.
@@ -131,6 +127,7 @@ module Ione
             elsif bytes
               @write_buffer.append(bytes)
             end
+            @writable = !@write_buffer.empty?
           ensure
             @lock.unlock
           end
@@ -143,11 +140,12 @@ module Ione
         if @state == :connected || @state == :draining
           @lock.lock
           begin
-            unless @write_buffer.empty?
+            if @writable
               bytes_written = @io.write_nonblock(@write_buffer.cheap_peek)
               @write_buffer.discard(bytes_written)
             end
-            if @state == :draining && @write_buffer.empty?
+            @writable = !@write_buffer.empty?
+            if @state == :draining && !@writable
               close
             end
           ensure
