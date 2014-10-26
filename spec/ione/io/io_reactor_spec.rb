@@ -372,6 +372,13 @@ module Ione
           loop_body.tick
         end
 
+        it 'passes writable sockets as both readable and writable to the selector' do
+          socket.stub(:connected?).and_return(true)
+          socket.stub(:writable?).and_return(true)
+          selector.should_receive(:select).with([socket], [socket], anything, anything).and_return([nil, nil, nil])
+          loop_body.tick
+        end
+
         it 'passes connecting sockets as writable to the selector' do
           socket.stub(:connecting?).and_return(true)
           socket.stub(:connect)
@@ -383,7 +390,7 @@ module Ione
           socket.stub(:closed?).and_return(true)
           selector.should_receive(:select).with([], [], anything, anything).and_return([nil, nil, nil])
           loop_body.tick
-          socket.stub(:connected?).and_return(true)
+          socket.stub(:writable?).and_return(true)
           selector.should_receive(:select).with([], [], anything, anything).and_return([nil, nil, nil])
           loop_body.tick
         end

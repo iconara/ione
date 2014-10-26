@@ -411,10 +411,13 @@ module Ione
         writables = []
         connecting = []
         @sockets.each do |s|
-          unless s.closed?
-            readables << s if s.connected?
-            writables << s if s.connecting? || s.writable?
-            connecting << s if s.connecting?
+          if s.connected?
+            readables << s
+          elsif s.connecting?
+            connecting << s
+          end
+          if s.connecting? || (!s.closed? && s.writable?)
+            writables << s
           end
         end
         begin
