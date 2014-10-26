@@ -407,19 +407,21 @@ module Ione
       private
 
       def check_sockets(timeout)
-        readables, writables, connecting = [], [], []
-        sockets = @sockets
-        sockets.each do |s|
-          next if s.closed?
-          readables << s if s.connected?
-          writables << s if s.connecting? || s.writable?
-          connecting << s if s.connecting?
+        readables = []
+        writables = []
+        connecting = []
+        @sockets.each do |s|
+          unless s.closed?
+            readables << s if s.connected?
+            writables << s if s.connecting? || s.writable?
+            connecting << s if s.connecting?
+          end
         end
         begin
           r, w, _ = @selector.select(readables, writables, nil, timeout)
-          connecting.each(&:connect)
-          r && r.each(&:read)
-          w && w.each(&:flush)
+          connecting.each { |s| s.connect }
+          r && r.each { |s| s.read }
+          w && w.each { |s| s.flush }
         rescue IOError, Errno::EBADF
         end
       end
