@@ -458,13 +458,6 @@ module Ione
           loop_body.add_socket(socket2)
           loop_body.close_sockets
         end
-
-        it 'does not close already closed sockets' do
-          socket.stub(:closed?).and_return(true)
-          socket.should_not_receive(:close)
-          loop_body.add_socket(socket)
-          loop_body.close_sockets
-        end
       end
     end
 

@@ -359,7 +359,7 @@ module Ione
       def close_sockets
         @sockets.each do |s|
           begin
-            s.close unless s.closed?
+            s.close
           rescue
             # the socket had most likely already closed due to an error
           end
