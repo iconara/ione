@@ -73,7 +73,7 @@ module Ione
 
       # @private
       def writable?
-        @writable
+        @writable && @state != :closed
       end
 
       # Register to receive notifications when new data is read from the socket.

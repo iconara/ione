@@ -390,9 +390,6 @@ module Ione
           socket.stub(:closed?).and_return(true)
           selector.should_receive(:select).with([], [], anything, anything).and_return([nil, nil, nil])
           loop_body.tick
-          socket.stub(:writable?).and_return(true)
-          selector.should_receive(:select).with([], [], anything, anything).and_return([nil, nil, nil])
-          loop_body.tick
         end
 
         it 'does nothing when IO.select raises Errno::EBADF' do

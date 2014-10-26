@@ -416,7 +416,7 @@ module Ione
           elsif s.connecting?
             connecting << s
           end
-          if s.connecting? || (!s.closed? && s.writable?)
+          if s.connecting? || s.writable?
             writables << s
           end
         end
