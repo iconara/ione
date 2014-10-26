@@ -109,10 +109,14 @@ module Ione
     #   can be a splatted array or a regular array passed as sole argument)
     # @return [Ione::Future] a future which represents the first completing future
     def first(*futures)
-      return resolved if futures.empty?
-      futures = futures.size == 1 && futures.first.is_a?(Enumerable) ? futures.first : futures
-      return futures.first if futures.is_a?(Array) && futures.size == 1
-      FirstFuture.new(futures)
+      if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
+        futures = fs
+      end
+      if futures.count == 0
+        resolved
+      else
+        FirstFuture.new(futures)
+      end
     end
 
     # Takes calls the block once for each element in an array, expecting each
