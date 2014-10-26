@@ -87,6 +87,7 @@ module Ione
         @unblocker = Unblocker.new
         @io_loop = IoLoopBody.new(options)
         @io_loop.add_socket(@unblocker)
+        @scheduler = Scheduler.new
         @running = false
         @stopped = false
         @started_promise = Promise.new
@@ -128,10 +129,13 @@ module Ione
         Thread.start do
           @started_promise.fulfill(self)
           begin
-            @io_loop.tick until @stopped
+            until @stopped
+              @io_loop.tick
+              @scheduler.tick
+            end
           ensure
             @io_loop.close_sockets
-            @io_loop.cancel_timers
+            @scheduler.cancel_timers
             @running = false
             if $!
               @stopped_promise.fail($!)
@@ -229,7 +233,7 @@ module Ione
       #   future is completed
       # @return [Ione::Future] a future that completes when the timer expires
       def schedule_timer(timeout)
-        @io_loop.schedule_timer(timeout)
+        @scheduler.schedule_timer(timeout)
       end
 
       # Cancels a previously scheduled timer.
@@ -238,7 +242,7 @@ module Ione
       #
       # @param timer_future [Ione::Future] the future returned by {#schedule_timer}
       def cancel_timer(timer_future)
-        @io_loop.cancel_timer(timer_future)
+        @scheduler.cancel_timer(timer_future)
       end
 
       def to_s
@@ -322,7 +326,7 @@ module Ione
       end
 
       def to_s
-        "#<Timer #{@time}>"
+        "#<Timer @time=#{@time}>"
       end
       alias_method :inspect, :to_s
     end
@@ -332,10 +336,9 @@ module Ione
       def initialize(options={})
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
+        @timeout = options[:tick_resolution] || 1
         @lock = Mutex.new
         @sockets = []
-        @timer_queue = Heap.new
-        @pending_timers = {}
       end
 
       def add_socket(socket)
@@ -351,6 +354,53 @@ module Ione
         @lock.synchronize do
           @sockets = @sockets.reject { |s| s == socket || s.closed? }
         end
+      end
+
+      def close_sockets
+        @sockets.each do |s|
+          begin
+            s.close unless s.closed?
+          rescue
+            # the socket had most likely already closed due to an error
+          end
+        end
+      end
+
+      def tick
+        readables = []
+        writables = []
+        connecting = []
+        @sockets.each do |s|
+          if s.connected?
+            readables << s
+          elsif s.connecting?
+            connecting << s
+          end
+          if s.connecting? || s.writable?
+            writables << s
+          end
+        end
+        begin
+          r, w, _ = @selector.select(readables, writables, nil, @timeout)
+          connecting.each { |s| s.connect }
+          r && r.each { |s| s.read }
+          w && w.each { |s| s.flush }
+        rescue IOError, Errno::EBADF
+        end
+      end
+
+      def to_s
+        %(#<#{IoReactor.name} @connections=[#{@sockets.map(&:to_s).join(', ')}]>)
+      end
+    end
+
+    # @private
+    class Scheduler
+      def initialize(options={})
+        @clock = options[:clock] || Time
+        @lock = Mutex.new
+        @timer_queue = Heap.new
+        @pending_timers = {}
       end
 
       def schedule_timer(timeout)
@@ -378,16 +428,6 @@ module Ione
         end
       end
 
-      def close_sockets
-        @sockets.each do |s|
-          begin
-            s.close unless s.closed?
-          rescue
-            # the socket had most likely already closed due to an error
-          end
-        end
-      end
-
       def cancel_timers
         while (timer = @timer_queue.pop)
           @pending_timers.delete(timer.future)
@@ -395,41 +435,7 @@ module Ione
         end
       end
 
-      def tick(timeout=1)
-        check_sockets(timeout)
-        check_timers
-      end
-
-      def to_s
-        %(#<#{IoReactor.name} @connections=[#{@sockets.map(&:to_s).join(', ')}]>)
-      end
-
-      private
-
-      def check_sockets(timeout)
-        readables = []
-        writables = []
-        connecting = []
-        @sockets.each do |s|
-          if s.connected?
-            readables << s
-          elsif s.connecting?
-            connecting << s
-          end
-          if s.connecting? || s.writable?
-            writables << s
-          end
-        end
-        begin
-          r, w, _ = @selector.select(readables, writables, nil, timeout)
-          connecting.each { |s| s.connect }
-          r && r.each { |s| s.read }
-          w && w.each { |s| s.flush }
-        rescue IOError, Errno::EBADF
-        end
-      end
-
-      def check_timers
+      def tick
         now = @clock.now
         first_timer = @timer_queue.peek
         if first_timer && first_timer.time <= now
@@ -448,6 +454,10 @@ module Ione
             timer.fulfill
           end
         end
+      end
+
+      def to_s
+        %(#<#{self.class.name} @timers=[#{@pending_timers.values.map(&:to_s).join(', ')}]>)
       end
     end
   end

@@ -432,29 +432,9 @@ module Ione
         end
 
         it 'allows the caller to specify a custom timeout' do
+          loop_body = described_class.new(selector: selector, clock: clock, tick_resolution: 99)
           selector.should_receive(:select).with(anything, anything, anything, 99).and_return([[], [], []])
-          loop_body.tick(99)
-        end
-
-        it 'completes timers that have expired' do
-          selector.stub(:select).and_return([nil, nil, nil])
-          clock.stub(:now).and_return(1)
-          future = loop_body.schedule_timer(1)
           loop_body.tick
-          future.should_not be_completed
-          clock.stub(:now).and_return(2)
-          loop_body.tick
-          future.should be_completed
-        end
-
-        it 'clears out timers that have expired' do
-          selector.stub(:select).and_return([nil, nil, nil])
-          clock.stub(:now).and_return(1)
-          future = loop_body.schedule_timer(1)
-          clock.stub(:now).and_return(2)
-          loop_body.tick
-          future.should be_completed
-          expect { loop_body.tick }.to_not raise_error
         end
       end
 
@@ -486,20 +466,47 @@ module Ione
           loop_body.close_sockets
         end
       end
+    end
 
-      describe '#cancel_timers' do
-        before do
-          selector.stub(:select).and_return([nil, nil, nil])
+    describe Scheduler do
+      let :scheduler do
+        described_class.new(clock: clock)
+      end
+
+      let :clock do
+        double(:clock, now: 0)
+      end
+
+      describe '#tick' do
+        it 'completes timers that have expired' do
+          clock.stub(:now).and_return(1)
+          future = scheduler.schedule_timer(1)
+          scheduler.tick
+          future.should_not be_completed
+          clock.stub(:now).and_return(2)
+          scheduler.tick
+          future.should be_completed
         end
 
+        it 'clears out timers that have expired' do
+          clock.stub(:now).and_return(1)
+          future = scheduler.schedule_timer(1)
+          clock.stub(:now).and_return(2)
+          scheduler.tick
+          future.should be_completed
+          expect { scheduler.tick }.to_not raise_error
+        end
+      end
+
+      describe '#cancel_timers' do
         it 'fails all active timers with a CancelledError' do
           clock.stub(:now).and_return(1)
-          f1 = loop_body.schedule_timer(1)
-          f2 = loop_body.schedule_timer(3)
-          f3 = loop_body.schedule_timer(3)
+          f1 = scheduler.schedule_timer(1)
+          f2 = scheduler.schedule_timer(3)
+          f3 = scheduler.schedule_timer(3)
           clock.stub(:now).and_return(2)
-          loop_body.tick
-          loop_body.cancel_timers
+          scheduler.tick
+          scheduler.cancel_timers
           f1.should be_completed
           f2.should be_failed
           f3.should be_failed
