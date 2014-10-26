@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    ione (1.2.0.pre5)
+    ione (1.2.0.pre6)
 
 GEM
   remote: https://rubygems.org/
