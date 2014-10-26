@@ -293,13 +293,21 @@ module Ione
       end
 
       def cancel_timer(timer_future)
+        timer = nil
         @lock.lock
-        timer_pair = @timers.find { |pair| (p = pair[1]) && p.future == timer_future }
-        @timers = @timers.reject { |pair| pair[1].nil? || pair == timer_pair }
-        timer_pair && timer_pair[1].fail(CancelledError.new)
+        begin
+          if (timer_pair = @timers.find { |pair| (p = pair[1]) && p.future == timer_future })
+            @timers = @timers.reject { |pair| pair[1].nil? || pair == timer_pair }
+            timer = timer_pair[1]
+            timer_pair[1] = nil
+          end
+        ensure
+          @lock.unlock
+        end
+        if timer
+          timer.fail(CancelledError.new)
+        end
         nil
-      ensure
-        @lock.unlock
       end
 
       def close_sockets
