@@ -356,11 +356,18 @@ module Ione
       end
 
       def check_timers!
-        timers = @timers
-        timers.each do |pair|
-          if pair[1] && pair[0] <= @clock.now
-            pair[1].fulfill
-            pair[1] = nil
+        now = @clock.now
+        @timers.each do |pair|
+          if pair[1] && pair[0] <= now
+            timer = nil
+            @lock.lock
+            begin
+              timer = pair[1]
+              pair[1] = nil
+            ensure
+              @lock.unlock
+            end
+            timer.fulfill
           end
         end
       end
