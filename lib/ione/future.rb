@@ -131,7 +131,7 @@ module Ione
     # @return [Ione::Future] a future that will resolve to an array of the values
     #   of the futures returned by the block
     def traverse(values, &block)
-      all(*values.map(&block))
+      all(values.map(&block))
     rescue => e
       failed(e)
     end
