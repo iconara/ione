@@ -439,8 +439,17 @@ module Ione
       end
 
       def cancel_timers
-        while (timer = @timer_queue.pop)
-          @pending_timers.delete(timer.future)
+        timers = []
+        @lock.lock
+        begin
+          while (timer = @timer_queue.pop)
+            @pending_timers.delete(timer.future)
+            timers << timer
+          end
+        ensure
+          @lock.unlock
+        end
+        timers.each do |timer|
           timer.fail(CancelledError.new)
         end
       end
