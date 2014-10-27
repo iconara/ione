@@ -143,6 +143,18 @@ module Ione
         heap.delete(2).should be_nil
       end
 
+      it 'correctly re-heapifies the heap after a delete' do
+        heap.push(2)
+        heap.push(6)
+        heap.push(7)
+        heap.push(8)
+        heap.push(9)
+        heap.push(3)
+        heap.push(4)
+        heap.delete(8).should_not be_nil
+        heap.delete(4).should_not be_nil
+      end
+
       it 'returns the item' do
         heap.push(3)
         heap.push(4)

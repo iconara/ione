@@ -46,7 +46,7 @@ module Ione
       elsif (i = index(item))
         item = @items[i]
         @items[i] = @items.pop
-        bubble_down(i)
+        bubble_up(bubble_down(i))
         item
       end
     end
@@ -73,12 +73,16 @@ module Ione
         @items[index] = @items[parent_index]
         @items[parent_index] = item
         bubble_up(parent_index)
+      else
+        index
       end
     end
 
     def bubble_down(index)
       child_index = (index * 2) + 1
-      unless child_index >= @items.length
+      if child_index >= @items.length
+        index
+      else
         if child_index + 1 < @items.length && @items[child_index] > @items[child_index + 1]
           child_index += 1
         end
@@ -87,6 +91,8 @@ module Ione
           @items[index] = @items[child_index]
           @items[child_index] = item
           bubble_down(child_index)
+        else
+          index
         end
       end
     end
