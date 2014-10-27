@@ -133,6 +133,16 @@ module Ione
         heap.size.should == 2
       end
 
+      it 'removes the last item from the heap' do
+        heap.push(1)
+        heap.push(2)
+        heap.push(3)
+        heap.delete(3).should_not be_nil
+        heap.delete(3).should be_nil
+        heap.delete(2).should_not be_nil
+        heap.delete(2).should be_nil
+      end
+
       it 'returns the item' do
         heap.push(3)
         heap.push(4)

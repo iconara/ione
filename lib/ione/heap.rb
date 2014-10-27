@@ -39,8 +39,10 @@ module Ione
     end
 
     def delete(item)
-      if item == @items[0]
+      if item == @items.first
         pop
+      elsif item == @items.last
+        @items.pop
       elsif (i = index(item))
         item = @items[i]
         @items[i] = @items.pop
