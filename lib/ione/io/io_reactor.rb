@@ -255,6 +255,7 @@ module Ione
       def initialize
         @out, @in = IO.pipe
         @lock = Mutex.new
+        @state = :open
       end
 
       def connected?
@@ -270,21 +271,31 @@ module Ione
       end
 
       def closed?
-        @in.nil?
+        @state == :closed
       end
 
       def unblock
-        @lock.lock
-        @in.write(PING_BYTE)
-      ensure
-        @lock.unlock
+        unless closed?
+          @lock.lock
+          begin
+            @in.write(PING_BYTE)
+          ensure
+            @lock.unlock
+          end
+        end
       end
 
       def read
-        @out.read_nonblock(2**16)
+        unless closed?
+          @out.read_nonblock(2**16)
+        end
       end
 
       def close
+        @lock.synchronize do
+          return if @state == :closed
+          @state = :closed
+        end
         @in.close
         @out.close
         @in = nil
