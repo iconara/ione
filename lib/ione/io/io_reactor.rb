@@ -302,7 +302,6 @@ module Ione
       private
 
       PING_BYTE = "\0".freeze
-      DEFAULT_CONNECT_OPTIONS = {:timeout => 5}.freeze
     end
 
     # @private
