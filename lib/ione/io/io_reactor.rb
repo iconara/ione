@@ -336,7 +336,7 @@ module Ione
       end
 
       def to_s
-        "#<Timer @time=#{@time}>"
+        "#<#{self.class.name}:#{object_id} @time=#{@time.to_f}>"
       end
       alias_method :inspect, :to_s
     end
