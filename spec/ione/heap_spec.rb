@@ -43,7 +43,7 @@ module Ione
         heap.size.should == 4
       end
 
-      it 'is aliase as #<<' do
+      it 'is aliased as #<<' do
         heap << 4
         heap << 3
         heap << 6
