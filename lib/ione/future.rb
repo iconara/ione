@@ -143,7 +143,7 @@ module Ione
     # Returns a future that will resolve to a value which is the reduction of
     # the values of a list of source futures.
     #
-    # This is essentially a parallel, streaming version of {Enumerable#reduce},
+    # This is essentially a parallel, streaming version of `Enumerable#reduce`,
     # but for futures. Use this method for example when you want to do a number
     # of asynchronous operations in parallel and then merge the results together
     # when all are done.

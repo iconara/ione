@@ -163,11 +163,11 @@ module Ione
       #
       # @param host [String] the host to connect to
       # @param port [Integer] the port to connect to
-      # @param options_or_timeout [Hash, Numeric] a hash of options (see below)
+      # @param options [Hash, Numeric] a hash of options (see below)
       #   or the connection timeout (equivalent to using the `:timeout` option).
-      # @option options_or_timeout [Numeric] :timeout (5) the number of seconds
+      # @option options [Numeric] :timeout (5) the number of seconds
       #   to wait for a connection before failing
-      # @option options_or_timeout [Boolean, OpenSSL::SSL::SSLContext] :ssl (false)
+      # @option options [Boolean, OpenSSL::SSL::SSLContext] :ssl (false)
       #   pass an `OpenSSL::SSL::SSLContext` to upgrade the connection to SSL,
       #   or true to upgrade the connection and create a new context.
       # @yieldparam [Ione::Io::Connection] connection the newly opened connection
