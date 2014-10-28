@@ -59,9 +59,9 @@ module Ione
       root_item = @items[root_index]
       if root_item == item
         root_index
-      elsif left_index < @items.length && item >= @items[left_index] && (i = index(item, left_index))
+      elsif left_index < @items.size && item >= @items[left_index] && (i = index(item, left_index))
         i
-      elsif right_index < @items.length && item >= @items[right_index] && (i = index(item, right_index))
+      elsif right_index < @items.size && item >= @items[right_index] && (i = index(item, right_index))
         i
       end
     end
@@ -80,10 +80,10 @@ module Ione
 
     def bubble_down(index)
       child_index = (index * 2) + 1
-      if child_index >= @items.length
+      if child_index >= @items.size
         index
       else
-        if child_index + 1 < @items.length && @items[child_index] > @items[child_index + 1]
+        if child_index + 1 < @items.size && @items[child_index] > @items[child_index + 1]
           child_index += 1
         end
         if @items[index] > @items[child_index]
