@@ -5,6 +5,7 @@ module Ione
   class Heap
     def initialize
       @items = []
+      @indexes = {}
     end
 
     def size
@@ -16,8 +17,11 @@ module Ione
     end
 
     def push(item)
-      @items << item
-      bubble_up(@items.size - 1)
+      unless @indexes.include?(item)
+        @items << item
+        @indexes[item] = @items.size - 1
+        bubble_up(@items.size - 1)
+      end
     end
     alias_method :<<, :push
 
@@ -29,10 +33,14 @@ module Ione
       if @items.size == 0
         nil
       elsif @items.size == 1
-        @items.pop
+        item = @items.pop
+        @indexes.delete(item)
+        item
       else
         item = @items.first
+        @indexes.delete(item)
         @items[0] = @items.pop
+        @indexes[@items[0]] = 0
         bubble_down(0)
         item
       end
@@ -42,10 +50,14 @@ module Ione
       if item == @items.first
         pop
       elsif item == @items.last
-        @items.pop
-      elsif (i = index(item))
+        item = @items.pop
+        @indexes.delete(item)
+        item
+      elsif (i = @indexes[item])
         item = @items[i]
+        @indexes.delete(item)
         @items[i] = @items.pop
+        @indexes[@items[i]] = i
         bubble_up(bubble_down(i))
         item
       end
@@ -53,25 +65,14 @@ module Ione
 
     private
 
-    def index(item, root_index=0)
-      left_index = (root_index * 2) + 1
-      right_index = (root_index * 2) + 2
-      root_item = @items[root_index]
-      if root_item == item
-        root_index
-      elsif left_index < @items.size && item >= @items[left_index] && (i = index(item, left_index))
-        i
-      elsif right_index < @items.size && item >= @items[right_index] && (i = index(item, right_index))
-        i
-      end
-    end
-
     def bubble_up(index)
       parent_index = (index - 1)/2
       if parent_index >= 0 && @items[parent_index] > @items[index]
         item = @items[index]
         @items[index] = @items[parent_index]
         @items[parent_index] = item
+        @indexes[@items[index]] = index
+        @indexes[@items[parent_index]] = parent_index
         bubble_up(parent_index)
       else
         index
@@ -90,6 +91,8 @@ module Ione
           item = @items[index]
           @items[index] = @items[child_index]
           @items[child_index] = item
+          @indexes[@items[index]] = index
+          @indexes[@items[child_index]] = child_index
           bubble_down(child_index)
         else
           index

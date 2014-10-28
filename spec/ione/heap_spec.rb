@@ -50,6 +50,13 @@ module Ione
         heap << 5
         heap.size.should == 4
       end
+
+      it 'does not add duplicates' do
+        heap << 3
+        heap << 3
+        heap << 3
+        heap.size.should == 1
+      end
     end
 
     describe '#peek' do
@@ -101,17 +108,6 @@ module Ione
         heap.push(3)
         heap.pop.should == 3
         heap.pop.should be_nil
-      end
-
-      it 'returns each duplicate' do
-        heap.push(3)
-        heap.push(4)
-        heap.push(3)
-        heap.push(3)
-        heap.pop.should == 3
-        heap.pop.should == 3
-        heap.pop.should == 3
-        heap.pop.should == 4
       end
     end
 
@@ -167,15 +163,6 @@ module Ione
         heap.push(4)
         heap.push(5)
         heap.delete(6).should be_nil
-      end
-
-      it 'removes the first instance of the item from the heap' do
-        heap.push(3)
-        heap.push(3)
-        heap.push(5)
-        heap.delete(3).should == 3
-        heap.delete(3).should == 3
-        heap.size.should == 1
       end
     end
   end
