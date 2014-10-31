@@ -79,106 +79,106 @@ module Ione
     end
   end
 
-# A future represents the value of a process that may not yet have completed.
-#
-# A future is either pending or completed and there are two ways to complete a
-# future: either by resolving it to a value, or by failing it.
-#
-# A future is usually created by first creating a {Promise} and returning that
-# promise's future to the caller. The promise can then be _fulfilled_ which
-# resolves the future – see below for an example of this.
-#
-# The key thing about futures is that they _compose_. If you have a future
-# you can transform it and combine without waiting for its value to be
-# available. This means that you can model a series of asynchronous operations
-# without worrying about which order they will complete in, or what happens
-# if any of them fail. You can describe the steps you want to happen if all
-# goes well, and add a handler at the end to capture errors, like you can
-# with synchronous code and exception handlers. You can also add steps that
-# recover from failures. See below, and the docs for {Combinators} for examples
-# on how to compose asynchronous operations.
-#
-# The mixins {Combinators}, {Callbacks} and {Factories} contain most of the
-# method you would use to work with futures, and can be used for creating bridges
-# to other futures implementations.
-#
-# @example Creating a future for a blocking operation
-#   def find_my_ip
-#     promise = Promse.new
-#     Thread.start do
-#       begin
-#         data = JSON.load(open('http://jsonip.org/').read)
-#         promise.fulfill(data['ip'])
-#       rescue => e
-#         promise.fail(e)
-#       end
-#     end
-#     promise.future
-#   end
-#
-# @example Transforming futures
-#   # find_my_ip is the method from the example above
-#   ip_future = find_my_ip
-#   # Future#map returns a new future that resolves to the value returned by the
-#   # block, but the block is not called immediately, but when the receiving
-#   # future resolves – this means that we can descrbe the processing steps that
-#   # should be performed without having to worry about when the value becomes
-#   # available.
-#   ipaddr_future = ip_future.map { |ip| IPAddr.new(ip) }
-#
-# @example Composing asynchronous operations
-#   # find_my_ip is the method from the example above
-#   ip_future = find_my_ip
-#   # Future#flat_map is a way of chaining asynchronous operations, the future
-#   # it returns will resolve to the value of the future returned by the block,
-#   # but the block is not called until the receiver future resolves
-#   location_future = ip_future.flat_map do |ip|
-#     # assuming resolve_geoip is a method returning a future
-#     resolve_geoip(ip)
-#   end
-#   # scheduler here could be an instance of Ione::Io::IoReactor
-#   timer_future = scheduler.schedule_timer(5)
-#   # Future.first returns a future that will resolve to the value of the
-#   # first of its children that completes, so you can use it in combination
-#   # with a scheduler to make sure you don't wait forever
-#   location_or_timeout_future = Future.first(location_future, timer_future)
-#   location_or_timeout_future.on_value do |location|
-#     if location
-#       puts "My location is #{location}"
-#     end
-#   end
-#
-# @example Making requests in parallel and collecting the results
-#   # assuming client is a client for a remote service and that #find returns
-#   # a future, and that thing_ids is an array of IDs of things we want to load
-#   futures = thing_idss.map { |id| client.find(id) }
-#   # Future.all is a way to combine multiple futures into a future that resolves
-#   # to an array of values, in other words, it takes an array of futures and
-#   # resolves to an array of the values of those futures
-#   future_of_all_things = Future.all(futures)
-#   future_of_all_things.on_value do |things|
-#     things.each do |thing|
-#       puts "here's a thing: #{thing}"
-#     end
-#   end
-#
-# @example Another way of making requests in parallel and collecting the results
-#   # the last example can be simplified by using Future.traverse, which combines
-#   # Array#map with Future.all – the block will be called once per item in
-#   # the array, and the returned future resolves to an array of the values of
-#   # the futures returned by the block
-#   future_of_all_things = Future.traverse(thing_ids) { |id| client.find(id) }
-#   future_of_all_things.on_value do |things|
-#     things.each do |thing|
-#       puts "here's a thing: #{thing}"
-#     end
-#   end
-#
-# @see Ione::Promise
-# @see Ione::Future::FutureCallbacks
-# @see Ione::Future::FutureCombinators
-# @see Ione::Future::FutureFactories
-class Future
+  # A future represents the value of a process that may not yet have completed.
+  #
+  # A future is either pending or completed and there are two ways to complete a
+  # future: either by resolving it to a value, or by failing it.
+  #
+  # A future is usually created by first creating a {Promise} and returning that
+  # promise's future to the caller. The promise can then be _fulfilled_ which
+  # resolves the future – see below for an example of thi.
+  #
+  # The key thing about futures is that they _compose_. If you have a future
+  # you can transform it and combine without waiting for its value to be
+  # available. This means that you can model a series of asynchronous operations
+  # without worrying about which order they will complete in, or what happens
+  # if any of them fail. You can describe the steps you want to happen if all
+  # goes well, and add a handler at the end to capture errors, like you can
+  # with synchronous code and exception handlers. You can also add steps that
+  # recover from failures. See below, and the docs for {Combinators} for examples
+  # on how to compose asynchronous operations.
+  #
+  # The mixins {Combinators}, {Callbacks} and {Factories} contain most of the
+  # method you would use to work with futures, and can be used for creating bridges
+  # to other futures implementations.
+  #
+  # @example Creating a future for a blocking operation
+  #   def find_my_ip
+  #     promise = Promse.new
+  #     Thread.start do
+  #       begin
+  #         data = JSON.load(open('http://jsonip.org/').read)
+  #         promise.fulfill(data['ip'])
+  #       rescue => e
+  #         promise.fail(e)
+  #       end
+  #     end
+  #     promise.future
+  #   end
+  #
+  # @example Transforming futures
+  #   # find_my_ip is the method from the example above
+  #   ip_future = find_my_ip
+  #   # Future#map returns a new future that resolves to the value returned by the
+  #   # block, but the block is not called immediately, but when the receiving
+  #   # future resolves – this means that we can descrbe the processing steps that
+  #   # should be performed without having to worry about when the value becomes
+  #   # available.
+  #   ipaddr_future = ip_future.map { |ip| IPAddr.new(ip) }
+  #
+  # @example Composing asynchronous operations
+  #   # find_my_ip is the method from the example above
+  #   ip_future = find_my_ip
+  #   # Future#flat_map is a way of chaining asynchronous operations, the future
+  #   # it returns will resolve to the value of the future returned by the block,
+  #   # but the block is not called until the receiver future resolves
+  #   location_future = ip_future.flat_map do |ip|
+  #     # assuming resolve_geoip is a method returning a future
+  #     resolve_geoip(ip)
+  #   end
+  #   # scheduler here could be an instance of Ione::Io::IoReactor
+  #   timer_future = scheduler.schedule_timer(5)
+  #   # Future.first returns a future that will resolve to the value of the
+  #   # first of its children that completes, so you can use it in combination
+  #   # with a scheduler to make sure you don't wait forever
+  #   location_or_timeout_future = Future.first(location_future, timer_future)
+  #   location_or_timeout_future.on_value do |location|
+  #     if location
+  #       puts "My location is #{location}"
+  #     end
+  #   end
+  #
+  # @example Making requests in parallel and collecting the results
+  #   # assuming client is a client for a remote service and that #find returns
+  #   # a future, and that thing_ids is an array of IDs of things we want to load
+  #   futures = thing_idss.map { |id| client.find(id) }
+  #   # Future.all is a way to combine multiple futures into a future that resolves
+  #   # to an array of values, in other words, it takes an array of futures and
+  #   # resolves to an array of the values of those futures
+  #   future_of_all_things = Future.all(futures)
+  #   future_of_all_things.on_value do |things|
+  #     things.each do |thing|
+  #       puts "here's a thing: #{thing}"
+  #     end
+  #   end
+  #
+  # @example Another way of making requests in parallel and collecting the results
+  #   # the last example can be simplified by using Future.traverse, which combines
+  #   # Array#map with Future.all – the block will be called once per item in
+  #   # the array, and the returned future resolves to an array of the values of
+  #   # the futures returned by the block
+  #   future_of_all_things = Future.traverse(thing_ids) { |id| client.find(id) }
+  #   future_of_all_things.on_value do |things|
+  #     things.each do |thing|
+  #       puts "here's a thing: #{thing}"
+  #     end
+  #   end
+  #
+  # @see Ione::Promise
+  # @see Ione::Future::FutureCallbacks
+  # @see Ione::Future::FutureCombinators
+  # @see Ione::Future::FutureFactories
+  class Future
     module Factories
       # Combines multiple futures into a new future which resolves when all
       # constituent futures complete, or fails when one or more of them fails.
