@@ -186,6 +186,12 @@ module Ione
       # The value of the combined future is an array of the values of the
       # constituent futures.
       #
+      # @example
+      #   ids = [1, 2, 3, 4]
+      #   futures = ids.map { |id| find_thing(id) }
+      #   future = Future.all(ids)
+      #   future.value # => [thing1, thing2, thing3, thing4]
+      #
       # @param [Array<Ione::Future>] futures the futures to combine (this argument
       #   can be a splatted array or a regular array passed as sole argument)
       # @return [Ione::Future<Array>] an array of the values of the constituent
