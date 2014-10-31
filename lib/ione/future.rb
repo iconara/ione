@@ -345,19 +345,29 @@ module Ione
       # @yieldreturn [Object] the transformed value
       # @return [Ione::Future] a new future representing the transformed value
       def map(value=nil, &block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            f.fail(e)
-          else
-            begin
-              f.resolve(block ? block.call(v) : value)
-            rescue => e
+        if resolved?
+          begin
+            Future.resolved(block ? block.call(@value) : value)
+          rescue => e
+            Future.failed(e)
+          end
+        elsif failed?
+          self
+        else
+          f = CompletableFuture.new
+          on_complete do |v, e|
+            if e
               f.fail(e)
+            else
+              begin
+                f.resolve(block ? block.call(v) : value)
+              rescue => e
+                f.fail(e)
+              end
             end
           end
+          f
         end
-        f
       end
 
       # Returns a new future representing a transformation of this future's value,
