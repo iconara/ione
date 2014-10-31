@@ -576,7 +576,7 @@ module Ione
     end
 
     describe '#flat_map' do
-      context 'returns a future that' do
+      context 'when the future eventually resolves' do
         it 'passes the value of the source future to the block, and resolves to the value of the future returned by the block' do
           p = Promise.new
           f = p.future.flat_map { |v| Future.resolved(v * 2) }
@@ -591,17 +591,73 @@ module Ione
           expect { f.value }.to raise_error('Hurgh')
         end
 
-        it 'fails when the receiving future fails' do
+        it 'fails when the block returns a failed future' do
+          p = Promise.new
+          f = p.future.flat_map { |v| Future.failed(StandardError.new('Hurgh')) }
+          p.fulfill(3)
+          expect { f.value }.to raise_error('Hurgh')
+        end
+
+        it 'fails when the block returns a future that eventually fails' do
+          p1 = Promise.new
+          p2 = Promise.new
+          f = p1.future.flat_map { |v| p2.future }
+          p1.fulfill(3)
+          p2.fail(StandardError.new('Hurgh'))
+          expect { f.value }.to raise_error('Hurgh')
+        end
+      end
+
+      context 'when the future eventually fails' do
+        it 'returns a future that fails' do
           p = Promise.new
           f = p.future.flat_map { |v| Future.resolved(v) }
           p.fail(StandardError.new('Hurgh'))
           f.should be_failed
         end
 
-        it 'fails when the future returned by the block future fails' do
+        it 'does not call the block' do
+          called = false
           p = Promise.new
-          f = p.future.flat_map { |v| Future.failed(StandardError.new('Hurgh')) }
-          p.fulfill
+          f = p.future.flat_map { called = true }
+          p.fail(StandardError.new('Hurgh'))
+          called.should be_false
+        end
+      end
+
+      context 'when the future is already resolved' do
+        it 'passes the value of the source future to the block, and resolves to the value of the future returned by the block' do
+          f = Future.resolved(3).flat_map { |v| Future.resolved(v * 2) }
+          f.value.should == 3 * 2
+        end
+
+        it 'fails when the block raises an error' do
+          f = Future.resolved(3).flat_map { |v| raise 'Hurgh' }
+          expect { f.value }.to raise_error('Hurgh')
+        end
+
+        it 'fails when the block returns a failed future' do
+          f = Future.resolved(3).flat_map { |v| Future.failed(StandardError.new('Hurgh')) }
+          expect { f.value }.to raise_error('Hurgh')
+        end
+
+        it 'fails when the block returns a future that eventually fails' do
+          p = Promise.new
+          f = Future.resolved(3).flat_map { |v| p.future }
+          p.fail(StandardError.new('Hurgh'))
+          expect { f.value }.to raise_error('Hurgh')
+        end
+      end
+
+      context 'when the future is already failed' do
+        it 'does not call the block' do
+          called = false
+          Future.failed(StandardError.new('Hurgh')).flat_map { called = true }
+          called.should be_false
+        end
+
+        it 'returns a future that fails' do
+          f = Future.failed(StandardError.new('Hurgh')).flat_map { |v| Future.resolved(v) }
           f.should be_failed
         end
       end
@@ -618,18 +674,90 @@ module Ione
 
     describe '#then' do
       context 'when the block returns a future' do
-        it 'works like #flat_map' do
-          p = Promise.new
-          f = p.future.then { |v| Future.resolved(v * 2) }
-          p.fulfill(3)
-          f.value.should == 3 * 2
+        context 'and the receiving future eventually resolves' do
+          it 'passes the value of the source future to the block, and resolves to the value of the future returned by the block' do
+            p = Promise.new
+            f = p.future.then { |v| Future.resolved(v * 2) }
+            p.fulfill(3)
+            f.value.should == 3 * 2
+          end
+
+          it 'fails when the block raises an error' do
+            p = Promise.new
+            f = p.future.then { |v| raise 'Hurgh' }
+            p.fulfill(3)
+            expect { f.value }.to raise_error('Hurgh')
+          end
+
+          it 'fails when the block returns a failed future' do
+            p = Promise.new
+            f = p.future.then { |v| Future.failed(StandardError.new('Hurgh')) }
+            p.fulfill(3)
+            expect { f.value }.to raise_error('Hurgh')
+          end
+
+          it 'fails when the block returns a future that eventually fails' do
+            p1 = Promise.new
+            p2 = Promise.new
+            f = p1.future.then { |v| p2.future }
+            p1.fulfill(3)
+            p2.fail(StandardError.new('Hurgh'))
+            expect { f.value }.to raise_error('Hurgh')
+          end
         end
 
-        it 'fails when the receiving future fails' do
-          p = Promise.new
-          f = p.future.then { |v| v }
-          p.fail(StandardError.new('Hurgh'))
-          f.should be_failed
+        context 'and the receiving future eventually fails' do
+          it 'returns a future that fails' do
+            p = Promise.new
+            f = p.future.then { |v| Future.resolved(v) }
+            p.fail(StandardError.new('Hurgh'))
+            f.should be_failed
+          end
+
+          it 'does not call the block' do
+            called = false
+            p = Promise.new
+            f = p.future.then { called = true }
+            p.fail(StandardError.new('Hurgh'))
+            called.should be_false
+          end
+        end
+
+        context 'and the receiving future is already resolved' do
+          it 'passes the value of the source future to the block, and resolves to the value of the future returned by the block' do
+            f = Future.resolved(3).then { |v| Future.resolved(v * 2) }
+            f.value.should == 3 * 2
+          end
+
+          it 'fails when the block raises an error' do
+            f = Future.resolved(3).then { |v| raise 'Hurgh' }
+            expect { f.value }.to raise_error('Hurgh')
+          end
+
+          it 'fails when the block returns a failed future' do
+            f = Future.resolved(3).then { |v| Future.failed(StandardError.new('Hurgh')) }
+            expect { f.value }.to raise_error('Hurgh')
+          end
+
+          it 'fails when the block returns a future that eventually fails' do
+            p = Promise.new
+            f = Future.resolved(3).then { |v| p.future }
+            p.fail(StandardError.new('Hurgh'))
+            expect { f.value }.to raise_error('Hurgh')
+          end
+        end
+
+        context 'and the receiving future is already failed' do
+          it 'does not call the block' do
+            called = false
+            Future.failed(StandardError.new('Hurgh')).then { called = true }
+            called.should be_false
+          end
+
+          it 'returns a future that fails' do
+            f = Future.failed(StandardError.new('Hurgh')).then { |v| Future.resolved(v) }
+            f.should be_failed
+          end
         end
       end
 
