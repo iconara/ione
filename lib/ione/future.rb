@@ -211,6 +211,15 @@ module Ione
       # (resolved) of the specified futures. If all of the futures fail, the
       # returned future will also fail (with the error of the last failed future).
       #
+      # @example Speculative execution
+      #   # make a call to multiple services and use the value of the one that
+      #   # responds first – and discard the other results
+      #   f1 = service1.find_thing(id)
+      #   f2 = service2.find_thing(id)
+      #   f3 = service3.find_thing(id)
+      #   f = Future.first(f1, f2, f3)
+      #   f.value # => the value of the call that was quickest
+      #
       # @param [Array<Ione::Future>] futures the futures to monitor (this argument
       #   can be a splatted array or a regular array passed as sole argument)
       # @return [Ione::Future] a future which represents the first completing future
