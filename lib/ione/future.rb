@@ -320,8 +320,11 @@ module Ione
       # @param [Object, nil] value the value of the created future
       # @return [Ione::Future] a resolved future
       def resolved(value=nil)
-        return ResolvedFuture::NIL if value.nil?
-        ResolvedFuture.new(value)
+        if value.nil?
+          ResolvedFuture::NIL
+        else
+          ResolvedFuture.new(value)
+        end
       end
 
       # Creates a new pre-failed future.
@@ -706,62 +709,75 @@ module Ione
     # @see Callbacks#on_failure
     # @see Callbacks#on_complete
     def value
-      raise @error if @state == :failed
-      return @value if @state == :resolved
-      semaphore = nil
-      @lock.lock
-      begin
-        raise @error if @state == :failed
-        return @value if @state == :resolved
-        semaphore = Queue.new
-        u = proc { semaphore << :unblock }
-        @listeners << u
-      ensure
-        @lock.unlock
-      end
-      while true
+      if @state == :failed
+        raise @error
+      elsif @state == :resolved
+        @value
+      else
+        semaphore = nil
         @lock.lock
         begin
           raise @error if @state == :failed
           return @value if @state == :resolved
+          semaphore = Queue.new
+          u = proc { semaphore << :unblock }
+          @listeners << u
         ensure
           @lock.unlock
         end
-        semaphore.pop
+        while true
+          @lock.lock
+          begin
+            raise @error if @state == :failed
+            return @value if @state == :resolved
+          ensure
+            @lock.unlock
+          end
+          semaphore.pop
+        end
       end
     end
     alias_method :get, :value
 
     # Returns true if this future is resolved or failed
     def completed?
-      return true unless @state == :pending
-      @lock.lock
-      begin
-        @state != :pending
-      ensure
-        @lock.unlock
+      if @state == :pending
+        @lock.lock
+        begin
+          @state != :pending
+        ensure
+          @lock.unlock
+        end
+      else
+        true
       end
     end
 
     # Returns true if this future is resolved
     def resolved?
-      return @state == :resolved unless @state == :pending
-      @lock.lock
-      begin
+      if @state == :pending
+        @lock.lock
+        begin
+          @state == :resolved
+        ensure
+          @lock.unlock
+        end
+      else
         @state == :resolved
-      ensure
-        @lock.unlock
       end
     end
 
     # Returns true if this future has failed
     def failed?
-      return @state == :failed unless @state == :pending
-      @lock.lock
-      begin
+      if @state == :pending
+        @lock.lock
+        begin
+          @state == :failed
+        ensure
+          @lock.unlock
+        end
+      else
         @state == :failed
-      ensure
-        @lock.unlock
       end
     end
 
