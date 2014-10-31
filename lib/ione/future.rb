@@ -856,25 +856,29 @@ module Ione
   class CombinedFuture < CompletableFuture
     def initialize(futures)
       super()
-      remaining = futures.count
-      values = Array.new(remaining)
-      futures.each_with_index do |f, i|
-        f.on_complete do |v, e|
-          unless failed?
-            if e
-              fail(e)
-            else
-              @lock.lock
-              begin
-                values[i] = v
-                remaining -= 1
-              ensure
-                @lock.unlock
-              end
-              if remaining == 0
-                resolve(values)
-              end
-            end
+      @index = 0
+      @futures = Array(futures)
+      @values = Array.new(@futures.size)
+      await_next
+    end
+
+    private
+
+    def await_next
+      @futures[@index].on_complete do |v, e|
+        if e
+          fail(e)
+          @futures = nil
+          @values = nil
+        else
+          @values[@index] = v
+          @index += 1
+          if @index == @values.size
+            resolve(@values)
+            @futures = nil
+            @values = nil
+          else
+            await_next
           end
         end
       end
