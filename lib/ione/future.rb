@@ -81,6 +81,13 @@ module Ione
 
 # A future represents the value of a process that may not yet have completed.
 #
+# A future is either pending or completed and there are two ways to complete a
+# future: either by resolving it to a value, or by failing it.
+#
+# A future is usually created by first creating a {Promise} and returning that
+# promise's future to the caller. The promise can then be _fulfilled_ which
+# resolves the future – see below for an example of this.
+#
 # The key thing about futures is that they _compose_. If you have a future
 # you can transform it and combine without waiting for its value to be
 # available. This means that you can model a series of asynchronous operations
@@ -88,14 +95,12 @@ module Ione
 # if any of them fail. You can describe the steps you want to happen if all
 # goes well, and add a handler at the end to capture errors, like you can
 # with synchronous code and exception handlers. You can also add steps that
-# recover from failures.
+# recover from failures. See below, and the docs for {Combinators} for examples
+# on how to compose asynchronous operations.
 #
 # The mixins {Combinators}, {Callbacks} and {Factories} contain most of the
 # method you would use to work with futures, and can be used for creating bridges
 # to other futures implementations.
-#
-# A future is usually created by first creating a {Promise} and returning that
-# promise's future to the caller.
 #
 # @example Creating a future for a blocking operation
 #   def find_my_ip
