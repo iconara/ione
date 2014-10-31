@@ -556,26 +556,36 @@ module Ione
       # @return [Ione::Future] a new future representing a value recovered from the
       #   error
       def fallback(&block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            begin
-              ff = block.call(e)
-              ff.on_complete do |vv, ee|
-                if ee
-                  f.fail(ee)
-                else
-                  f.resolve(vv)
-                end
-              end
-            rescue => e
-              f.fail(e)
-            end
-          else
-            f.resolve(v)
+        if resolved?
+          self
+        elsif failed?
+          begin
+            block.call(@error)
+          rescue => e
+            Future.failed(e)
           end
+        else
+          f = CompletableFuture.new
+          on_complete do |v, e|
+            if e
+              begin
+                ff = block.call(e)
+                ff.on_complete do |vv, ee|
+                  if ee
+                    f.fail(ee)
+                  else
+                    f.resolve(vv)
+                  end
+                end
+              rescue => e
+                f.fail(e)
+              end
+            else
+              f.resolve(v)
+            end
+          end
+          f
         end
-        f
       end
     end
 
