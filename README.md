@@ -4,7 +4,7 @@
 [![Coverage Status](https://coveralls.io/repos/iconara/ione/badge.png)](https://coveralls.io/r/iconara/ione)
 [![Blog](http://b.repl.ca/v1/blog-ione-ff69b4.png)](http://architecturalatrocities.com/tagged/ione)
 
-_If you're reading this on GitHub, please note that this is the readme for the development version and that some features described here might not yet have been released. You can find the readme for a specific version either through [rubydoc.info](http://rubydoc.info/find/gems?q=ione) or via the release tags ([here is an example](https://github.com/iconara/ione/tree/v1.0.0.pre0))._
+_If you're reading this on GitHub, please note that this is the readme for the development version and that some features described here might not yet have been released. You can find the readme for a specific version either through [rubydoc.info](http://rubydoc.info/find/gems?q=ione) or via the release tags ([here is an example](https://github.com/iconara/ione/tree/v1.2.0))._
 
 Ione is a framework for reactive programming in Ruby. It is based on the reactive core of [cql-rb](http://github.com/iconara/cql-rb), the Ruby driver for Cassandra.
 
@@ -29,6 +29,7 @@ The [examples](https://github.com/iconara/ione/tree/master/examples) directory h
 * [redis_client](https://github.com/iconara/ione/tree/master/examples/redis_client) is a more or less full featured Redis client that uses most of Ione's features.
 * [http_client](https://github.com/iconara/ione/tree/master/examples/http_client) is a simplistic HTTP client that uses Ione and [http_parser.rb](http://rubygems.org/gems/http_parser.rb) to make HTTP GET request.
 * [cql-rb](https://github.com/iconara/cql-rb) is a high performance Cassandra driver and where Ione was originally developed.
+* [cassandra-driver](https://github.com/datastax/ruby-driver) is the successor to cql-rb.
 * [ione-rpc](https://github.com/iconara/ione-rpc) is a RPC framework built on Ione. It makes it reasonably easy to build networked applications without having to reinvent the wheel.
 
 # How to contribute
