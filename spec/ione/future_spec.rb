@@ -1006,8 +1006,27 @@ module Ione
     end
 
     describe '#fallback' do
-      context 'returns a new future that' do
-        it 'is resolved with the value of the fallback future when the source future fails' do
+      context 'when the future eventually resolves' do
+        it 'is resolved with the value of the source future' do
+          p1 = Promise.new
+          p2 = Promise.new
+          f = p1.future.fallback { p2.future }
+          p2.fulfill('bar')
+          p1.fulfill('foo')
+          f.value.should == 'foo'
+        end
+
+        it 'does not call the block' do
+          called = false
+          p = Promise.new
+          f = p.future.fallback { called = true }
+          p.fulfill('foo')
+          called.should be_false
+        end
+      end
+
+      context 'when the future eventually fails' do
+        it 'is resolved with the value of the fallback future' do
           p1 = Promise.new
           p2 = Promise.new
           f = p1.future.fallback { p2.future }
@@ -1026,15 +1045,6 @@ module Ione
           f.value.should == error.message
         end
 
-        it 'is resolved with the value of the source future when the source future fullfills' do
-          p1 = Promise.new
-          p2 = Promise.new
-          f = p1.future.fallback { p2.future }
-          p2.fulfill('bar')
-          p1.fulfill('foo')
-          f.value.should == 'foo'
-        end
-
         it 'fails when the block raises an error' do
           p = Promise.new
           f = p.future.fallback { raise 'bork' }
@@ -1050,15 +1060,52 @@ module Ione
           p1.fail(StandardError.new('fnork'))
           expect { f.value }.to raise_error('bork')
         end
+      end
 
-        it 'accepts anything that implements #on_complete as a fallback future' do
-          fake_future = double(:fake_future)
-          fake_future.stub(:on_complete) { |&listener| listener.call('foo', nil) }
-          p = Promise.new
-          f = p.future.fallback { fake_future }
-          p.fail(error)
+      context 'when the future is already resolved' do
+        it 'is resolved with the value of the source future' do
+          f = Future.resolved('foo').fallback { Future.resolved('bar') }
           f.value.should == 'foo'
         end
+
+        it 'does not call the block' do
+          called = false
+          f = Future.resolved('foo').fallback { called = true }
+          called.should be_false
+        end
+      end
+
+      context 'when the future is already failed' do
+        it 'is resolved with the value of the fallback future' do
+          f = Future.failed(StandardError.new('bork')).fallback { Future.resolved('foo') }
+          f.value.should == 'foo'
+        end
+
+        it 'yields the error to the block' do
+          f = Future.failed(StandardError.new('bork')).fallback do |error|
+            Future.resolved(error.message)
+          end
+          f.value.should == 'bork'
+        end
+
+        it 'fails when the block raises an error' do
+          f = Future.failed(StandardError.new('bork')).fallback { raise 'snork' }
+          expect { f.value }.to raise_error('snork')
+        end
+
+        it 'fails when the fallback future fails' do
+          f = Future.failed(StandardError.new('bork')).fallback { Future.failed(StandardError.new('snork')) }
+          expect { f.value }.to raise_error('snork')
+        end
+      end
+
+      it 'accepts anything that implements #on_complete as a fallback future' do
+        fake_future = double(:fake_future)
+        fake_future.stub(:on_complete) { |&listener| listener.call('foo', nil) }
+        p = Promise.new
+        f = p.future.fallback { fake_future }
+        p.fail(error)
+        f.value.should == 'foo'
       end
     end
 
