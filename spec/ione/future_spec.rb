@@ -590,6 +590,20 @@ module Ione
           p.fulfill(3)
           expect { f.value }.to raise_error('Hurgh')
         end
+
+        it 'fails when the receiving future fails' do
+          p = Promise.new
+          f = p.future.flat_map { |v| Future.resolved(v) }
+          p.fail(StandardError.new('Hurgh'))
+          f.should be_failed
+        end
+
+        it 'fails when the future returned by the block future fails' do
+          p = Promise.new
+          f = p.future.flat_map { |v| Future.failed(StandardError.new('Hurgh')) }
+          p.fulfill
+          f.should be_failed
+        end
       end
 
       it 'accepts anything that implements #on_complete as a chained future' do
@@ -609,6 +623,13 @@ module Ione
           f = p.future.then { |v| Future.resolved(v * 2) }
           p.fulfill(3)
           f.value.should == 3 * 2
+        end
+
+        it 'fails when the receiving future fails' do
+          p = Promise.new
+          f = p.future.then { |v| v }
+          p.fail(StandardError.new('Hurgh'))
+          f.should be_failed
         end
       end
 
