@@ -275,12 +275,14 @@ module Ione
       #   merged_future = Future.reduce(futures, {}) do |accumulator, value|
       #     accumulator.merge(value)
       #   end
+      #   merged_future.value # => the result of {}.merge(hash1).merge(hash2), etc.
       #
       # @example Reducing with an associative and commutative function, like addition
       #   futures = ... # a list of futures that will resolve to numbers
       #   sum_future = Future.reduce(futures, 0, ordered: false) do |accumulator, value|
       #     accumulator + value
       #   end
+      #   sum_future.value # => the sum of all values
       #
       # @param [Array<Ione::Future>] futures an array of futures whose values
       #   should be reduced
