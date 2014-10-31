@@ -59,12 +59,6 @@ module Ione
           reactor.should be_running
         end
 
-        it 'cannot be started again once stopped' do
-          reactor.start.value
-          reactor.stop.value
-          expect { reactor.start }.to raise_error(ReactorError)
-        end
-
         it 'calls the selector' do
           called = false
           selector.handler { called = true; [[], [], []] }
@@ -72,6 +66,81 @@ module Ione
           await { called }
           reactor.stop.value
           called.should be_true, 'expected the selector to have been called'
+        end
+
+        context 'when stopping' do
+          it 'waits for the reactor to stop, then starts it again' do
+            barrier = Queue.new
+            selector.handler do
+              barrier.pop
+              [[], [], []]
+            end
+            reactor.start.value
+            stopped_future = reactor.stop
+            restarted_future = reactor.start
+            sequence = []
+            stopped_future.on_complete { sequence << :stopped }
+            restarted_future.on_complete { sequence << :restarted }
+            barrier.push(nil)
+            stopped_future.value
+            restarted_future.value
+            sequence.should == [:stopped, :restarted]
+            barrier.push(nil)
+          end
+
+          it 'restarts the reactor even when restarted before a failed stop' do
+            barrier = Queue.new
+            selector.handler do
+              if barrier.pop == :fail
+                raise 'Blurgh'
+              else
+                [[], [], []]
+              end
+            end
+            reactor.start.value
+            stopped_future = reactor.stop
+            restarted_future = reactor.start
+            sequence = []
+            stopped_future.on_failure { sequence << :crashed }
+            restarted_future.on_complete { sequence << :restarted }
+            barrier.push(:fail)
+            stopped_future.value rescue nil
+            restarted_future.value
+            sequence.should == [:crashed, :restarted]
+            barrier.push(nil)
+          end
+        end
+
+        context 'when stopped' do
+          before do
+            reactor.start.value
+            reactor.stop.value
+          end
+
+          it 'starts the reactor again' do
+            reactor.start.value
+            reactor.should be_running
+          end
+        end
+
+        context 'when already started' do
+          it 'is not started again' do
+            calls = 0
+            lock = Mutex.new
+            barrier = Queue.new
+            selector.handler do
+              lock.synchronize do
+                calls += 1
+              end
+              barrier.pop
+              [[], [], []]
+            end
+            reactor.start.value
+            reactor.start.value
+            reactor.start.value
+            calls.should == 1
+            barrier.push(nil)
+          end
         end
       end
 
@@ -114,6 +183,20 @@ module Ione
           active_timer1.should be_failed
           active_timer2.should be_failed
         end
+
+        context 'when not started' do
+          it 'does nothing' do
+            reactor = described_class.new(selector: selector, clock: clock)
+            expect { reactor.stop.value }.to_not raise_error
+          end
+        end
+
+        context 'when already stopped' do
+          it 'does nothing' do
+            reactor.stop.value
+            expect { reactor.stop.value }.to_not raise_error
+          end
+        end
       end
 
       describe '#on_error' do
@@ -144,6 +227,36 @@ module Ione
           reactor.start
           await { called }
           called.should be_true, 'expected all close listeners to have been called'
+        end
+
+        it 'calls all listeners when the reactor crashes after being restarted' do
+          calls = []
+          barrier = Queue.new
+          selector.handler { barrier.pop; raise 'Blurgh' }
+          reactor.on_error { calls << :pre_started }
+          reactor.start
+          reactor.on_error { calls << :post_started }
+          barrier.push(nil)
+          await { !reactor.running? }
+          reactor.on_error { calls << :pre_restarted }
+          calls.should == [
+            :pre_started,
+            :post_started,
+            :pre_restarted,
+          ]
+          reactor.start
+          reactor.on_error { calls << :post_restarted }
+          barrier.push(nil)
+          await { !reactor.running? }
+          calls.should == [
+            :pre_started,
+            :post_started,
+            :pre_restarted,
+            :pre_started,
+            :post_started,
+            :pre_restarted,
+            :post_restarted,
+          ]
         end
       end
 
@@ -199,6 +312,24 @@ module Ione
           f = reactor.connect('example.com', 9999, ssl: ssl_context)
           expect { f.value }.to raise_error
         end
+
+        context 'when called before the reactor is started' do
+          it 'waits for the reactor to start' do
+            f = reactor.connect('example.com', 9999)
+            reactor.start.value
+            f.value
+          end
+        end
+
+        context 'when called after the reactor has stopped' do
+          it 'waits for the reactor to be restarted' do
+            reactor.start.value
+            reactor.stop.value
+            f = reactor.connect('example.com', 9999)
+            reactor.start.value
+            f.value
+          end
+        end
       end
 
       describe '#bind' do
@@ -252,22 +383,72 @@ module Ione
           acceptor = reactor.bind(ENV['SERVER_HOST'], port, ssl: ssl_context).value
           acceptor.should be_an(SslAcceptor)
         end
+
+        context 'when called before the reactor is started' do
+          it 'waits for the reactor to start' do
+            f = reactor.bind(ENV['SERVER_HOST'], port, 5)
+            reactor.start.value
+            f.value
+          end
+        end
+
+        context 'when called after the reactor has stopped' do
+          it 'waits for the reactor to be restarted' do
+            reactor.start.value
+            reactor.stop.value
+            f = reactor.bind(ENV['SERVER_HOST'], port, 5)
+            reactor.start.value
+            f.value
+          end
+        end
       end
 
       describe '#schedule_timer' do
-        before do
-          reactor.start.value
+        context 'when the reactor is running' do
+          before do
+            reactor.start.value
+          end
+
+          after do
+            reactor.stop.value
+          end
+
+          it 'returns a future that is resolved after the specified duration' do
+            clock.stub(:now).and_return(1)
+            f = reactor.schedule_timer(0.1)
+            clock.stub(:now).and_return(1.1)
+            await { f.resolved? }
+          end
         end
 
-        after do
-          reactor.stop.value
+        context 'when called before the reactor is started' do
+          after do
+            reactor.stop.value if reactor.running?
+          end
+
+          it 'waits for the reactor to start' do
+            clock.stub(:now).and_return(1)
+            f = reactor.schedule_timer(0.1)
+            clock.stub(:now).and_return(2)
+            reactor.start.value
+            f.value
+          end
         end
 
-        it 'returns a future that is resolved after the specified duration' do
-          clock.stub(:now).and_return(1)
-          f = reactor.schedule_timer(0.1)
-          clock.stub(:now).and_return(1.1)
-          await { f.resolved? }
+        context 'when called after the reactor has stopped' do
+          after do
+            reactor.stop.value if reactor.running?
+          end
+
+          it 'waits for the reactor to be restarted' do
+            reactor.start.value
+            reactor.stop.value
+            clock.stub(:now).and_return(1)
+            f = reactor.schedule_timer(0.1)
+            clock.stub(:now).and_return(2)
+            reactor.start.value
+            f.value
+          end
         end
       end
 
@@ -322,6 +503,29 @@ module Ione
         it 'does nothing when given nil' do
           reactor.cancel_timer(nil)
         end
+
+        context 'when called before the reactor is started' do
+          it 'removes the timer before the reactor starts' do
+            clock.stub(:now).and_return(1)
+            f = reactor.schedule_timer(0.1)
+            reactor.cancel_timer(f)
+            clock.stub(:now).and_return(2)
+            f.should be_failed
+            reactor.start.value
+          end
+        end
+
+        context 'when called after the reactor has stopped' do
+          it 'removes the timer before the reactor is started again' do
+            reactor.start.value
+            reactor.stop.value
+            clock.stub(:now).and_return(1)
+            f = reactor.schedule_timer(0.1)
+            reactor.cancel_timer(f)
+            f.should be_failed
+            reactor.start.value
+          end
+        end
       end
 
       describe '#to_s' do
@@ -330,9 +534,8 @@ module Ione
             reactor.to_s.should include('Ione::Io::IoReactor')
           end
 
-          it 'includes a list of its connections' do
-            reactor.to_s.should include('@connections=[')
-            reactor.to_s.should include('#<Ione::Io::Unblocker>')
+          it 'includes the state' do
+            reactor.to_s.should include('@state=:pending')
           end
         end
       end
