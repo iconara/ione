@@ -898,29 +898,46 @@ module Ione
     end
 
     describe '#recover' do
-      context 'returns a new future that' do
-        it 'resolves to a value created by the block when the source future fails' do
+      context 'when the future will eventually resolve' do
+        it 'does not call the block' do
+          called = false
+          p = Promise.new
+          p.future.recover { called = true }
+          p.fulfill(3)
+          called.should be_false
+        end
+
+        it 'returns a future that resolves' do
+          p = Promise.new
+          f = p.future.recover { 7 }
+          p.fulfill(3)
+          f.value.should == 3
+        end
+      end
+
+      context 'when the future will eventually fail' do
+        it 'resolves to a value created by the block' do
           p = Promise.new
           f = p.future.recover { 'foo' }
           p.fail(error)
           f.value.should == 'foo'
         end
 
-        it 'resolves to a specfied value when the source future fails' do
+        it 'resolves to a specfied value' do
           p = Promise.new
           f = p.future.recover('bar')
           p.fail(error)
           f.value.should == 'bar'
         end
 
-        it 'resovles to a value created by the block even when a value is specified when the source future fails' do
+        it 'resovles to a value created by the block even when a value is specified' do
           p = Promise.new
           f = p.future.recover('bar') { 'foo' }
           p.fail(error)
           f.value.should == 'foo'
         end
 
-        it 'resolves to nil value when no value nor block is specified and the source future fails' do
+        it 'resolves to nil value when no value nor block is specified' do
           p = Promise.new
           f = p.future.recover
           p.fail(error)
@@ -934,17 +951,55 @@ module Ione
           f.value.should == error.message
         end
 
-        it 'resolves to the value of the source future when the source future is resolved' do
-          p = Promise.new
-          f = p.future.recover { 'foo' }
-          p.fulfill('bar')
-          f.value.should == 'bar'
-        end
-
         it 'fails with the error raised in the given block' do
           p = Promise.new
           f = p.future.recover { raise 'snork' }
           p.fail(StandardError.new('bork'))
+          expect { f.value }.to raise_error('snork')
+        end
+      end
+
+      context 'when the future is already resolved' do
+        it 'does not call the block' do
+          called = false
+          Future.resolved(3).recover { called = true }
+          called.should be_false
+        end
+
+        it 'returns a future that resolves' do
+          f = Future.resolved(3).recover { 7 }
+          f.value.should == 3
+        end
+      end
+
+      context 'when the future is already failed' do
+        it 'resolves to a value created by the block' do
+          f = Future.failed(StandardError.new('bork')).recover { 'foo' }
+          f.value.should == 'foo'
+        end
+
+        it 'resolves to a specfied value when the source future fails' do
+          f =  Future.failed(StandardError.new('bork')).recover('bar')
+          f.value.should == 'bar'
+        end
+
+        it 'resovles to a value created by the block even when a value is specified when the source future fails' do
+          f =  Future.failed(StandardError.new('bork')).recover('bar') { 'foo' }
+          f.value.should == 'foo'
+        end
+
+        it 'resolves to nil value when no value nor block is specified and the source future fails' do
+          f =  Future.failed(StandardError.new('bork')).recover
+          f.value.should be_nil
+        end
+
+        it 'yields the error to the block' do
+          f =  Future.failed(StandardError.new('bork')).recover { |e| e.message }
+          f.value.should == error.message
+        end
+
+        it 'fails with the error raised in the given block' do
+          f =  Future.failed(StandardError.new('bork')).recover { raise 'snork' }
           expect { f.value }.to raise_error('snork')
         end
       end
