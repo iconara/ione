@@ -382,26 +382,36 @@ module Ione
       # @yieldreturn [Ione::Future] a future representing the transformed value
       # @return [Ione::Future] a new future representing the transformed value
       def flat_map(&block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            f.fail(e)
-          else
-            begin
-              ff = block.call(v)
-              ff.on_complete do |vv, ee|
-                if ee
-                  f.fail(ee)
-                else
-                  f.resolve(vv)
-                end
-              end
-            rescue => e
+        if resolved?
+          begin
+            block.call(@value)
+          rescue => e
+            Future.failed(e)
+          end
+        elsif failed?
+          self
+        else
+          f = CompletableFuture.new
+          on_complete do |v, e|
+            if e
               f.fail(e)
+            else
+              begin
+                ff = block.call(v)
+                ff.on_complete do |vv, ee|
+                  if ee
+                    f.fail(ee)
+                  else
+                    f.resolve(vv)
+                  end
+                end
+              rescue => e
+                f.fail(e)
+              end
             end
           end
+          f
         end
-        f
       end
 
       # Returns a new future representing a transformation of this future's value,
