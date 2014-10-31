@@ -240,7 +240,7 @@ module Ione
       #
       # @example
       #   ids = [1, 2, 3]
-      #   future = Future.traverse(ids) { |id| load_thing(id) }
+      #   future = Future.traverse(ids) { |id| find_thing(id) }
       #   future.value # => [thing1, thing2, thing3]
       #
       # @param [Array<Object>] values an array whose elements will be passed to
