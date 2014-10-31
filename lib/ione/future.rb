@@ -537,7 +537,24 @@ class Future
     # i.e. resolves or fails. The listener will be called with the future as
     # solve argument
     #
-    # @yieldparam [Ione::Future] future the future
+    # @note
+    #   Depending on the arity of the listener it will be passed different
+    #   arguments. When the listener takes one argument it will receive the
+    #   future itself as argument (this is backwards compatible with the pre
+    #   v1.2 behaviour), with two arguments the value and error are given,
+    #   with three arguments the value, error and the future itself will be
+    #   given. The listener can also take no arguments. See the tests to find
+    #   out the nitty-gritty details, for example the behaviour with different
+    #   combinations of variable arguments and default values.
+    #
+    #   Most of the time you will use {#on_value} and {#on_failure}, and not
+    #   instead of this method.
+    #
+    # @yieldparam [Object] value the value that the future resolves to
+    # @yieldparam [Error] error the error that failed this future
+    # @yieldparam [Ione::Future] future the future itself
+    # @see Callbacks#on_value
+    # @see Callbacks#on_failure
     def on_complete(&listener)
       run_immediately = false
       if @state != :pending
