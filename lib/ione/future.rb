@@ -540,7 +540,23 @@ class Future
 
     # Registers a listener that will be called when this future completes,
     # i.e. resolves or fails. The listener will be called with the future as
-    # solve argument
+    # solve argument.
+    #
+    # The order in which listeners are called is not defined and implementation
+    # dependent. The thread the listener will be called on is also not defined
+    # and implementation dependent. The default implementation calls listeners
+    # registered before completion on the thread that completed the future, and
+    # listeners registered after completions on the thread that registers the
+    # listener – but this may change in the future, and may be different in
+    # special circumstances.
+    #
+    # When a listener raises an error it will be swallowed and not re-raised.
+    # The reason for this is that the processing of the callback may be done
+    # in a context that does not expect, nor can recover from, errors. Not
+    # swallowing errors would stop other listeners from being called. If it
+    # appears as if a listener is not called, first make sure it is not raising
+    # any errors (even a syntax error or a spelling mistake in a method or
+    # variable name will not be hidden).
     #
     # @note
     #   Depending on the arity of the listener it will be passed different
