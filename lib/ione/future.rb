@@ -79,362 +79,362 @@ module Ione
     end
   end
 
-  module FutureFactories
-    # Combines multiple futures into a new future which resolves when all
-    # constituent futures complete, or fails when one or more of them fails.
-    #
-    # The value of the combined future is an array of the values of the
-    # constituent futures.
-    #
-    # @param [Array<Ione::Future>] futures the futures to combine (this argument
-    #   can be a splatted array or a regular array passed as sole argument)
-    # @return [Ione::Future<Array>] an array of the values of the constituent
-    #   futures
-    def all(*futures)
-      if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
-        futures = fs
-      end
-      if futures.count == 0
-        resolved([])
-      else
-        CombinedFuture.new(futures)
-      end
-    end
-
-    # Returns a future which will be resolved with the value of the first
-    # (resolved) of the specified futures. If all of the futures fail, the
-    # returned future will also fail (with the error of the last failed future).
-    #
-    # @param [Array<Ione::Future>] futures the futures to monitor (this argument
-    #   can be a splatted array or a regular array passed as sole argument)
-    # @return [Ione::Future] a future which represents the first completing future
-    def first(*futures)
-      if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
-        futures = fs
-      end
-      if futures.count == 0
-        resolved
-      else
-        FirstFuture.new(futures)
-      end
-    end
-
-    # Takes calls the block once for each element in an array, expecting each
-    # invocation to return a future, and returns a future that resolves to
-    # an array of the values of those futures.
-    #
-    # @example
-    #   ids = [1, 2, 3]
-    #   future = Future.traverse(ids) { |id| load_thing(id) }
-    #   future.value # => [thing1, thing2, thing3]
-    #
-    # @param [Array<Object>] values an array whose elements will be passed to
-    #   the block, one by one
-    # @yieldparam [Object] value each element from the array
-    # @yieldreturn [Ione::Future] a future
-    # @return [Ione::Future] a future that will resolve to an array of the values
-    #   of the futures returned by the block
-    def traverse(values, &block)
-      all(values.map(&block))
-    rescue => e
-      failed(e)
-    end
-
-    # Returns a future that will resolve to a value which is the reduction of
-    # the values of a list of source futures.
-    #
-    # This is essentially a parallel, streaming version of `Enumerable#reduce`,
-    # but for futures. Use this method for example when you want to do a number
-    # of asynchronous operations in parallel and then merge the results together
-    # when all are done.
-    #
-    # The block will not be called concurrently, which means that unless you're
-    # handling the initial value or other values in the scope of the block you
-    # don't need (and shouldn't) do any locking to ensure that the accumulator
-    # passed to the block is safe to modify. It is, of course, even better if
-    # you don't modify the accumulator, but return a new, immutable value on
-    # each invocation.
-    #
-    # @example Merging the results of multipe asynchronous calls
-    #   futures = ... # a list of futures that will resolve to hashes
-    #   merged_future = Future.reduce(futures, {}) do |accumulator, value|
-    #     accumulator.merge(value)
-    #   end
-    #
-    # @example Reducing with an associative and commutative function, like addition
-    #   futures = ... # a list of futures that will resolve to numbers
-    #   sum_future = Future.reduce(futures, 0, ordered: false) do |accumulator, value|
-    #     accumulator + value
-    #   end
-    #
-    # @param [Array<Ione::Future>] futures an array of futures whose values
-    #   should be reduced
-    # @param [Object] initial_value the initial value of the accumulator
-    # @param [Hash] options
-    # @option options [Boolean] :ordered (true) whether or not to respect the
-    #   order of the input when reducing – when true the block will be called
-    #   with the values of the source futures in the order they have in the
-    #   given list, when false the block will be called in the order that the
-    #   futures resolve (which means that your reducer function needs to be
-    #   associative and commutative).
-    # @yieldparam [Object] accumulator the value of the last invocation of the
-    #   block, or the initial value if this is the first invocation
-    # @yieldparam [Object] value the value of one of the source futures
-    # @yieldreturn [Object] the value to pass as accumulator to the next
-    #   invocation of the block
-    # @return [Ione::Future] a future that will resolve to the value returned
-    #   from the last invocation of the block, or nil when the list of futures
-    #   is empty.
-    def reduce(futures, initial_value=nil, options=nil, &reducer)
-      if options && options[:ordered] == false
-        UnorderedReducingFuture.new(futures, initial_value, reducer)
-      else
-        OrderedReducingFuture.new(futures, initial_value, reducer)
-      end
-    end
-
-    # Creates a new pre-resolved future.
-    #
-    # @param [Object, nil] value the value of the created future
-    # @return [Ione::Future] a resolved future
-    def resolved(value=nil)
-      return ResolvedFuture::NIL if value.nil?
-      ResolvedFuture.new(value)
-    end
-
-    # Creates a new pre-failed future.
-    #
-    # @param [Error] error the error of the created future
-    # @return [Ione::Future] a failed future
-    def failed(error)
-      FailedFuture.new(error)
-    end
-  end
-
-  module FutureCombinators
-    # Returns a new future representing a transformation of this future's value.
-    #
-    # @example
-    #   future2 = future1.map { |value| value * 2 }
-    #
-    # @param [Object] value the value of this future (when no block is given)
-    # @yieldparam [Object] value the value of this future
-    # @yieldreturn [Object] the transformed value
-    # @return [Ione::Future] a new future representing the transformed value
-    def map(value=nil, &block)
-      f = CompletableFuture.new
-      on_complete do |v, e|
-        if e
-          f.fail(e)
+  # A future represents the value of a process that may not yet have completed.
+  #
+  # @see Ione::Promise
+  class Future
+    module Factories
+      # Combines multiple futures into a new future which resolves when all
+      # constituent futures complete, or fails when one or more of them fails.
+      #
+      # The value of the combined future is an array of the values of the
+      # constituent futures.
+      #
+      # @param [Array<Ione::Future>] futures the futures to combine (this argument
+      #   can be a splatted array or a regular array passed as sole argument)
+      # @return [Ione::Future<Array>] an array of the values of the constituent
+      #   futures
+      def all(*futures)
+        if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
+          futures = fs
+        end
+        if futures.count == 0
+          resolved([])
         else
-          begin
-            f.resolve(block ? block.call(v) : value)
-          rescue => e
-            f.fail(e)
-          end
+          CombinedFuture.new(futures)
         end
       end
-      f
+
+      # Returns a future which will be resolved with the value of the first
+      # (resolved) of the specified futures. If all of the futures fail, the
+      # returned future will also fail (with the error of the last failed future).
+      #
+      # @param [Array<Ione::Future>] futures the futures to monitor (this argument
+      #   can be a splatted array or a regular array passed as sole argument)
+      # @return [Ione::Future] a future which represents the first completing future
+      def first(*futures)
+        if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
+          futures = fs
+        end
+        if futures.count == 0
+          resolved
+        else
+          FirstFuture.new(futures)
+        end
+      end
+
+      # Takes calls the block once for each element in an array, expecting each
+      # invocation to return a future, and returns a future that resolves to
+      # an array of the values of those futures.
+      #
+      # @example
+      #   ids = [1, 2, 3]
+      #   future = Future.traverse(ids) { |id| load_thing(id) }
+      #   future.value # => [thing1, thing2, thing3]
+      #
+      # @param [Array<Object>] values an array whose elements will be passed to
+      #   the block, one by one
+      # @yieldparam [Object] value each element from the array
+      # @yieldreturn [Ione::Future] a future
+      # @return [Ione::Future] a future that will resolve to an array of the values
+      #   of the futures returned by the block
+      def traverse(values, &block)
+        all(values.map(&block))
+      rescue => e
+        failed(e)
+      end
+
+      # Returns a future that will resolve to a value which is the reduction of
+      # the values of a list of source futures.
+      #
+      # This is essentially a parallel, streaming version of `Enumerable#reduce`,
+      # but for futures. Use this method for example when you want to do a number
+      # of asynchronous operations in parallel and then merge the results together
+      # when all are done.
+      #
+      # The block will not be called concurrently, which means that unless you're
+      # handling the initial value or other values in the scope of the block you
+      # don't need (and shouldn't) do any locking to ensure that the accumulator
+      # passed to the block is safe to modify. It is, of course, even better if
+      # you don't modify the accumulator, but return a new, immutable value on
+      # each invocation.
+      #
+      # @example Merging the results of multipe asynchronous calls
+      #   futures = ... # a list of futures that will resolve to hashes
+      #   merged_future = Future.reduce(futures, {}) do |accumulator, value|
+      #     accumulator.merge(value)
+      #   end
+      #
+      # @example Reducing with an associative and commutative function, like addition
+      #   futures = ... # a list of futures that will resolve to numbers
+      #   sum_future = Future.reduce(futures, 0, ordered: false) do |accumulator, value|
+      #     accumulator + value
+      #   end
+      #
+      # @param [Array<Ione::Future>] futures an array of futures whose values
+      #   should be reduced
+      # @param [Object] initial_value the initial value of the accumulator
+      # @param [Hash] options
+      # @option options [Boolean] :ordered (true) whether or not to respect the
+      #   order of the input when reducing – when true the block will be called
+      #   with the values of the source futures in the order they have in the
+      #   given list, when false the block will be called in the order that the
+      #   futures resolve (which means that your reducer function needs to be
+      #   associative and commutative).
+      # @yieldparam [Object] accumulator the value of the last invocation of the
+      #   block, or the initial value if this is the first invocation
+      # @yieldparam [Object] value the value of one of the source futures
+      # @yieldreturn [Object] the value to pass as accumulator to the next
+      #   invocation of the block
+      # @return [Ione::Future] a future that will resolve to the value returned
+      #   from the last invocation of the block, or nil when the list of futures
+      #   is empty.
+      def reduce(futures, initial_value=nil, options=nil, &reducer)
+        if options && options[:ordered] == false
+          UnorderedReducingFuture.new(futures, initial_value, reducer)
+        else
+          OrderedReducingFuture.new(futures, initial_value, reducer)
+        end
+      end
+
+      # Creates a new pre-resolved future.
+      #
+      # @param [Object, nil] value the value of the created future
+      # @return [Ione::Future] a resolved future
+      def resolved(value=nil)
+        return ResolvedFuture::NIL if value.nil?
+        ResolvedFuture.new(value)
+      end
+
+      # Creates a new pre-failed future.
+      #
+      # @param [Error] error the error of the created future
+      # @return [Ione::Future] a failed future
+      def failed(error)
+        FailedFuture.new(error)
+      end
     end
 
-    # Returns a new future representing a transformation of this future's value,
-    # but where the transformation itself may be asynchronous.
-    #
-    # @example
-    #   future2 = future1.flat_map { |value| method_returning_a_future(value) }
-    #
-    # This method is useful when you want to chain asynchronous operations.
-    #
-    # @yieldparam [Object] value the value of this future
-    # @yieldreturn [Ione::Future] a future representing the transformed value
-    # @return [Ione::Future] a new future representing the transformed value
-    def flat_map(&block)
-      f = CompletableFuture.new
-      on_complete do |v, e|
-        if e
-          f.fail(e)
-        else
-          begin
-            ff = block.call(v)
-            ff.on_complete do |vv, ee|
-              if ee
-                f.fail(ee)
-              else
-                f.resolve(vv)
-              end
+    module Combinators
+      # Returns a new future representing a transformation of this future's value.
+      #
+      # @example
+      #   future2 = future1.map { |value| value * 2 }
+      #
+      # @param [Object] value the value of this future (when no block is given)
+      # @yieldparam [Object] value the value of this future
+      # @yieldreturn [Object] the transformed value
+      # @return [Ione::Future] a new future representing the transformed value
+      def map(value=nil, &block)
+        f = CompletableFuture.new
+        on_complete do |v, e|
+          if e
+            f.fail(e)
+          else
+            begin
+              f.resolve(block ? block.call(v) : value)
+            rescue => e
+              f.fail(e)
             end
-          rescue => e
-            f.fail(e)
           end
         end
+        f
       end
-      f
-    end
 
-    # Returns a new future representing a transformation of this future's value,
-    # similarily to {#map}, but acts as {#flat_map} when the block returns a
-    # {Future}.
-    #
-    # This method is useful when you want to transform the value of a future,
-    # but whether or not it can be done synchronously or require an asynchronous
-    # operation depends on the value of the future.
-    #
-    # @example
-    #   future1 = load_something
-    #   future2 = future1.then do |result|
-    #     if result.empty?
-    #       # make a new async call to load fallback value
-    #       load_something_else
-    #     else
-    #       result
-    #     end
-    #   end
-    #
-    # @yieldparam [Object] value the value of this future
-    # @yieldreturn [Object, Ione::Future] the transformed value, or a future
-    #   that will resolve to the transformed value.
-    # @return [Ione::Future] a new future representing the transformed value
-    def then(&block)
-      f = CompletableFuture.new
-      on_complete do |v, e|
-        if e
-          f.fail(e)
-        else
-          begin
-            fv = block.call(v)
-            if fv.respond_to?(:on_complete)
-              fv.on_complete do |vv, ee|
+      # Returns a new future representing a transformation of this future's value,
+      # but where the transformation itself may be asynchronous.
+      #
+      # @example
+      #   future2 = future1.flat_map { |value| method_returning_a_future(value) }
+      #
+      # This method is useful when you want to chain asynchronous operations.
+      #
+      # @yieldparam [Object] value the value of this future
+      # @yieldreturn [Ione::Future] a future representing the transformed value
+      # @return [Ione::Future] a new future representing the transformed value
+      def flat_map(&block)
+        f = CompletableFuture.new
+        on_complete do |v, e|
+          if e
+            f.fail(e)
+          else
+            begin
+              ff = block.call(v)
+              ff.on_complete do |vv, ee|
                 if ee
                   f.fail(ee)
                 else
                   f.resolve(vv)
                 end
               end
-            else
-              f.resolve(fv)
+            rescue => e
+              f.fail(e)
             end
-          rescue => e
-            f.fail(e)
           end
         end
+        f
       end
-      f
-    end
 
-    # Returns a new future which represents either the value of the original
-    # future, or the result of the given block, if the original future fails.
-    #
-    # This method is similar to {#map}, but is triggered by a failure. You can
-    # also think of it as a `rescue` block for asynchronous operations.
-    #
-    # If the block raises an error a failed future with that error will be
-    # returned (this can be used to transform an error into another error,
-    # instead of tranforming an error into a value).
-    #
-    # @example
-    #   future2 = future1.recover { |error| 'foo' }
-    #   future1.fail(error)
-    #   future2.value # => 'foo'
-    #
-    # @param [Object] value the value when no block is given
-    # @yieldparam [Object] error the error from the original future
-    # @yieldreturn [Object] the value of the new future
-    # @return [Ione::Future] a new future representing a value recovered from the error
-    def recover(value=nil, &block)
-      f = CompletableFuture.new
-      on_complete do |v, e|
-        if e
-          begin
-            f.resolve(block ? block.call(e) : value)
-          rescue => e
+      # Returns a new future representing a transformation of this future's value,
+      # similarily to {#map}, but acts as {#flat_map} when the block returns a
+      # {Future}.
+      #
+      # This method is useful when you want to transform the value of a future,
+      # but whether or not it can be done synchronously or require an asynchronous
+      # operation depends on the value of the future.
+      #
+      # @example
+      #   future1 = load_something
+      #   future2 = future1.then do |result|
+      #     if result.empty?
+      #       # make a new async call to load fallback value
+      #       load_something_else
+      #     else
+      #       result
+      #     end
+      #   end
+      #
+      # @yieldparam [Object] value the value of this future
+      # @yieldreturn [Object, Ione::Future] the transformed value, or a future
+      #   that will resolve to the transformed value.
+      # @return [Ione::Future] a new future representing the transformed value
+      def then(&block)
+        f = CompletableFuture.new
+        on_complete do |v, e|
+          if e
             f.fail(e)
-          end
-        else
-          f.resolve(v)
-        end
-      end
-      f
-    end
-
-    # Returns a new future which represents either the value of the original
-    # future, or the value of the future returned by the given block.
-    #
-    # This is like {#recover} but for cases when the handling of an error is
-    # itself asynchronous. In other words, {#fallback} is to {#recover} what
-    # {#flat_map} is to {#map}.
-    #
-    # If the block raises an error a failed future with that error will be
-    # returned (this can be used to transform an error into another error,
-    # instead of tranforming an error into a value).
-    #
-    # @example
-    #   result = http_get('/foo/bar').fallback do |error|
-    #     http_get('/baz')
-    #   end
-    #   result.value # either the response to /foo/bar, or if that failed
-    #                # the response to /baz
-    #
-    # @yieldparam [Object] error the error from the original future
-    # @yieldreturn [Object] the value of the new future
-    # @return [Ione::Future] a new future representing a value recovered from the
-    #   error
-    def fallback(&block)
-      f = CompletableFuture.new
-      on_complete do |v, e|
-        if e
-          begin
-            ff = block.call(e)
-            ff.on_complete do |vv, ee|
-              if ee
-                f.fail(ee)
+          else
+            begin
+              fv = block.call(v)
+              if fv.respond_to?(:on_complete)
+                fv.on_complete do |vv, ee|
+                  if ee
+                    f.fail(ee)
+                  else
+                    f.resolve(vv)
+                  end
+                end
               else
-                f.resolve(vv)
+                f.resolve(fv)
               end
+            rescue => e
+              f.fail(e)
             end
-          rescue => e
-            f.fail(e)
           end
-        else
-          f.resolve(v)
         end
+        f
       end
-      f
-    end
-  end
 
-  module FutureCallbacks
-    # Registers a listener that will be called when this future becomes
-    # resolved. The listener will be called with the value of the future as
-    # sole argument.
-    #
-    # @yieldparam [Object] value the value of the resolved future
-    def on_value(&listener)
-      on_complete do |value, error|
-        listener.call(value) unless error
+      # Returns a new future which represents either the value of the original
+      # future, or the result of the given block, if the original future fails.
+      #
+      # This method is similar to {#map}, but is triggered by a failure. You can
+      # also think of it as a `rescue` block for asynchronous operations.
+      #
+      # If the block raises an error a failed future with that error will be
+      # returned (this can be used to transform an error into another error,
+      # instead of tranforming an error into a value).
+      #
+      # @example
+      #   future2 = future1.recover { |error| 'foo' }
+      #   future1.fail(error)
+      #   future2.value # => 'foo'
+      #
+      # @param [Object] value the value when no block is given
+      # @yieldparam [Object] error the error from the original future
+      # @yieldreturn [Object] the value of the new future
+      # @return [Ione::Future] a new future representing a value recovered from the error
+      def recover(value=nil, &block)
+        f = CompletableFuture.new
+        on_complete do |v, e|
+          if e
+            begin
+              f.resolve(block ? block.call(e) : value)
+            rescue => e
+              f.fail(e)
+            end
+          else
+            f.resolve(v)
+          end
+        end
+        f
       end
-      nil
-    end
 
-    # Registers a listener that will be called when this future fails. The
-    # lisener will be called with the error that failed the future as sole
-    # argument.
-    #
-    # @yieldparam [Error] error the error that failed the future
-    def on_failure(&listener)
-      on_complete do |_, error|
-        listener.call(error) if error
+      # Returns a new future which represents either the value of the original
+      # future, or the value of the future returned by the given block.
+      #
+      # This is like {#recover} but for cases when the handling of an error is
+      # itself asynchronous. In other words, {#fallback} is to {#recover} what
+      # {#flat_map} is to {#map}.
+      #
+      # If the block raises an error a failed future with that error will be
+      # returned (this can be used to transform an error into another error,
+      # instead of tranforming an error into a value).
+      #
+      # @example
+      #   result = http_get('/foo/bar').fallback do |error|
+      #     http_get('/baz')
+      #   end
+      #   result.value # either the response to /foo/bar, or if that failed
+      #                # the response to /baz
+      #
+      # @yieldparam [Object] error the error from the original future
+      # @yieldreturn [Object] the value of the new future
+      # @return [Ione::Future] a new future representing a value recovered from the
+      #   error
+      def fallback(&block)
+        f = CompletableFuture.new
+        on_complete do |v, e|
+          if e
+            begin
+              ff = block.call(e)
+              ff.on_complete do |vv, ee|
+                if ee
+                  f.fail(ee)
+                else
+                  f.resolve(vv)
+                end
+              end
+            rescue => e
+              f.fail(e)
+            end
+          else
+            f.resolve(v)
+          end
+        end
+        f
       end
-      nil
     end
-  end
 
-  # A future represents the value of a process that may not yet have completed.
-  #
-  # @see Ione::Promise
-  class Future
-    extend FutureFactories
-    include FutureCombinators
-    include FutureCallbacks
+    module Callbacks
+      # Registers a listener that will be called when this future becomes
+      # resolved. The listener will be called with the value of the future as
+      # sole argument.
+      #
+      # @yieldparam [Object] value the value of the resolved future
+      def on_value(&listener)
+        on_complete do |value, error|
+          listener.call(value) unless error
+        end
+        nil
+      end
+
+      # Registers a listener that will be called when this future fails. The
+      # lisener will be called with the error that failed the future as sole
+      # argument.
+      #
+      # @yieldparam [Error] error the error that failed the future
+      def on_failure(&listener)
+        on_complete do |_, error|
+          listener.call(error) if error
+        end
+        nil
+      end
+    end
+
+    extend Factories
+    include Combinators
+    include Callbacks
 
     def initialize
       @lock = Mutex.new
@@ -555,6 +555,18 @@ module Ione
       end
     end
   end
+
+  # @private
+  # @deprecated
+  FutureCallbacks = Future::Callbacks
+
+  # @private
+  # @deprecated
+  FutureCombinators = Future::Combinators
+
+  # @private
+  # @deprecated
+  FutureFactories = Future::Factories
 
   # @private
   class CompletableFuture < Future
