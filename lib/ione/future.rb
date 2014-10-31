@@ -508,19 +508,29 @@ module Ione
       # @yieldreturn [Object] the value of the new future
       # @return [Ione::Future] a new future representing a value recovered from the error
       def recover(value=nil, &block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            begin
-              f.resolve(block ? block.call(e) : value)
-            rescue => e
-              f.fail(e)
-            end
-          else
-            f.resolve(v)
+        if resolved?
+          self
+        elsif failed?
+          begin
+            Future.resolved(block ? block.call(@error) : value)
+          rescue => e
+            Future.failed(e)
           end
+        else
+          f = CompletableFuture.new
+          on_complete do |v, e|
+            if e
+              begin
+                f.resolve(block ? block.call(e) : value)
+              rescue => e
+                f.fail(e)
+              end
+            else
+              f.resolve(v)
+            end
+          end
+          f
         end
-        f
       end
 
       # Returns a new future which represents either the value of the original
