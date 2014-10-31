@@ -583,7 +583,18 @@ class Future
     # If the future fails this method will raise the error that failed the
     # future.
     #
+    # @note
+    #   This is a blocking operation and should be used with caution. You should
+    #   never call this method in a block given to any of the other methods
+    #   on {Future}. Prefer using combinator methods like {#map} and {#flat_map}
+    #   to compose operations asynchronously, or use {#on_value}, {#on_failure}
+    #   or {#on_complete} to listen for values and/or failures.
+    #
+    # @raise [Error] the error that failed this future
     # @return [Object] the value of this future
+    # @see Callbacks#on_value
+    # @see Callbacks#on_failure
+    # @see Callbacks#on_complete
     def value
       raise @error if @state == :failed
       return @value if @state == :resolved
