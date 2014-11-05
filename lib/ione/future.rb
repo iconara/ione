@@ -45,13 +45,7 @@ module Ione
     #
     # @param [Ione::Future] future the future to observe
     def observe(future)
-      future.on_complete do |v, e|
-        if e
-          fail(e)
-        else
-          fulfill(v)
-        end
-      end
+      @future.observe(future)
     end
 
     # Run the given block and fulfill this promise with its result. If the block
@@ -73,10 +67,8 @@ module Ione
     #   promise.try('foo', 'bar', &proc_taking_two_arguments)
     #
     # @yieldparam [Array] ctx the arguments passed to {#try}
-    def try(*ctx)
-      fulfill(yield(*ctx))
-    rescue => e
-      fail(e)
+    def try(*ctx, &block)
+      @future.try(*ctx, &block)
     end
   end
 
@@ -841,6 +833,22 @@ module Ione
         call_listener(listener)
       end
       nil
+    end
+
+    def observe(future)
+      future.on_complete do |v, e|
+        if e
+          fail(e)
+        else
+          resolve(v)
+        end
+      end
+    end
+
+    def try(*ctx)
+      resolve(yield(*ctx))
+    rescue => e
+      fail(e)
     end
   end
 
