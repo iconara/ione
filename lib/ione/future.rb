@@ -351,7 +351,13 @@ module Ione
         else
           f = CompletableFuture.new
           on_complete do |v, e|
-            f.observe(map(value, &block))
+            if e
+              f.fail(e)
+            elsif block.nil?
+              f.resolve(value)
+            else
+              f.try(v, &block)
+            end
           end
           f
         end
