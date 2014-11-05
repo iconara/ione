@@ -446,15 +446,7 @@ module Ione
           begin
             fv = block.call(@value)
             if fv.respond_to?(:on_complete)
-              f = CompletableFuture.new
-              fv.on_complete do |v, e|
-                if e
-                  f.fail(e)
-                else
-                  f.resolve(v)
-                end
-              end
-              f
+              fv
             else
               Future.resolved(fv)
             end
