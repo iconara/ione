@@ -3,11 +3,14 @@
 
 module Ione
   module Io
+    # An acceptor wraps a server socket and accepts client connections.
     class Acceptor
+      # @private
       ServerSocket = RUBY_ENGINE == 'jruby' ? ::ServerSocket : Socket
 
       attr_reader :backlog
 
+      # @private
       def initialize(host, port, backlog, unblocker, reactor, socket_impl=nil)
         @host = host
         @port = port
@@ -20,12 +23,16 @@ module Ione
         @state = :binding
       end
 
+      # Register a listener to be notified when client connections are accepted
+      #
+      # @yieldparam [Ione::Io::ServerConnection] the connection to the client
       def on_accept(&listener)
         @lock.synchronize do
           @accept_listeners << listener
         end
       end
 
+      # @private
       def bind
         addrinfos = @socket_impl.getaddrinfo(@host, @port, nil, Socket::SOCK_STREAM)
         begin
@@ -46,6 +53,7 @@ module Ione
         Future.failed(e)
       end
 
+      # Stop accepting connections
       def close
         @lock.synchronize do
           return false if @state == :closed
@@ -63,26 +71,32 @@ module Ione
         true
       end
 
+      # @private
       def to_io
         @io
       end
 
+      # Returns true if the acceptor has stopped accepting connections
       def closed?
         @state == :closed
       end
 
+      # Returns true if the acceptor is accepting connections
       def connected?
         @state != :closed
       end
 
+      # @private
       def connecting?
         false
       end
 
+      # @private
       def writable?
         false
       end
 
+      # @private
       def read
         client_socket, host, port = accept
         connection = ServerConnection.new(client_socket, host, port, @unblocker)
@@ -91,10 +105,12 @@ module Ione
       end
 
       if RUBY_ENGINE == 'jruby'
+        # @private
         def bind_socket(socket, addr, backlog)
           socket.bind(addr, backlog)
         end
       else
+        # @private
         def bind_socket(socket, addr, backlog)
           socket.bind(addr)
           socket.listen(backlog)
