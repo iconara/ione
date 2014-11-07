@@ -276,10 +276,10 @@ module Ione
       end
 
       def unblock
-        unless closed?
+        if @state != :closed
           @lock.lock
           begin
-            if !closed? && IO.select(nil, @writables, nil, 0)
+            if @state != :closed && IO.select(nil, @writables, nil, 0)
               @in.write_nonblock(PING_BYTE)
             end
           ensure
@@ -290,7 +290,7 @@ module Ione
 
       def read
         @lock.lock
-        unless closed?
+        if @state != :closed
           @out.read_nonblock(2**16)
         end
       ensure
