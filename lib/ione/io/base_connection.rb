@@ -5,6 +5,7 @@ module Ione
     class BaseConnection
       attr_reader :host, :port
 
+      # @private
       def initialize(host, port, unblocker)
         @host = host
         @port = port
