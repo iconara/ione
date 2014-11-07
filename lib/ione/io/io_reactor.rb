@@ -161,6 +161,15 @@ module Ione
 
       # Opens a connection to the specified host and port.
       #
+      # @example A naive HTTP client
+      #   connection_future = reactor.connect('example.com', 80)
+      #   connection_future.on_value do |connection|
+      #     connection.write("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n")
+      #     connection.on_data do |data|
+      #       print(data)
+      #     end
+      #   end
+      #
       # @param host [String] the host to connect to
       # @param port [Integer] the port to connect to
       # @param options [Hash, Numeric] a hash of options (see below)
