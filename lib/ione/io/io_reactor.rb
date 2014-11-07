@@ -181,8 +181,8 @@ module Ione
       #   or true to upgrade the connection and create a new context.
       # @yieldparam [Ione::Io::Connection] connection the newly opened connection
       # @return [Ione::Future] a future that will resolve when the connection is
-      #   open. The value will be the connection, or when a block is given to
-      #   what the block returns
+      #   open. The value will be the connection, or when a block is given the
+      #   value returned by the block.
       def connect(host, port, options=nil, &block)
         if options.is_a?(Numeric) || options.nil?
           timeout = options || 5
