@@ -256,6 +256,7 @@ module Ione
         @out, @in = IO.pipe
         @lock = Mutex.new
         @state = :open
+        @writables = [@in]
       end
 
       def connected?
@@ -278,7 +279,9 @@ module Ione
         unless closed?
           @lock.lock
           begin
-            @in.write(PING_BYTE)
+            if !closed? && IO.select(nil, @writables, nil, 0)
+              @in.write_nonblock(PING_BYTE)
+            end
           ensure
             @lock.unlock
           end
@@ -286,9 +289,12 @@ module Ione
       end
 
       def read
+        @lock.lock
         unless closed?
           @out.read_nonblock(2**16)
         end
+      ensure
+        @lock.unlock
       end
 
       def close
