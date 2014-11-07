@@ -201,6 +201,59 @@ module Ione
         f
       end
 
+      # Starts a server bound to the specified host and port.
+      #
+      # A server is represented by an {Acceptor}, which wraps the server socket
+      # and accepts client connections. By registering to be notified on new
+      # connections, via {Acceptor#on_accept}, you can attach your server
+      # handling code to a connection.
+      #
+      # @example An echo server
+      #   acceptor_future = reactor.bind('0.0.0.0', 11111)
+      #   acceptor_future.on_value do |acceptor|
+      #     acceptor.on_accept do |connection|
+      #       connection.on_data do |data|
+      #         connection.write(data)
+      #       end
+      #     end
+      #   end
+      #
+      # @example A more realistic server template
+      #   class EchoServer
+      #     def initialize(acceptor)
+      #       @acceptor = acceptor
+      #       @acceptor.on_accept do |connection|
+      #         handle_connection(connection)
+      #       end
+      #     end
+      #
+      #     def handle_connection(connection)
+      #       connection.on_data do |data|
+      #         connection.write(data)
+      #       end
+      #     end
+      #   end
+      #
+      #   server_future = reactor.bind('0.0.0.0', 11111) do |acceptor|
+      #     EchoServer.new(acceptor)
+      #   end
+      #
+      #   server_future.on_value do |echo_server|
+      #     # this is called when the server has started
+      #   end
+      #
+      # @param host [String] the host to bind to, for example 127.0.0.1,
+      #   'example.com' – or '0.0.0.0' to bind to all interfaces
+      # @param port [Integer] the port to bind to
+      # @param options [Hash]
+      # @option options [Integer] :backlog (5) the maximum number of pending
+      #   (unaccepted) connections, i.e. Socket::SOMAXCONN
+      # @option options [OpenSSL::SSL::SSLContext] :ssl (nil) when specified the
+      #   server will use this SSLContext to encrypt connections
+      # @yieldparam [Ione::Io::Acceptor] the acceptor instance for this server
+      # @return [Ione::Future] a future that will resolve when the server is
+      #   bound. The value will be the acceptor, or when a block is given, the
+      #   value returned by the block.
       def bind(host, port, options=nil, &block)
         if options.is_a?(Integer) || options.nil?
           backlog = options || 5
