@@ -13,14 +13,16 @@ module Ione
       end
     end
 
-    it 'can set a value' do
+    before do
       pending('Redis not running', unless: client)
+    end
+
+    it 'can set a value' do
       response = client.set('foo', 'bar').value
       response.should == 'OK'
     end
 
     it 'can get a value' do
-      pending('Redis not running', unless: client)
       f = client.set('foo', 'bar').flat_map do
         client.get('foo')
       end
@@ -28,7 +30,6 @@ module Ione
     end
 
     it 'can delete values' do
-      pending('Redis not running', unless: client)
       f = client.set('hello', 'world').flat_map do
         client.del('hello')
       end
@@ -36,7 +37,6 @@ module Ione
     end
 
     it 'handles nil values' do
-      pending('Redis not running', unless: client)
       f = client.del('hello').flat_map do
         client.get('hello')
       end
@@ -44,13 +44,11 @@ module Ione
     end
 
     it 'handles errors' do
-      pending('Redis not running', unless: client)
       f = client.set('foo')
       expect { f.value }.to raise_error(RedisError, "ERR wrong number of arguments for 'set' command")
     end
 
     it 'handles replies with multiple elements' do
-      pending('Redis not running', unless: client)
       f = client.del('stuff')
       f.value
       f = client.rpush('stuff', 'hello', 'world')
@@ -60,7 +58,6 @@ module Ione
     end
 
     it 'handles nil values when reading multiple elements' do
-      pending('Redis not running', unless: client)
       client.del('things')
       client.hset('things', 'hello', 'world')
       f = client.hmget('things', 'hello', 'foo')
