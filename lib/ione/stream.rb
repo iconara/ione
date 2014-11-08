@@ -32,16 +32,24 @@ module Ione
     end
 
     module StreamCombinators
+      # @yieldparam [Object] element
+      # @yieldreturn [Object] the transformed element
       # @return [Ione::Stream]
       def map(&transformer)
         TransformedStream.new(self, transformer)
       end
 
+      # @yieldparam [Object] element
+      # @yieldreturn [Boolean] whether or not to pass the element downstream
       # @return [Ione::Stream]
       def select(&filter)
         FilteredStream.new(self, filter)
       end
 
+      # @yieldparam [Object] element
+      # @yieldparam [Ione::Stream::PushStream] downstream
+      # @yieldparam [Object] state
+      # @yieldreturn [Object] the next state
       # @return [Ione::Stream]
       def aggregate(state=nil, &aggregator)
         AggregatingStream.new(self, aggregator, state)
