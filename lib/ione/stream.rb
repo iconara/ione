@@ -41,7 +41,7 @@ module Ione
       self
     end
 
-    module StreamCombinators
+    module Combinators
       # @yieldparam [Object] element
       # @yieldreturn [Object] the transformed element
       # @return [Ione::Stream]
@@ -56,6 +56,7 @@ module Ione
         FilteredStream.new(self, filter)
       end
 
+      # @param [Object] state
       # @yieldparam [Object] element
       # @yieldparam [Ione::Stream::PushStream] downstream
       # @yieldparam [Object] state
@@ -82,7 +83,7 @@ module Ione
       end
     end
 
-    include StreamCombinators
+    include Combinators
 
     class PushStream < Stream
       module_eval do
