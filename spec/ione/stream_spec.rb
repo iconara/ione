@@ -65,6 +65,14 @@ module Ione
         it 'returns self' do
           stream.each { }.should equal(stream)
         end
+
+        it 'is aliased as #subscribe' do
+          pushed_elements = []
+          stream.subscribe { |e| pushed_elements << e }
+          stream.push('foo')
+          stream.push('bar')
+          pushed_elements.should == ['foo', 'bar']
+        end
       end
 
       describe '#to_proc' do
@@ -130,6 +138,32 @@ module Ione
           stream << "o\nbar\nba"
           stream << "z\n"
           pushed_elements.should == ["foo\n", "bar\n", "baz\n"]
+        end
+      end
+
+      describe '#take' do
+        it 'returns a stream that will yield only the specified number of elements' do
+          pushed_elements = []
+          filtered_stream = stream.take(3)
+          filtered_stream.each { |e| pushed_elements << e }
+          stream << 'foo'
+          stream << 'bar'
+          stream << 'baz'
+          stream << 'qux'
+          pushed_elements.should == ['foo', 'bar', 'baz']
+        end
+      end
+
+      describe '#drop' do
+        it 'returns a stream that will skip the specified number of items' do
+          pushed_elements = []
+          filtered_stream = stream.drop(2)
+          filtered_stream.each { |e| pushed_elements << e }
+          stream << 'foo'
+          stream << 'bar'
+          stream << 'baz'
+          stream << 'qux'
+          pushed_elements.should == ['baz', 'qux']
         end
       end
     end
