@@ -66,6 +66,21 @@ module Ione
       promise.future
     end
 
+    # This is an implementation of the Redis protocol as a state machine.
+    #
+    # You start with {BaseState} and call {#feed_line} with a line received
+    # from Redis. {#feed_line} will return a new state object, on which you
+    # should call {#feed_line} with the next line from Redis.
+    #
+    # The state objects returned by {#feed_line} represent either a complete or
+    # a partial response. You can check if a state represents a complete
+    # response by calling {#response?}. If this method returns true you can call
+    # {#response} to get the response (which is either a string or an array of
+    # strings). In some cases the response is an error, in which case {#error?}
+    # will return true, and {#response} will return the error message.
+    #
+    # The state that represents a complete response also works like the base
+    # state so you can feed it a line to start processing the next response.
     module RedisProtocol
       class State
         attr_reader :next_state
