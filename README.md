@@ -14,6 +14,10 @@ Ione is a framework for reactive programming in Ruby. It is based on the reactiv
 
 At the core of Ione is a futures API. Futures make it easy to compose asynchronous operations.
 
+## Streams
+
+Streams are a powerful abstraction for building for example composable protocol parsers.
+
 ## Evented IO
 
 A key piece of the framework is an IO reactor with which you can easily build network clients and servers.
