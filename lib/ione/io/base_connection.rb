@@ -127,7 +127,7 @@ module Ione
       #
       # @yield [String] the new data
       def on_data(&listener)
-        @data_stream.each(&listener)
+        @data_stream.subscribe(listener)
         nil
       end
 

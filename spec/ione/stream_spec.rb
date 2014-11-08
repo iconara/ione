@@ -53,22 +53,22 @@ module Ione
         end
       end
 
-      describe '#each' do
+      describe '#subscribe' do
         it 'yields each element that is pushed to the stream' do
           pushed_elements = []
-          stream.each { |e| pushed_elements << e }
+          stream.subscribe { |e| pushed_elements << e }
           stream.push('foo')
           stream.push('bar')
           pushed_elements.should == ['foo', 'bar']
         end
 
         it 'returns self' do
-          stream.each { }.should equal(stream)
+          stream.subscribe { }.should equal(stream)
         end
 
-        it 'is aliased as #subscribe' do
+        it 'is aliased as #each' do
           pushed_elements = []
-          stream.subscribe { |e| pushed_elements << e }
+          stream.each { |e| pushed_elements << e }
           stream.push('foo')
           stream.push('bar')
           pushed_elements.should == ['foo', 'bar']

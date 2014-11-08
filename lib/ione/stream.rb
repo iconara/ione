@@ -6,28 +6,28 @@ module Ione
   class Stream
     # @private
     def initialize
-      @listeners = []
+      @subscribers = []
       @lock = Mutex.new
     end
 
     # @yieldparam [Object] element each element that flows through the stream
     # @return [self] the stream itself
-    def subscribe(listener=nil, &block)
+    def subscribe(subscriber=nil, &block)
       @lock.lock
-      listeners = @listeners.dup
-      listeners << (listener || block)
-      @listeners = listeners
+      subscribers = @subscribers.dup
+      subscribers << (subscriber || block)
+      @subscribers = subscribers
       self
     ensure
       @lock.unlock
     end
     alias_method :each, :subscribe
 
-    def unsubscribe(listener)
+    def unsubscribe(subscriber)
       @lock.lock
-      listeners = @listeners.dup
-      listeners.delete(listener)
-      @listeners = listeners
+      subscribers = @subscribers.dup
+      subscribers.delete(subscriber)
+      @subscribers = subscribers
     ensure
       @lock.unlock
     end
@@ -35,8 +35,8 @@ module Ione
     private
 
     def deliver(element)
-      @listeners.each do |listener|
-        listener.call(element) rescue nil
+      @subscribers.each do |subscriber|
+        subscriber.call(element) rescue nil
       end
       self
     end
