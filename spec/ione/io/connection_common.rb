@@ -254,5 +254,17 @@ shared_examples_for 'a connection' do |options|
         end
       end
     end
+
+    describe '#to_stream' do
+      it 'returns a stream of the data chunks received by the socket' do
+        socket.should_receive(:read_nonblock).and_return('foo bar', 'baz', 'qux')
+        received_chunks = []
+        handler.to_stream.each { |data| received_chunks << data }
+        handler.read
+        handler.read
+        handler.read
+        received_chunks.should == ['foo bar', 'baz', 'qux']
+      end
+    end
   end
 end

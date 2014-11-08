@@ -85,6 +85,29 @@ module Ione
         @writable && @state != CLOSED_STATE
       end
 
+      # Returns a stream of data chunks received by this connection
+      #
+      # It is very important that you don't do any heavy lifting in subscribers
+      # to this stream since they will be called from the IO reactor thread.
+      #
+      # @example Transforming a stream of data chunks to a stream of lines
+      #   data_chunk_stream = connection.to_stream
+      #   line_stream = data_chunk_stream.aggregate(ByteBuffer.new) do |chunk, downstream, buffer|
+      #     buffer << chunk
+      #     while (newline_index = buffer.index("\n"))
+      #       downstream << buffer.read(newline_index + 1)
+      #     end
+      #     buffer
+      #   end
+      #   line_stream.each do |line|
+      #     puts line
+      #   end
+      #
+      # @return [Ione::Stream<String>]
+      def to_stream
+        @data_stream
+      end
+
       # Register to receive notifications when new data is read from the socket.
       #
       # You should only call this method in your protocol handler constructor.
