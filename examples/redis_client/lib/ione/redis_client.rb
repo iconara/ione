@@ -96,6 +96,8 @@ module Ione
           false
         end
 
+        private
+
         def continue(next_state=self)
           next_state
         end
