@@ -94,9 +94,9 @@ module Ione
       end
 
       class MultiBulkState < State
-        def initialize(expected_elements)
+        def initialize(size)
           super()
-          @expected_elements = expected_elements
+          @size = size
           @elements = []
         end
 
@@ -109,7 +109,7 @@ module Ione
           else
             @elements << line
           end
-          if @elements.size == @expected_elements
+          if @elements.size == @size
             complete(@elements)
           else
             continue
