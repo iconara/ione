@@ -92,12 +92,6 @@ module Ione
     # state so you can feed it a line to start processing the next response.
     module RedisProtocol
       class State
-        attr_reader :next_state
-
-        def initialize
-          @next_state = self
-        end
-
         def response?
           false
         end
@@ -119,7 +113,6 @@ module Ione
 
       class MultiBulkState < State
         def initialize(size)
-          super()
           @size = size
           @elements = []
         end
