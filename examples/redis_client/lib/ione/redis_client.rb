@@ -4,6 +4,8 @@ require 'ione'
 
 
 module Ione
+  RedisError = Class.new(StandardError)
+
   class RedisClient
     def self.connect(host, port)
       new(host, port).connect
@@ -54,7 +56,7 @@ module Ione
       response_stream.each do |response, error|
         promise = @responses.shift
         if error
-          promise.fail(StandardError.new(response))
+          promise.fail(RedisError.new(response))
         else
           promise.fulfill(response)
         end

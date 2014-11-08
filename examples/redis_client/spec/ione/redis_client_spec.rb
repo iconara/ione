@@ -46,7 +46,7 @@ module Ione
     it 'handles errors' do
       pending('Redis not running', unless: client)
       f = client.set('foo')
-      expect { f.value }.to raise_error("ERR wrong number of arguments for 'set' command")
+      expect { f.value }.to raise_error(RedisError, "ERR wrong number of arguments for 'set' command")
     end
 
     it 'handles replies with multiple elements' do
