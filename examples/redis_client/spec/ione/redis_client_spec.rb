@@ -48,6 +48,11 @@ module Ione
       expect { f.value }.to raise_error(RedisError, "ERR wrong number of arguments for 'set' command")
     end
 
+    it 'does no validation on the command that is sent' do
+      f = client.foo('bar')
+      expect { f.value }.to raise_error(RedisError, "ERR unknown command 'foo'")
+    end
+
     it 'handles replies with multiple elements' do
       f = client.del('stuff')
       f.value
