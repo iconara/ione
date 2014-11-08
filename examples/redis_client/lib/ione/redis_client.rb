@@ -21,13 +21,13 @@ module Ione
       f = f.flat_map { @reactor.connect(@host, @port) }
       f.on_value do |connection|
         @connection = connection
-        process_responses(connection.to_stream)
+        process_data_chunks(connection.to_stream)
       end
       f.map(self)
     end
 
-    def process_responses(byte_stream)
-      line_stream = byte_stream.aggregate(Ione::ByteBuffer.new) do |data, downstream, buffer|
+    def process_data_chunks(data_chunk_stream)
+      line_stream = data_chunk_stream.aggregate(Ione::ByteBuffer.new) do |data, downstream, buffer|
         buffer << data
         while (newline_index = buffer.index("\r\n"))
           line = buffer.read(newline_index + 2)
@@ -36,6 +36,10 @@ module Ione
         end
         buffer
       end
+      process_lines(line_stream)
+    end
+
+    def process_lines(line_stream)
       response_stream = line_stream.aggregate(RedisProtocol::BaseState.new) do |line, downstream, state|
         state = state.feed_line(line)
         if state.response?
@@ -43,6 +47,10 @@ module Ione
         end
         state
       end
+      process_responses(response_stream)
+    end
+
+    def process_responses(response_stream)
       response_stream.each do |response, error|
         promise = @responses.shift
         if error
@@ -51,7 +59,6 @@ module Ione
           promise.fulfill(response)
         end
       end
-      self
     end
 
     def method_missing(*args)
