@@ -140,8 +140,9 @@ module Ione
             reactor.start.value
             reactor.start.value
             reactor.start.value
-            calls.should == 1
-            barrier.push(nil)
+            lock.synchronize { calls }.should == 1
+            reactor.stop
+            barrier.push(nil) while reactor.running?
           end
         end
       end
