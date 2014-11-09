@@ -68,7 +68,6 @@ module Ione
 
       # @param [Integer] n the number of elements to pass downstream before
       #   unsubscribing
-      # @yieldparam [Object] element
       # @return [Ione::Stream]
       def take(n)
         LimitedStream.new(self, n)
@@ -76,7 +75,6 @@ module Ione
 
       # @param [Integer] n the number of elements to skip before passing
       #   elements downstream
-      # @yieldparam [Object] element
       # @return [Ione::Stream]
       def drop(n)
         SkippingStream.new(self, n)
