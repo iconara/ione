@@ -46,7 +46,7 @@ module Ione
   class HttpProtocolHandler
     def initialize(connection)
       @connection = connection
-      @connection.on_data(&method(:process_data))
+      @connection.to_stream.subscribe(method(:process_data))
       @http_parser = Http::Parser.new(self)
       @promises = []
     end
