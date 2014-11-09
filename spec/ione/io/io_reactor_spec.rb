@@ -85,7 +85,8 @@ module Ione
             stopped_future.value
             restarted_future.value
             sequence.should == [:stopped, :restarted]
-            barrier.push(nil)
+            reactor.stop
+            barrier.push(nil) while reactor.running?
           end
 
           it 'restarts the reactor even when restarted before a failed stop' do
@@ -107,7 +108,8 @@ module Ione
             stopped_future.value rescue nil
             restarted_future.value
             sequence.should == [:crashed, :restarted]
-            barrier.push(nil)
+            reactor.stop
+            barrier.push(nil) while reactor.running?
           end
         end
 
