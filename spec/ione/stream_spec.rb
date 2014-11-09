@@ -88,7 +88,7 @@ module Ione
       end
 
       describe '#map' do
-        it 'returns a stream that will yield elements transformed by the specified block' do
+        it 'returns a stream of elements transformed by the specified block' do
           pushed_elements = []
           transformed_stream = stream.map { |e| e.reverse }
           transformed_stream.each { |e| pushed_elements << e }
@@ -99,7 +99,7 @@ module Ione
       end
 
       describe '#select' do
-        it 'returns a stream that will yield only the elements for which the specified block returns true' do
+        it 'returns a stream of the elements for which the specified block returns true' do
           pushed_elements = []
           filtered_stream = stream.select { |e| e.include?('a') }
           filtered_stream.each { |e| pushed_elements << e }
@@ -112,7 +112,7 @@ module Ione
       end
 
       describe '#aggregate' do
-        it 'returns a stream that will yield new elements produced by the specified block' do
+        it 'returns a stream of new elements produced by the specified block' do
           pushed_elements = []
           sum = 0
           aggregate_stream = stream.aggregate do |e, downstream|
@@ -142,7 +142,7 @@ module Ione
       end
 
       describe '#take' do
-        it 'returns a stream that will yield only the specified number of elements' do
+        it 'returns a stream of only the specified number of elements' do
           pushed_elements = []
           filtered_stream = stream.take(3)
           filtered_stream.each { |e| pushed_elements << e }
