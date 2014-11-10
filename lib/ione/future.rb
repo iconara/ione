@@ -11,6 +11,7 @@ module Ione
   # A promise is the write end of a Promise/Future pair. It can be fulfilled
   # with a value or failed with an error. The value can be read through the
   # future returned by {#future}.
+  # @since v1.0.0
   class Promise
     attr_reader :future
 
@@ -178,7 +179,9 @@ module Ione
   # @see Ione::Future::FutureCallbacks
   # @see Ione::Future::FutureCombinators
   # @see Ione::Future::FutureFactories
+  # @since v1.0.0
   class Future
+    # @since v1.0.0
     module Factories
       # Combines multiple futures into a new future which resolves when all
       # constituent futures complete, or fails when one or more of them fails.
@@ -249,6 +252,7 @@ module Ione
       # @yieldreturn [Ione::Future] a future
       # @return [Ione::Future] a future that will resolve to an array of the values
       #   of the futures returned by the block
+      # @since v1.2.0
       def traverse(values, &block)
         all(values.map(&block))
       rescue => e
@@ -302,6 +306,7 @@ module Ione
       # @return [Ione::Future] a future that will resolve to the value returned
       #   from the last invocation of the block, or nil when the list of futures
       #   is empty.
+      # @since v1.2.0
       def reduce(futures, initial_value=nil, options=nil, &reducer)
         if options && options[:ordered] == false
           UnorderedReducingFuture.new(futures, initial_value, reducer)
@@ -328,6 +333,7 @@ module Ione
       end
     end
 
+    # @since v1.0.0
     module Combinators
       # Returns a new future representing a transformation of this future's value.
       #
@@ -411,6 +417,7 @@ module Ione
       # @yieldreturn [Object, Ione::Future] the transformed value, or a future
       #   that will resolve to the transformed value.
       # @return [Ione::Future] a new future representing the transformed value
+      # @since v1.2.0
       def then(&block)
         f = CompletableFuture.new
         on_complete do |v, e|
@@ -519,6 +526,7 @@ module Ione
       end
     end
 
+    # @since v1.0.0
     module Callbacks
       # Registers a listener that will be called when this future becomes
       # resolved. The listener will be called with the value of the future as
@@ -549,6 +557,7 @@ module Ione
     include Combinators
     include Callbacks
 
+    # @private
     def initialize
       @lock = Mutex.new
       @state = :pending

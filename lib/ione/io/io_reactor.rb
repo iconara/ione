@@ -78,6 +78,8 @@ module Ione
     #       # get data back.
     #     end
     #   end
+    #
+    # @since v1.0.0
     class IoReactor
       # Initializes a new IO reactor.
       #
@@ -263,6 +265,7 @@ module Ione
       # @return [Ione::Future] a future that will resolve when the server is
       #   bound. The value will be the acceptor, or when a block is given, the
       #   value returned by the block.
+      # @since v1.1.0
       def bind(host, port, options=nil, &block)
         if options.is_a?(Integer) || options.nil?
           backlog = options || 5
@@ -303,6 +306,7 @@ module Ione
       # The timer will fail with a {Ione::CancelledError}.
       #
       # @param timer_future [Ione::Future] the future returned by {#schedule_timer}
+      # @since v1.1.3
       def cancel_timer(timer_future)
         @scheduler.cancel_timer(timer_future)
       end

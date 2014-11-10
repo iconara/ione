@@ -2,6 +2,7 @@
 
 module Ione
   module Io
+    # @since v1.0.0
     class BaseConnection
       attr_reader :host, :port
 
@@ -51,6 +52,7 @@ module Ione
       #
       # @return [Ione::Future] a future that resolves to the connection when it
       #   has closed
+      # @since v1.1.0
       def drain
         @state = :draining
         close unless @writable

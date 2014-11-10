@@ -4,6 +4,7 @@ module Ione
   module Io
     # A wrapper around a socket. Handles connecting to the remote host, reading
     # from and writing to the socket.
+    # @since v1.0.0
     class Connection < BaseConnection
       attr_reader :connection_timeout
 

@@ -4,6 +4,7 @@
 module Ione
   module Io
     # An acceptor wraps a server socket and accepts client connections.
+    # @since v1.1.0
     class Acceptor
       # @private
       ServerSocket = RUBY_ENGINE == 'jruby' ? ::ServerSocket : Socket

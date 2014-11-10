@@ -14,6 +14,8 @@ module Ione
   # buffer and one is the write buffer. Writes go to the write buffer only,
   # and reads read from the read buffer until it is empty, then a new write
   # buffer is created and the old write buffer becomes the new read buffer.
+  #
+  # @since v1.0.0
   class ByteBuffer
     def initialize(initial_bytes=nil)
       @read_buffer = ''
