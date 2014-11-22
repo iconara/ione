@@ -543,6 +543,11 @@ module Ione
         end
       end
 
+      def timeout
+        next_timer = @timer_queue.peek
+        next_timer && next_timer.time - @clock.now
+      end
+
       def to_s
         %(#<#{self.class.name} @timers=[#{@pending_timers.values.map(&:to_s).join(', ')}]>)
       end

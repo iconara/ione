@@ -489,6 +489,24 @@ module Ione
           future.should be_completed
           expect { scheduler.tick }.to_not raise_error
         end
+
+        it 'returns the time until the next timer expires' do
+          clock.stub(:now).and_return(1)
+          scheduler.schedule_timer(4)
+          clock.stub(:now).and_return(2)
+          scheduler.tick
+          scheduler.timeout.should == 3
+        end
+
+        it 'returns nil if there are no scheduled timers' do
+          clock.stub(:now).and_return(1)
+          scheduler.tick
+          scheduler.timeout.should be_nil
+          scheduler.schedule_timer(1)
+          clock.stub(:now).and_return(3)
+          scheduler.tick
+          scheduler.timeout.should be_nil
+        end
       end
 
       describe '#cancel_timers' do
