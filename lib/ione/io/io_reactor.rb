@@ -130,7 +130,7 @@ module Ione
           @started_promise.fulfill(self)
           begin
             until @stopped
-              @io_loop.tick
+              @io_loop.tick(@scheduler.timeout)
               @scheduler.tick
             end
           ensure
@@ -444,7 +444,7 @@ module Ione
         end
       end
 
-      def tick(tick_timeout = @timeout)
+      def tick(tick_timeout = nil)
         readables = []
         writables = []
         connecting = []
@@ -459,7 +459,7 @@ module Ione
           end
         end
         begin
-          r, w, _ = @selector.select(readables, writables, nil, tick_timeout)
+          r, w, _ = @selector.select(readables, writables, nil, tick_timeout || @timeout)
           connecting.each { |s| s.connect }
           r && r.each { |s| s.read }
           w && w.each { |s| s.flush }

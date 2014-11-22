@@ -255,6 +255,10 @@ module Ione
       end
 
       describe '#schedule_timer' do
+        let :reactor do
+          described_class.new(selector: selector, clock: clock, tick_resolution: 2)
+        end
+
         before do
           reactor.start.value
         end
@@ -268,6 +272,17 @@ module Ione
           f = reactor.schedule_timer(0.1)
           clock.stub(:now).and_return(1.1)
           await { f.resolved? }
+        end
+
+        it 'uses the time until the timer expires as the next select timeout' do
+          clock.stub(:now).and_return(1)
+          f = reactor.schedule_timer(0.1).flat_map do
+            timeout = selector.last_arguments[3]
+            Future.resolved(timeout)
+          end
+          clock.stub(:now).and_return(1.1)
+          await { f.resolved? }
+          f.value.should <= 0.1
         end
       end
 
