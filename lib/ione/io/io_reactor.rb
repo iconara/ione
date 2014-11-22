@@ -444,7 +444,7 @@ module Ione
         end
       end
 
-      def tick
+      def tick(tick_timeout = @timeout)
         readables = []
         writables = []
         connecting = []
@@ -459,7 +459,7 @@ module Ione
           end
         end
         begin
-          r, w, _ = @selector.select(readables, writables, nil, @timeout)
+          r, w, _ = @selector.select(readables, writables, nil, tick_timeout)
           connecting.each { |s| s.connect }
           r && r.each { |s| s.read }
           w && w.each { |s| s.flush }

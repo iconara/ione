@@ -436,6 +436,12 @@ module Ione
           selector.should_receive(:select).with(anything, anything, anything, 99).and_return([[], [], []])
           loop_body.tick
         end
+
+        it 'uses the specified timeout instead of the default' do
+          loop_body = described_class.new(selector: selector, clock: clock, tick_resolution: 99)
+          selector.should_receive(:select).with(anything, anything, anything, 2).and_return([[], [], []])
+          loop_body.tick(2)
+        end
       end
 
       describe '#close_sockets' do
