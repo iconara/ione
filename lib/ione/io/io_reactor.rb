@@ -130,7 +130,7 @@ module Ione
           @started_promise.fulfill(self)
           begin
             until @stopped
-              @io_loop.tick
+              @io_loop.tick(@scheduler.timeout)
               @scheduler.tick
             end
           ensure
@@ -295,7 +295,12 @@ module Ione
       #   future is completed
       # @return [Ione::Future] a future that completes when the timer expires
       def schedule_timer(timeout)
-        @scheduler.schedule_timer(timeout)
+        next_timeout = @scheduler.timeout
+        future = @scheduler.schedule_timer(timeout)
+        if !next_timeout || timeout < next_timeout
+          @unblocker.unblock
+        end
+        future
       end
 
       # Cancels a previously scheduled timer.
@@ -444,7 +449,7 @@ module Ione
         end
       end
 
-      def tick
+      def tick(tick_timeout = nil)
         readables = []
         writables = []
         connecting = []
@@ -459,7 +464,7 @@ module Ione
           end
         end
         begin
-          r, w, _ = @selector.select(readables, writables, nil, @timeout)
+          r, w, _ = @selector.select(readables, writables, nil, tick_timeout || @timeout)
           connecting.each { |s| s.connect }
           r && r.each { |s| s.read }
           w && w.each { |s| s.flush }
@@ -541,6 +546,11 @@ module Ione
             timer.fulfill
           end
         end
+      end
+
+      def timeout
+        next_timer = @timer_queue.peek
+        next_timer && next_timer.time - @clock.now
       end
 
       def to_s
