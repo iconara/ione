@@ -8,6 +8,22 @@ describe 'An IO reactor' do
     Ione::Io::IoReactor.new
   end
 
+  context 'schedules timers' do
+    let :io_reactor do
+      Ione::Io::IoReactor.new(tick_resolution: 3)
+    end
+
+    it 'resolves timers on time even when they expire before the reactor is scheduled to wake up next' do
+      io_reactor.start.value
+      start_time = Time.now
+      timer_future = io_reactor.schedule_timer(0.3)
+      io_reactor.schedule_timer(0.1).value
+      (Time.now - start_time).should <= 0.2
+      timer_future.value
+      (Time.now - start_time).should <= 0.4
+    end
+  end
+
   context 'connecting to a generic server' do
     let :protocol_handler_factory do
       lambda { |c| IoSpec::TestConnection.new(c) }
