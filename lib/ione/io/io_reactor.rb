@@ -295,7 +295,12 @@ module Ione
       #   future is completed
       # @return [Ione::Future] a future that completes when the timer expires
       def schedule_timer(timeout)
-        @scheduler.schedule_timer(timeout)
+        next_timeout = @scheduler.timeout
+        future = @scheduler.schedule_timer(timeout)
+        if !next_timeout || timeout < next_timeout
+          @unblocker.unblock
+        end
+        future
       end
 
       # Cancels a previously scheduled timer.
