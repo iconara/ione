@@ -471,6 +471,7 @@ module Ione
         end
         begin
           select_timeout = tick_timeout || @timeout
+          select_timeout = 0 if select_timeout < 0
           @next_timeout_time = @clock.now + select_timeout
           r, w, _ = @selector.select(readables, writables, nil, select_timeout)
           connecting.each { |s| s.connect }
