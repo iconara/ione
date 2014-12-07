@@ -27,7 +27,7 @@ Networking usually means pushing lots of bytes around and in Ruby it's easy to m
 The [examples](https://github.com/iconara/ione/tree/master/examples) directory has some examples of what you can do with Ione, for example:
 
 * [redis_client](https://github.com/iconara/ione/tree/master/examples/redis_client) is a more or less full featured Redis client that uses most of Ione's features.
-* [http_client](https://github.com/iconara/ione/tree/master/examples/http_client) is a simplistic HTTP client that uses Ione and [http_parser.rb](http://rubygems.org/gems/http_parser.rb) to make HTTP GET request.
+* [http_client](https://github.com/iconara/ione/tree/master/examples/http_client) is a simplistic HTTP client that uses Ione and [http_parser.rb](http://rubygems.org/gems/http_parser.rb) to make HTTP GET request. It also shows how to make TLS connections.
 * [cql-rb](https://github.com/iconara/cql-rb) is a high performance Cassandra driver and where Ione was originally developed.
 * [cassandra-driver](https://github.com/datastax/ruby-driver) is the successor to cql-rb.
 * [ione-rpc](https://github.com/iconara/ione-rpc) is a RPC framework built on Ione. It makes it reasonably easy to build networked applications without having to reinvent the wheel.

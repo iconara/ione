@@ -7,8 +7,14 @@ require 'uri'
 
 module Ione
   class HttpClient
-    def initialize
+    def initialize(cert_store=nil)
       @reactor = Io::IoReactor.new
+      if cert_store
+        @cert_store = cert_store
+      else
+        @cert_store = OpenSSL::X509::Store.new
+        @cert_store.set_default_paths
+      end
     end
 
     def start
@@ -21,7 +27,14 @@ module Ione
 
     def get(url, headers={})
       uri = URI.parse(url)
-      f = @reactor.connect(uri.host, uri.port, 1) { |connection| HttpProtocolHandler.new(connection) }
+      options = {}
+      if uri.scheme == 'https'
+        ctx = OpenSSL::SSL::SSLContext.new
+        ctx.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        ctx.cert_store = @cert_store
+        options[:ssl] = ctx
+      end
+      f = @reactor.connect(uri.host, uri.port, options) { |connection| HttpProtocolHandler.new(connection) }
       f.flat_map do |handler|
         handler.send_get(uri.path, uri.query, headers)
       end

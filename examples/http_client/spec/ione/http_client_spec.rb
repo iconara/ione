@@ -1,41 +1,51 @@
 # encoding: utf-8
 
 require 'webrick'
-require 'open-uri'
+require 'webrick/https'
+require 'net/https'
 require 'logger'
 require 'ione/http_client'
 
 
 module Ione
   describe HttpClient do
-    let :client do
-      described_class.new
-    end
-
     let :port do
       rand(2**15) + 2**15
-    end
-
-    let :server do
-      WEBrick::HTTPServer.new(
-        :Port => port,
-        :Logger => Logger.new(File.open('/dev/null', 'w')),
-        :AccessLog => File.open('/dev/null', 'w')
-      )
     end
 
     let :handler do
       HttpClientSpec::Servlet
     end
 
+    let :base_uri do
+      "#{scheme}://#{WEBrick::Utils::getservername}:#{port}"
+    end
+
+    def await_server_start
+      attempts = 10
+      begin
+        http = Net::HTTP.new(WEBrick::Utils::getservername, port)
+        if scheme == 'https'
+          http.use_ssl = true
+          http.cert_store = cert_store
+          http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        end
+        http.request(Net::HTTP::Get.new('/'))
+      rescue Errno::ECONNREFUSED, Errno::ENOTCONN, OpenSSL::SSL::SSLError
+        attempts -= 1
+        if attempts > 0
+          sleep(0.01)
+          retry
+        else
+          fail('Server failed to start')
+        end
+      end
+    end
+
     before do
       server.mount('/', handler)
       Thread.start { server.start }
-      begin
-        open("http://localhost:#{port}/")
-      rescue OpenURI::HTTPError
-        retry
-      end
+      await_server_start
     end
 
     after do
@@ -50,24 +60,95 @@ module Ione
       client.stop
     end
 
-    it 'sends a GET request' do
-      f = client.get("http://localhost:#{port}/helloworld")
-      response = f.value
-      response.status.should == 200
-      response.body.should == 'Hello, World!'
+    shared_examples 'http_requests' do
+      it 'sends a GET request' do
+        f = client.get("#{base_uri}/helloworld")
+        response = f.value
+        response.status.should == 200
+        response.body.should == 'Hello, World!'
+      end
+
+      it 'sends an GET request with parameters' do
+        response = client.get("#{base_uri}/fizzbuzz?n=3").value
+        response.body.should == 'buzz'
+        response = client.get("#{base_uri}/fizzbuzz?n=4").value
+        response.body.should == '4'
+      end
+
+      it 'sends a GET request with headers' do
+        response = client.get("#{base_uri}/helloworld", 'Accept' => 'text/html').value
+        response.headers.should include('Content-Type' => 'text/html')
+        response.body.should == '<h1>Hello, World!</h1>'
+      end
     end
 
-    it 'sends an GET request with parameters' do
-      response = client.get("http://localhost:#{port}/fizzbuzz?n=3").value
-      response.body.should == 'buzz'
-      response = client.get("http://localhost:#{port}/fizzbuzz?n=4").value
-      response.body.should == '4'
+    context 'over HTTP' do
+      let :client do
+        described_class.new
+      end
+
+      let :scheme do
+        'http'
+      end
+
+      let :server do
+        WEBrick::HTTPServer.new(
+          :Port => port,
+          :Logger => Logger.new(File.open('/dev/null', 'w')),
+          :AccessLog => File.open('/dev/null', 'w')
+        )
+      end
+
+      include_examples 'http_requests'
     end
 
-    it 'sends a GET request with headers' do
-      response = client.get("http://localhost:#{port}/helloworld", 'Accept' => 'text/html').value
-      response.headers.should include('Content-Type' => 'text/html')
-      response.body.should == '<h1>Hello, World!</h1>'
+    context 'over HTTPS' do
+      let :client do
+        described_class.new(cert_store)
+      end
+
+      let :scheme do
+        'https'
+      end
+
+      let :root_ca_and_key do
+        HttpClientSpec.create_root_ca([['O', 'Ione']])
+      end
+
+      let :root_ca do
+        root_ca_and_key[0]
+      end
+
+      let :cert_and_key do
+        HttpClientSpec.create_cert(*root_ca_and_key, [['CN', WEBrick::Utils::getservername]])
+      end
+
+      let :cert do
+        cert_and_key[0]
+      end
+
+      let :key do
+        cert_and_key[1]
+      end
+
+      let :cert_store do
+        s = OpenSSL::X509::Store.new
+        s.add_cert(root_ca)
+        s
+      end
+
+      let :server do
+        WEBrick::HTTPServer.new(
+          :Port => port,
+          :SSLEnable => true,
+          :SSLCertificate => cert,
+          :SSLPrivateKey => key,
+          :Logger => Logger.new(File.open('/dev/null', 'w')),
+          :AccessLog => File.open('/dev/null', 'w')
+        )
+      end
+
+      include_examples 'http_requests'
     end
   end
 end
@@ -95,5 +176,45 @@ module HttpClientSpec
       end
       response.status = 200
     end
+  end
+
+  def self.create_root_ca(cn)
+    key = OpenSSL::PKey::RSA.new(1024)
+    root_ca = OpenSSL::X509::Certificate.new
+    root_ca.version = 2
+    root_ca.serial = 1
+    root_ca.subject = OpenSSL::X509::Name.new(cn)
+    root_ca.issuer = root_ca.subject
+    root_ca.public_key = key.public_key
+    root_ca.not_before = Time.now
+    root_ca.not_after = root_ca.not_before + 86400
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = root_ca
+    ef.issuer_certificate = root_ca
+    root_ca.add_extension(ef.create_extension('basicConstraints', 'CA:TRUE', true))
+    root_ca.add_extension(ef.create_extension('keyUsage', 'keyCertSign, cRLSign', true))
+    root_ca.add_extension(ef.create_extension('subjectKeyIdentifier', 'hash', false))
+    root_ca.add_extension(ef.create_extension('authorityKeyIdentifier', 'keyid:always', false))
+    root_ca.sign(key, OpenSSL::Digest::SHA256.new)
+    [root_ca, key]
+  end
+
+  def self.create_cert(root_ca, root_key, subject)
+    key = OpenSSL::PKey::RSA.new(1024)
+    cert = OpenSSL::X509::Certificate.new
+    cert.version = 2
+    cert.serial = 2
+    cert.subject = OpenSSL::X509::Name.new(subject)
+    cert.issuer = root_ca.subject
+    cert.public_key = key.public_key
+    cert.not_before = Time.now
+    cert.not_after = cert.not_before + 86400
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = cert
+    ef.issuer_certificate = root_ca
+    cert.add_extension(ef.create_extension('keyUsage', 'digitalSignature', true))
+    cert.add_extension(ef.create_extension('subjectKeyIdentifier', 'hash', false))
+    cert.sign(root_key, OpenSSL::Digest::SHA256.new)
+    [cert, key]
   end
 end
