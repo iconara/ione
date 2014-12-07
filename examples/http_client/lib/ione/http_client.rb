@@ -56,7 +56,7 @@ module Ione
       message << " HTTP/1.1\r\n"
       headers.each do |key, value|
         message << key
-        message << ':'
+        message << ': '
         message << value
         message << "\r\n"
       end
