@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require 'ione/motd_server'
+require 'tempfile'
 
 
 module Ione
