@@ -352,27 +352,18 @@ module Ione
       end
 
       def unblock
-        if @state != :closed
-          @lock.lock
-          begin
-            if @enabled && !@unblocked && @state != :closed
-              @in.write_nonblock(PING_BYTE)
-              @unblocked = true
-            end
-          ensure
-            @lock.unlock
-          end
+        if @enabled && !@unblocked && @state != :closed
+          @in.write_nonblock(PING_BYTE)
+          @unblocked = true
         end
       end
 
       def read
         @lock.lock
-        if @unblocked && @state != :closed
+        if @state != :closed && @unblocked
           @out.read_nonblock(2**16)
           @unblocked = false
         end
-      ensure
-        @lock.unlock
       end
 
       def close
