@@ -87,8 +87,7 @@ module Ione
       def initialize(options={})
         @clock = options[:clock] || Time
         @unblocker = Unblocker.new
-        @io_loop = IoLoopBody.new(options)
-        @io_loop.add_socket(@unblocker)
+        @io_loop = IoLoopBody.new(@unblocker, options)
         @scheduler = Scheduler.new
         @running = false
         @stopped = false
@@ -323,6 +322,8 @@ module Ione
         @out, @in = IO.pipe
         @lock = Mutex.new
         @state = :open
+        @enabled = false
+        @unblocked = false
         @writables = [@in]
       end
 
@@ -342,12 +343,21 @@ module Ione
         @state == :closed
       end
 
+      def enable
+        @enabled = true
+      end
+
+      def disable
+        @enabled = false
+      end
+
       def unblock
         if @state != :closed
           @lock.lock
           begin
-            if @state != :closed && IO.select(nil, @writables, nil, 0)
+            if @enabled && !@unblocked && @state != :closed
               @in.write_nonblock(PING_BYTE)
+              @unblocked = true
             end
           ensure
             @lock.unlock
@@ -357,8 +367,9 @@ module Ione
 
       def read
         @lock.lock
-        if @state != :closed
+        if @unblocked && @state != :closed
           @out.read_nonblock(2**16)
+          @unblocked = false
         end
       ensure
         @lock.unlock
@@ -416,12 +427,14 @@ module Ione
 
     # @private
     class IoLoopBody
-      def initialize(options={})
+      def initialize(unblocker, options={})
+        @unblocker = unblocker
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
         @timeout = options[:tick_resolution] || 1
         @lock = Mutex.new
         @sockets = []
+        @sockets << unblocker
       end
 
       def add_socket(socket)
@@ -464,7 +477,9 @@ module Ione
           end
         end
         begin
+          @unblocker.enable
           r, w, _ = @selector.select(readables, writables, nil, @timeout)
+          @unblocker.disable
           connecting.each { |s| s.connect }
           r && r.each { |s| s.read }
           w && w.each { |s| s.flush }

@@ -340,7 +340,11 @@ module Ione
 
     describe IoLoopBody do
       let :loop_body do
-        described_class.new(selector: selector, clock: clock)
+        described_class.new(unblocker, selector: selector, clock: clock)
+      end
+
+      let :unblocker do
+        Unblocker.new
       end
 
       let :selector do
@@ -362,7 +366,7 @@ module Ione
 
         it 'passes connected sockets as readables to the selector' do
           socket.stub(:connected?).and_return(true)
-          selector.should_receive(:select).with([socket], anything, anything, anything).and_return([nil, nil, nil])
+          selector.should_receive(:select).with([unblocker, socket], anything, anything, anything).and_return([nil, nil, nil])
           loop_body.tick
         end
 
@@ -375,7 +379,7 @@ module Ione
         it 'passes writable sockets as both readable and writable to the selector' do
           socket.stub(:connected?).and_return(true)
           socket.stub(:writable?).and_return(true)
-          selector.should_receive(:select).with([socket], [socket], anything, anything).and_return([nil, nil, nil])
+          selector.should_receive(:select).with([unblocker, socket], [socket], anything, anything).and_return([nil, nil, nil])
           loop_body.tick
         end
 
@@ -388,7 +392,7 @@ module Ione
 
         it 'filters out closed sockets' do
           socket.stub(:closed?).and_return(true)
-          selector.should_receive(:select).with([], [], anything, anything).and_return([nil, nil, nil])
+          selector.should_receive(:select).with([unblocker], [], anything, anything).and_return([nil, nil, nil])
           loop_body.tick
         end
 
@@ -432,7 +436,7 @@ module Ione
         end
 
         it 'allows the caller to specify a custom timeout' do
-          loop_body = described_class.new(selector: selector, clock: clock, tick_resolution: 99)
+          loop_body = described_class.new(unblocker, selector: selector, clock: clock, tick_resolution: 99)
           selector.should_receive(:select).with(anything, anything, anything, 99).and_return([[], [], []])
           loop_body.tick
         end
