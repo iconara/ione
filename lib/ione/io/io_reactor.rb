@@ -158,6 +158,7 @@ module Ione
       # @return [Ione::Future] a future that will resolve to the reactor itself
       def stop
         @stopped = true
+        @unblocker.unblock
         @stopped_promise.future
       end
 
