@@ -161,7 +161,7 @@ module Ione
 
       # @private
       def read
-        new_data = @io.read_nonblock(2**16)
+        new_data = @io.read_nonblock(65536)
         @data_listener.call(new_data) if @data_listener
       rescue => e
         close(e)

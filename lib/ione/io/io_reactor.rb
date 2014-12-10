@@ -358,7 +358,7 @@ module Ione
       def read
         @lock.lock
         if @state != :closed
-          @out.read_nonblock(2**16)
+          @out.read_nonblock(65536)
         end
       ensure
         @lock.unlock
