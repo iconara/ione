@@ -528,22 +528,24 @@ module Ione
       end
 
       def tick
-        now = @clock.now
-        first_timer = @timer_queue.peek
-        if first_timer && first_timer.time <= now
-          expired_timers = []
-          @lock.lock
-          begin
-            while (timer = @timer_queue.peek) && timer.time <= now
-              @timer_queue.pop
-              @pending_timers.delete(timer.future)
-              expired_timers << timer
+        unless @timer_queue.empty?
+          now = @clock.now
+          first_timer = @timer_queue.peek
+          if first_timer && first_timer.time <= now
+            expired_timers = []
+            @lock.lock
+            begin
+              while (timer = @timer_queue.peek) && timer.time <= now
+                @timer_queue.pop
+                @pending_timers.delete(timer.future)
+                expired_timers << timer
+              end
+            ensure
+              @lock.unlock
             end
-          ensure
-            @lock.unlock
-          end
-          expired_timers.each do |timer|
-            timer.fulfill
+            expired_timers.each do |timer|
+              timer.fulfill
+            end
           end
         end
       end
