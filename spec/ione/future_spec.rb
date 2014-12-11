@@ -316,16 +316,16 @@ module Ione
 
         it 'notifies all listeners when the promise is fulfilled, even when one raises an error' do
           value = nil
-          future.on_complete { |f| raise 'Blurgh' }
-          future.on_complete { |f| value = f.value }
+          future.on_complete { raise 'Blurgh' }
+          future.on_complete { |v, _| value = v }
           promise.fulfill('bar')
           value.should == 'bar'
         end
 
         it 'notifies all listeners when the promise fails, even when one raises an error' do
           err = nil
-          future.on_complete { |f| raise 'Blurgh' }
-          future.on_complete { |f| begin; f.value; rescue => err; e = err; end }
+          future.on_complete { raise 'Blurgh' }
+          future.on_complete { |_, e| err = e }
           promise.fail(error)
           err.message.should == 'bork'
         end
