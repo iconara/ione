@@ -45,13 +45,7 @@ module Ione
     #
     # @param [Ione::Future] future the future to observe
     def observe(future)
-      future.on_complete do |v, e|
-        if e
-          fail(e)
-        else
-          fulfill(v)
-        end
-      end
+      @future.observe(future)
     end
 
     # Run the given block and fulfill this promise with its result. If the block
@@ -73,10 +67,8 @@ module Ione
     #   promise.try('foo', 'bar', &proc_taking_two_arguments)
     #
     # @yieldparam [Array] ctx the arguments passed to {#try}
-    def try(*ctx)
-      fulfill(yield(*ctx))
-    rescue => e
-      fail(e)
+    def try(*ctx, &block)
+      @future.try(*ctx, &block)
     end
   end
 
@@ -320,8 +312,11 @@ module Ione
       # @param [Object, nil] value the value of the created future
       # @return [Ione::Future] a resolved future
       def resolved(value=nil)
-        return ResolvedFuture::NIL if value.nil?
-        ResolvedFuture.new(value)
+        if value.nil?
+          ResolvedFuture::NIL
+        else
+          ResolvedFuture.new(value)
+        end
       end
 
       # Creates a new pre-failed future.
@@ -345,19 +340,27 @@ module Ione
       # @yieldreturn [Object] the transformed value
       # @return [Ione::Future] a new future representing the transformed value
       def map(value=nil, &block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            f.fail(e)
-          else
-            begin
-              f.resolve(block ? block.call(v) : value)
-            rescue => e
+        if resolved?
+          begin
+            Future.resolved(block ? block.call(@value) : value)
+          rescue => e
+            Future.failed(e)
+          end
+        elsif failed?
+          self
+        else
+          f = CompletableFuture.new
+          on_complete do |v, e|
+            if e
               f.fail(e)
+            elsif block.nil?
+              f.resolve(value)
+            else
+              f.try(v, &block)
             end
           end
+          f
         end
-        f
       end
 
       # Returns a new future representing a transformation of this future's value,
@@ -372,26 +375,21 @@ module Ione
       # @yieldreturn [Ione::Future] a future representing the transformed value
       # @return [Ione::Future] a new future representing the transformed value
       def flat_map(&block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            f.fail(e)
-          else
-            begin
-              ff = block.call(v)
-              ff.on_complete do |vv, ee|
-                if ee
-                  f.fail(ee)
-                else
-                  f.resolve(vv)
-                end
-              end
-            rescue => e
-              f.fail(e)
-            end
+        if resolved?
+          begin
+            block.call(@value)
+          rescue => e
+            Future.failed(e)
           end
+        elsif failed?
+          self
+        else
+          f = CompletableFuture.new
+          on_complete do
+            f.observe(flat_map(&block))
+          end
+          f
         end
-        f
       end
 
       # Returns a new future representing a transformation of this future's value,
@@ -419,30 +417,26 @@ module Ione
       # @return [Ione::Future] a new future representing the transformed value
       # @since v1.2.0
       def then(&block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            f.fail(e)
-          else
-            begin
-              fv = block.call(v)
-              if fv.respond_to?(:on_complete)
-                fv.on_complete do |vv, ee|
-                  if ee
-                    f.fail(ee)
-                  else
-                    f.resolve(vv)
-                  end
-                end
-              else
-                f.resolve(fv)
-              end
-            rescue => e
-              f.fail(e)
+        if resolved?
+          begin
+            fv = block.call(@value)
+            if fv.respond_to?(:on_complete)
+              fv
+            else
+              Future.resolved(fv)
             end
+          rescue => e
+            Future.failed(e)
           end
+        elsif failed?
+          self
+        else
+          f = CompletableFuture.new
+          on_complete do
+            f.observe(self.then(&block))
+          end
+          f
         end
-        f
       end
 
       # Returns a new future which represents either the value of the original
@@ -465,19 +459,21 @@ module Ione
       # @yieldreturn [Object] the value of the new future
       # @return [Ione::Future] a new future representing a value recovered from the error
       def recover(value=nil, &block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            begin
-              f.resolve(block ? block.call(e) : value)
-            rescue => e
-              f.fail(e)
-            end
-          else
-            f.resolve(v)
+        if resolved?
+          self
+        elsif failed?
+          begin
+            Future.resolved(block ? block.call(@error) : value)
+          rescue => e
+            Future.failed(e)
           end
+        else
+          f = CompletableFuture.new
+          on_complete do
+            f.observe(recover(value, &block))
+          end
+          f
         end
-        f
       end
 
       # Returns a new future which represents either the value of the original
@@ -503,26 +499,21 @@ module Ione
       # @return [Ione::Future] a new future representing a value recovered from the
       #   error
       def fallback(&block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            begin
-              ff = block.call(e)
-              ff.on_complete do |vv, ee|
-                if ee
-                  f.fail(ee)
-                else
-                  f.resolve(vv)
-                end
-              end
-            rescue => e
-              f.fail(e)
-            end
-          else
-            f.resolve(v)
+        if resolved?
+          self
+        elsif failed?
+          begin
+            block.call(@error)
+          rescue => e
+            Future.failed(e)
           end
+        else
+          f = CompletableFuture.new
+          on_complete do
+            f.observe(fallback(&block))
+          end
+          f
         end
-        f
       end
     end
 
@@ -643,62 +634,75 @@ module Ione
     # @see Callbacks#on_failure
     # @see Callbacks#on_complete
     def value
-      raise @error if @state == :failed
-      return @value if @state == :resolved
-      semaphore = nil
-      @lock.lock
-      begin
-        raise @error if @state == :failed
-        return @value if @state == :resolved
-        semaphore = Queue.new
-        u = proc { semaphore << :unblock }
-        @listeners << u
-      ensure
-        @lock.unlock
-      end
-      while true
+      if @state == :failed
+        raise @error
+      elsif @state == :resolved
+        @value
+      else
+        semaphore = nil
         @lock.lock
         begin
           raise @error if @state == :failed
           return @value if @state == :resolved
+          semaphore = Queue.new
+          u = proc { semaphore << :unblock }
+          @listeners << u
         ensure
           @lock.unlock
         end
-        semaphore.pop
+        while true
+          @lock.lock
+          begin
+            raise @error if @state == :failed
+            return @value if @state == :resolved
+          ensure
+            @lock.unlock
+          end
+          semaphore.pop
+        end
       end
     end
     alias_method :get, :value
 
     # Returns true if this future is resolved or failed
     def completed?
-      return true unless @state == :pending
-      @lock.lock
-      begin
-        @state != :pending
-      ensure
-        @lock.unlock
+      if @state == :pending
+        @lock.lock
+        begin
+          @state != :pending
+        ensure
+          @lock.unlock
+        end
+      else
+        true
       end
     end
 
     # Returns true if this future is resolved
     def resolved?
-      return @state == :resolved unless @state == :pending
-      @lock.lock
-      begin
+      if @state == :pending
+        @lock.lock
+        begin
+          @state == :resolved
+        ensure
+          @lock.unlock
+        end
+      else
         @state == :resolved
-      ensure
-        @lock.unlock
       end
     end
 
     # Returns true if this future has failed
     def failed?
-      return @state == :failed unless @state == :pending
-      @lock.lock
-      begin
+      if @state == :pending
+        @lock.lock
+        begin
+          @state == :failed
+        ensure
+          @lock.unlock
+        end
+      else
         @state == :failed
-      ensure
-        @lock.unlock
       end
     end
 
@@ -771,31 +775,51 @@ module Ione
       end
       nil
     end
+
+    def observe(future)
+      future.on_complete do |v, e|
+        if e
+          fail(e)
+        else
+          resolve(v)
+        end
+      end
+    end
+
+    def try(*ctx)
+      resolve(yield(*ctx))
+    rescue => e
+      fail(e)
+    end
   end
 
   # @private
   class CombinedFuture < CompletableFuture
     def initialize(futures)
       super()
-      remaining = futures.count
-      values = Array.new(remaining)
-      futures.each_with_index do |f, i|
-        f.on_complete do |v, e|
-          unless failed?
-            if e
-              fail(e)
-            else
-              @lock.lock
-              begin
-                values[i] = v
-                remaining -= 1
-              ensure
-                @lock.unlock
-              end
-              if remaining == 0
-                resolve(values)
-              end
-            end
+      @index = 0
+      @futures = Array(futures)
+      @values = Array.new(@futures.size)
+      await_next
+    end
+
+    private
+
+    def await_next
+      @futures[@index].on_complete do |v, e|
+        if e
+          fail(e)
+          @futures = nil
+          @values = nil
+        else
+          @values[@index] = v
+          @index += 1
+          if @index == @values.size
+            resolve(@values)
+            @futures = nil
+            @values = nil
+          else
+            await_next
           end
         end
       end
