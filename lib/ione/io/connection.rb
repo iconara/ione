@@ -32,11 +32,11 @@ module Ione
           end
           unless connected?
             @io.connect_nonblock(@sockaddr)
-            @state = :connected
+            @state = CONNECTED_STATE
             @connected_promise.fulfill(self)
           end
         rescue Errno::EISCONN
-          @state = :connected
+          @state = CONNECTED_STATE
           @connected_promise.fulfill(self)
         rescue Errno::EINPROGRESS, Errno::EALREADY
           if @clock.now - @connection_started_at > @connection_timeout

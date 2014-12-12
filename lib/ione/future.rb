@@ -181,6 +181,10 @@ module Ione
   # @see Ione::Future::FutureFactories
   # @since v1.0.0
   class Future
+    PENDING_STATE = 0
+    RESOLVED_STATE = 1
+    FAILED_STATE = 2
+
     # @since v1.0.0
     module Factories
       # Combines multiple futures into a new future which resolves when all
@@ -560,7 +564,7 @@ module Ione
     # @private
     def initialize
       @lock = Mutex.new
-      @state = :pending
+      @state = PENDING_STATE
       @listeners = []
     end
 
@@ -604,12 +608,12 @@ module Ione
     # @see Callbacks#on_failure
     def on_complete(&listener)
       run_immediately = false
-      if @state != :pending
+      if @state != PENDING_STATE
         run_immediately = true
       else
         @lock.lock
         begin
-          if @state == :pending
+          if @state == PENDING_STATE
             @listeners << listener
           else
             run_immediately = true
@@ -643,13 +647,13 @@ module Ione
     # @see Callbacks#on_failure
     # @see Callbacks#on_complete
     def value
-      raise @error if @state == :failed
-      return @value if @state == :resolved
+      raise @error if @state == FAILED_STATE
+      return @value if @state == RESOLVED_STATE
       semaphore = nil
       @lock.lock
       begin
-        raise @error if @state == :failed
-        return @value if @state == :resolved
+        raise @error if @state == FAILED_STATE
+        return @value if @state == RESOLVED_STATE
         semaphore = Queue.new
         u = proc { semaphore << :unblock }
         @listeners << u
@@ -659,8 +663,8 @@ module Ione
       while true
         @lock.lock
         begin
-          raise @error if @state == :failed
-          return @value if @state == :resolved
+          raise @error if @state == FAILED_STATE
+          return @value if @state == RESOLVED_STATE
         ensure
           @lock.unlock
         end
@@ -671,10 +675,10 @@ module Ione
 
     # Returns true if this future is resolved or failed
     def completed?
-      return true unless @state == :pending
+      return true unless @state == PENDING_STATE
       @lock.lock
       begin
-        @state != :pending
+        @state != PENDING_STATE
       ensure
         @lock.unlock
       end
@@ -682,10 +686,10 @@ module Ione
 
     # Returns true if this future is resolved
     def resolved?
-      return @state == :resolved unless @state == :pending
+      return @state == RESOLVED_STATE unless @state == PENDING_STATE
       @lock.lock
       begin
-        @state == :resolved
+        @state == RESOLVED_STATE
       ensure
         @lock.unlock
       end
@@ -693,10 +697,10 @@ module Ione
 
     # Returns true if this future has failed
     def failed?
-      return @state == :failed unless @state == :pending
+      return @state == FAILED_STATE unless @state == PENDING_STATE
       @lock.lock
       begin
-        @state == :failed
+        @state == FAILED_STATE
       ensure
         @lock.unlock
       end
@@ -740,9 +744,9 @@ module Ione
       listeners = nil
       @lock.lock
       begin
-        raise FutureError, 'Future already completed' unless @state == :pending
+        raise FutureError, 'Future already completed' unless @state == PENDING_STATE
         @value = v
-        @state = :resolved
+        @state = RESOLVED_STATE
         listeners = @listeners
         @listeners = nil
       ensure
@@ -758,9 +762,9 @@ module Ione
       listeners = nil
       @lock.lock
       begin
-        raise FutureError, 'Future already completed' unless @state == :pending
+        raise FutureError, 'Future already completed' unless @state == PENDING_STATE
         @error = error
-        @state = :failed
+        @state = FAILED_STATE
         listeners = @listeners
         @listeners = nil
       ensure
@@ -914,7 +918,7 @@ module Ione
   # @private
   class ResolvedFuture < Future
     def initialize(value=nil)
-      @state = :resolved
+      @state = RESOLVED_STATE
       @value = value
       @error = nil
     end
@@ -952,7 +956,7 @@ module Ione
   # @private
   class FailedFuture < Future
     def initialize(error)
-      @state = :failed
+      @state = FAILED_STATE
       @value = nil
       @error = error
     end
