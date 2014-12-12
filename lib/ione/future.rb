@@ -335,6 +335,18 @@ module Ione
 
     # @since v1.0.0
     module Combinators
+      def dup
+        f = CompletableFuture.new
+        on_complete do |v, e|
+          if e
+            f.fail(e)
+          else
+            f.resolve(v)
+          end
+        end
+        f
+      end
+
       # Returns a new future representing a transformation of this future's value.
       #
       # @example
@@ -345,19 +357,20 @@ module Ione
       # @yieldreturn [Object] the transformed value
       # @return [Ione::Future] a new future representing the transformed value
       def map(value=nil, &block)
-        f = CompletableFuture.new
+        dup.map!(value, &block)
+      end
+
+      def map!(value=nil, &block)
         on_complete do |v, e|
-          if e
-            f.fail(e)
-          else
+          unless e
             begin
-              f.resolve(block ? block.call(v) : value)
+              resolve(block ? block.call(v) : value)
             rescue => e
-              f.fail(e)
+              fail(e)
             end
           end
         end
-        f
+        self
       end
 
       # Returns a new future representing a transformation of this future's value,
@@ -372,26 +385,28 @@ module Ione
       # @yieldreturn [Ione::Future] a future representing the transformed value
       # @return [Ione::Future] a new future representing the transformed value
       def flat_map(&block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            f.fail(e)
-          else
+        dup.flat_map!(&block)
+      end
+
+      def flat_map!(&block)
+        on_complete! do |v, e|
+          unless e
             begin
               ff = block.call(v)
               ff.on_complete do |vv, ee|
                 if ee
-                  f.fail(ee)
+                  fail(ee)
                 else
-                  f.resolve(vv)
+                  resolve(vv)
                 end
               end
             rescue => e
-              f.fail(e)
+              fail(e)
             end
+            true
           end
         end
-        f
+        self
       end
 
       # Returns a new future representing a transformation of this future's value,
@@ -419,30 +434,32 @@ module Ione
       # @return [Ione::Future] a new future representing the transformed value
       # @since v1.2.0
       def then(&block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
-          if e
-            f.fail(e)
-          else
+        dup.then!(&block)
+      end
+
+      def then!(&block)
+        on_complete! do |v, e|
+          unless e
             begin
               fv = block.call(v)
               if fv.respond_to?(:on_complete)
                 fv.on_complete do |vv, ee|
                   if ee
-                    f.fail(ee)
+                    fail(ee)
                   else
-                    f.resolve(vv)
+                    resolve(vv)
                   end
                 end
               else
-                f.resolve(fv)
+                resolve(fv)
               end
             rescue => e
-              f.fail(e)
+              fail(e)
             end
+            true
           end
         end
-        f
+        self
       end
 
       # Returns a new future which represents either the value of the original
@@ -465,19 +482,20 @@ module Ione
       # @yieldreturn [Object] the value of the new future
       # @return [Ione::Future] a new future representing a value recovered from the error
       def recover(value=nil, &block)
-        f = CompletableFuture.new
+        dup.recover!(value, &block)
+      end
+
+      def recover!(value=nil, &block)
         on_complete do |v, e|
           if e
             begin
-              f.resolve(block ? block.call(e) : value)
+              resolve(block ? block.call(e) : value)
             rescue => e
-              f.fail(e)
+              fail(e)
             end
-          else
-            f.resolve(v)
           end
         end
-        f
+        self
       end
 
       # Returns a new future which represents either the value of the original
@@ -503,26 +521,28 @@ module Ione
       # @return [Ione::Future] a new future representing a value recovered from the
       #   error
       def fallback(&block)
-        f = CompletableFuture.new
-        on_complete do |v, e|
+        dup.fallback!(&block)
+      end
+
+      def fallback!(&block)
+        on_complete! do |v, e|
           if e
             begin
               ff = block.call(e)
               ff.on_complete do |vv, ee|
                 if ee
-                  f.fail(ee)
+                  fail(ee)
                 else
-                  f.resolve(vv)
+                  resolve(vv)
                 end
               end
             rescue => e
-              f.fail(e)
+              fail(e)
             end
-          else
-            f.resolve(v)
+            true
           end
         end
-        f
+        self
       end
     end
 
@@ -603,6 +623,19 @@ module Ione
     # @see Callbacks#on_value
     # @see Callbacks#on_failure
     def on_complete(&listener)
+      case listener.arity
+      when 1
+        on_complete! { |f| listener.call(f); nil }
+      when 2, -3
+        on_complete! { |v, e| listener.call(v, e); nil }
+      when 0
+        on_complete! { || listener.call; nil }
+      else
+        on_complete! { |v, e, f| listener.call(v, e, f); nil }
+      end
+    end
+
+    def on_complete!(&listener)
       run_immediately = false
       if @state != :pending
         run_immediately = true
@@ -619,7 +652,7 @@ module Ione
         end
       end
       if run_immediately
-        call_listener(listener)
+        call_listener(listener, @value, @error)
       end
       nil
     end
@@ -645,22 +678,21 @@ module Ione
     def value
       raise @error if @state == :failed
       return @value if @state == :resolved
-      semaphore = nil
       @lock.lock
       begin
         raise @error if @state == :failed
         return @value if @state == :resolved
-        semaphore = Queue.new
-        u = proc { semaphore << :unblock }
-        @listeners << u
       ensure
         @lock.unlock
       end
+      semaphore = Queue.new
+      u = proc { semaphore << :unblock; nil }
       while true
         @lock.lock
         begin
           raise @error if @state == :failed
           return @value if @state == :resolved
+          @listeners << u
         ensure
           @lock.unlock
         end
@@ -704,17 +736,17 @@ module Ione
 
     private
 
-    def call_listener(listener)
+    def call_listener(listener, value, error)
       begin
         n = listener.arity
         if n == 1
           listener.call(self)
         elsif n == 2 || n == -3
-          listener.call(@value, @error)
+          listener.call(value, error)
         elsif n == 0
           listener.call
         else
-          listener.call(@value, @error, self)
+          listener.call(value, error, self)
         end
       rescue
         # swallowed
@@ -737,37 +769,47 @@ module Ione
   # @private
   class CompletableFuture < Future
     def resolve(v=nil)
-      listeners = nil
       @lock.lock
       begin
         raise FutureError, 'Future already completed' unless @state == :pending
-        @value = v
-        @state = :resolved
-        listeners = @listeners
-        @listeners = nil
+        while (listener = @listeners.shift)
+          @lock.unlock
+          begin
+            break if call_listener(listener, v, nil)
+          ensure
+            @lock.lock
+          end
+        end
+        if listener.nil? && @state == :pending
+          @state = :resolved
+          @value = v
+          @listeners = nil
+        end
       ensure
         @lock.unlock
-      end
-      listeners.each do |listener|
-        call_listener(listener)
       end
       nil
     end
 
     def fail(error)
-      listeners = nil
       @lock.lock
       begin
         raise FutureError, 'Future already completed' unless @state == :pending
-        @error = error
-        @state = :failed
-        listeners = @listeners
-        @listeners = nil
+        while (listener = @listeners.shift)
+          @lock.unlock
+          begin
+            break if call_listener(listener, nil, error)
+          ensure
+            @lock.lock
+          end
+        end
+        if listener.nil? && @state == :pending
+          @state = :failed
+          @error = error
+          @listeners = nil
+        end
       ensure
         @lock.unlock
-      end
-      listeners.each do |listener|
-        call_listener(listener)
       end
       nil
     end
@@ -895,13 +937,15 @@ module Ione
   class FirstFuture < CompletableFuture
     def initialize(futures)
       super()
+      remaining = futures.count
       futures.each do |f|
         f.on_complete do |v, e|
           unless completed?
             if e
-              if futures.all?(&:failed?)
-                fail(e)
-              end
+              @lock.lock
+              all_failed = (remaining -= 1) == 0
+              @lock.unlock
+              fail(e) if all_failed
             else
               resolve(v)
             end
@@ -936,8 +980,9 @@ module Ione
     end
 
     def on_complete(&listener)
-      call_listener(listener)
+      call_listener(listener, @value, nil)
     end
+    alias_method :on_complete!, :on_complete
 
     def on_value(&listener)
       listener.call(value) rescue nil
@@ -974,7 +1019,7 @@ module Ione
     end
 
     def on_complete(&listener)
-      call_listener(listener)
+      call_listener(listener, nil, @error)
     end
 
     def on_value
