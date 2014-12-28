@@ -137,11 +137,10 @@ module Ione
           it 'is not started again' do
             calls = 0
             lock = Mutex.new
+            ticks = Queue.new
             barrier = Queue.new
             selector.handler do
-              lock.synchronize do
-                calls += 1
-              end
+              ticks.push(:tick)
               barrier.pop
               [[], [], []]
             end
@@ -149,7 +148,8 @@ module Ione
             reactor.start.value
             reactor.start.value
             begin
-              lock.synchronize { calls }.should == 1
+              ticks.pop.should_not be_nil
+              ticks.size.should be_zero
             ensure
               reactor.stop
               barrier.push(nil) while reactor.running?
