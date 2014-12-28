@@ -81,13 +81,19 @@ module Ione
     #
     # @since v1.0.0
     class IoReactor
+      PENDING_STATE = 0
+      RUNNING_STATE = 1
+      CRASHED_STATE = 2
+      STOPPING_STATE = 3
+      STOPPED_STATE = 4
+
       # Initializes a new IO reactor.
       #
       # @param options [Hash] only used to inject behaviour during tests
       def initialize(options={})
         @options = options
         @clock = options[:clock] || Time
-        @state = :pending
+        @state = PENDING_STATE
         @error_listeners = []
         @io_loop = IoLoopBody.new(@options)
         @scheduler = Scheduler.new
@@ -109,7 +115,7 @@ module Ione
         ensure
           @lock.unlock
         end
-        if @state == :running || @state == :crashed
+        if @state == RUNNING_STATE || @state == CRASHED_STATE
           @stopped_promise.future.on_failure(&listener)
         end
       end
@@ -118,7 +124,7 @@ module Ione
       # after {#stop} has been called, but false when the future returned by
       # {#stop} completes.
       def running?
-        @state == :running
+        @state == RUNNING_STATE
       end
 
       # Starts the reactor. This will spawn a background thread that will manage
@@ -130,12 +136,12 @@ module Ione
       # @return [Ione::Future] a future that will resolve to the reactor itself
       def start
         @lock.synchronize do
-          if @state == :running
+          if @state == RUNNING_STATE
             return @started_promise.future
-          elsif @state == :stopping
+          elsif @state == STOPPING_STATE
             return @stopped_promise.future.flat_map { start }.fallback { start }
           else
-            @state = :running
+            @state = RUNNING_STATE
           end
         end
         @unblocker = Unblocker.new
@@ -148,7 +154,7 @@ module Ione
         Thread.start do
           @started_promise.fulfill(self)
           begin
-            while @state == :running
+            while @state == RUNNING_STATE
               @io_loop.tick
               @scheduler.tick
             end
@@ -159,10 +165,10 @@ module Ione
               @unblocker = nil
             ensure
               if $!
-                @state = :crashed
+                @state = CRASHED_STATE
                 @stopped_promise.fail($!)
               else
-                @state = :stopped
+                @state = STOPPED_STATE
                 @stopped_promise.fulfill(self)
               end
             end
@@ -180,10 +186,10 @@ module Ione
       # @return [Ione::Future] a future that will resolve to the reactor itself
       def stop
         @lock.synchronize do
-          if @state == :pending
+          if @state == PENDING_STATE
             Future.resolved(self)
-          elsif @state != :stopped && @state != :crashed
-            @state = :stopping
+          elsif @state != STOPPED_STATE && @state != CRASHED_STATE
+            @state = STOPPING_STATE
             @stopped_promise.future
           else
             @stopped_promise.future
