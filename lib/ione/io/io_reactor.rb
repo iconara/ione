@@ -400,9 +400,7 @@ module Ione
 
       def read
         @lock.lock
-        if @state == UNBLOCKED_STATE
-          @out.read_nonblock(65536)
-        end
+        @out.read_nonblock(65536)
         @state = OPEN_STATE
       ensure
         @lock.unlock
