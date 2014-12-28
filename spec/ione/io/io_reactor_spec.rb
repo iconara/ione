@@ -84,9 +84,12 @@ module Ione
             barrier.push(nil)
             stopped_future.value
             restarted_future.value
-            sequence.should == [:stopped, :restarted]
-            reactor.stop
-            barrier.push(nil) while reactor.running?
+            begin
+              sequence.should == [:stopped, :restarted]
+            ensure
+              reactor.stop
+              barrier.push(nil) while reactor.running?
+            end
           end
 
           it 'restarts the reactor even when restarted before a failed stop' do
@@ -107,9 +110,12 @@ module Ione
             barrier.push(:fail)
             stopped_future.value rescue nil
             restarted_future.value
-            sequence.should == [:crashed, :restarted]
-            reactor.stop
-            barrier.push(nil) while reactor.running?
+            begin
+              sequence.should == [:crashed, :restarted]
+            ensure
+              reactor.stop
+              barrier.push(nil) while reactor.running?
+            end
           end
         end
 
@@ -140,9 +146,12 @@ module Ione
             reactor.start.value
             reactor.start.value
             reactor.start.value
-            lock.synchronize { calls }.should == 1
-            reactor.stop
-            barrier.push(nil) while reactor.running?
+            begin
+              lock.synchronize { calls }.should == 1
+            ensure
+              reactor.stop
+              barrier.push(nil) while reactor.running?
+            end
           end
         end
       end
