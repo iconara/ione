@@ -85,15 +85,12 @@ module Ione
       #
       # @param options [Hash] only used to inject behaviour during tests
       def initialize(options={})
+        @options = options
         @clock = options[:clock] || Time
-        @unblocker = Unblocker.new
-        @io_loop = IoLoopBody.new(options)
-        @io_loop.add_socket(@unblocker)
+        @state = :pending
+        @error_listeners = []
+        @io_loop = IoLoopBody.new(@options)
         @scheduler = Scheduler.new
-        @running = false
-        @stopped = false
-        @started_promise = Promise.new
-        @stopped_promise = Promise.new
         @lock = Mutex.new
       end
 
@@ -105,14 +102,23 @@ module Ione
       #
       # @yield [error] the error that cause the reactor to stop
       def on_error(&listener)
-        @stopped_promise.future.on_failure(&listener)
+        @lock.lock
+        begin
+          @error_listeners = @error_listeners.dup
+          @error_listeners << listener
+        ensure
+          @lock.unlock
+        end
+        if @state == :running || @state == :crashed
+          @stopped_promise.future.on_failure(&listener)
+        end
       end
 
       # Returns true as long as the reactor is running. It will be true even
       # after {#stop} has been called, but false when the future returned by
       # {#stop} completes.
       def running?
-        @running
+        @state == :running
       end
 
       # Starts the reactor. This will spawn a background thread that will manage
@@ -124,25 +130,41 @@ module Ione
       # @return [Ione::Future] a future that will resolve to the reactor itself
       def start
         @lock.synchronize do
-          raise ReactorError, 'Cannot start a stopped IO reactor' if @stopped
-          return @started_promise.future if @running
-          @running = true
+          if @state == :running
+            return @started_promise.future
+          elsif @state == :stopping
+            return @stopped_promise.future.flat_map { start }.fallback { start }
+          else
+            @state = :running
+          end
+        end
+        @unblocker = Unblocker.new
+        @io_loop.add_socket(@unblocker)
+        @started_promise = Promise.new
+        @stopped_promise = Promise.new
+        @error_listeners.each do |listener|
+          @stopped_promise.future.on_failure(&listener)
         end
         Thread.start do
           @started_promise.fulfill(self)
           begin
-            until @stopped
+            while @state == :running
               @io_loop.tick
               @scheduler.tick
             end
           ensure
-            @io_loop.close_sockets
-            @scheduler.cancel_timers
-            @running = false
-            if $!
-              @stopped_promise.fail($!)
-            else
-              @stopped_promise.fulfill(self)
+            begin
+              @io_loop.close_sockets
+              @scheduler.cancel_timers
+              @unblocker = nil
+            ensure
+              if $!
+                @state = :crashed
+                @stopped_promise.fail($!)
+              else
+                @state = :stopped
+                @stopped_promise.fulfill(self)
+              end
             end
           end
         end
@@ -157,9 +179,16 @@ module Ione
       #
       # @return [Ione::Future] a future that will resolve to the reactor itself
       def stop
-        @stopped = true
-        @unblocker.unblock
-        @stopped_promise.future
+        @lock.synchronize do
+          if @state == :pending
+            Future.resolved(self)
+          elsif @state != :stopped && @state != :crashed
+            @state = :stopping
+            @stopped_promise.future
+          else
+            @stopped_promise.future
+          end
+        end
       end
 
       # Opens a connection to the specified host and port.
@@ -197,7 +226,7 @@ module Ione
         connection = Connection.new(host, port, timeout, @unblocker, @clock)
         f = connection.connect
         @io_loop.add_socket(connection)
-        @unblocker.unblock
+        @unblocker.unblock if running?
         if ssl
           f = f.flat_map do
             ssl_context = ssl == true ? nil : ssl
@@ -282,7 +311,7 @@ module Ione
         end
         f = server.bind
         @io_loop.add_socket(server)
-        @unblocker.unblock
+        @unblocker.unblock if running?
         f = f.map(&block) if block_given?
         f
       end
@@ -313,7 +342,7 @@ module Ione
       end
 
       def to_s
-        @io_loop.to_s
+        %(#<#{self.class.name} @state=#{@state.inspect}>)
       end
     end
 
@@ -447,6 +476,7 @@ module Ione
             # the socket had most likely already closed due to an error
           end
         end
+        @sockets = []
       end
 
       def tick
@@ -525,6 +555,7 @@ module Ione
         timers.each do |timer|
           timer.fail(CancelledError.new)
         end
+        nil
       end
 
       def tick
