@@ -376,25 +376,6 @@ module Ione
         @writables = [@in]
       end
 
-      def connected?
-        true
-      end
-
-      def connecting?
-        false
-      end
-
-      def writable?
-        false
-      end
-
-      def closed?
-        @lock.lock
-        @state == CLOSED_STATE
-      ensure
-        @lock.unlock
-      end
-
       if RUBY_ENGINE == 'jruby'
         def unblock
           @lock.lock
@@ -485,7 +466,7 @@ module Ione
         @clock = options[:clock] || Time
         @timeout = options[:tick_resolution] || 1
         @lock = Mutex.new
-        @sockets = [@unblocker]
+        @sockets = []
       end
 
       def add_socket(socket)
@@ -515,7 +496,7 @@ module Ione
       end
 
       def tick
-        readables = []
+        readables = [@unblocker]
         writables = []
         connecting = []
         @sockets.each do |s|
