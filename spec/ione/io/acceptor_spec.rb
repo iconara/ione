@@ -101,6 +101,14 @@ module Ione
           expect { f.value }.to raise_error(Errno::EADDRNOTAVAIL)
         end
 
+        it 'passes any error to the closed listeners' do
+          socket.stub(:bind).and_raise(Errno::EADDRNOTAVAIL)
+          error = nil
+          acceptor.on_closed { |e| error = e }
+          acceptor.bind
+          error.should be_a(ConnectionClosedError)
+        end
+
         it 'closes the socket when none of the addresses worked' do
           socket.stub(:bind).and_raise(Errno::EADDRNOTAVAIL)
           acceptor.bind.value rescue nil
@@ -130,10 +138,13 @@ module Ione
         end
 
         it 'does nothing when called again' do
+          calls = 0
+          acceptor.on_closed { calls += 1}
           acceptor.bind
           acceptor.close
           acceptor.close
           acceptor.close
+          calls.should == 1
         end
 
         it 'ignores IOError' do
@@ -158,6 +169,14 @@ module Ione
           acceptor.bind
           acceptor.close
           acceptor.should_not be_connected
+        end
+
+        it 'calls the closed listeners' do
+          called = false
+          acceptor.on_closed { called = true }
+          acceptor.bind
+          acceptor.close
+          called.should be_true
         end
       end
 

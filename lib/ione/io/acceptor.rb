@@ -26,6 +26,7 @@ module Ione
         @accept_listeners = []
         @lock = Mutex.new
         @state = BINDING_STATE
+        @closed_promise = Promise.new
       end
 
       # Register a listener to be notified when client connections are accepted
@@ -35,6 +36,18 @@ module Ione
         @lock.synchronize do
           @accept_listeners << listener
         end
+      end
+
+      # Register to receive a notification when the socket is closed, both for
+      # expected and unexpected reasons.
+      #
+      # Errors raised by the callback will be ignored.
+      #
+      # @yield [error, nil] the error that caused the socket to close, or nil if
+      #   the socket closed with #close
+      def on_closed(&listener)
+        @closed_promise.future.on_value { listener.call(nil) }
+        @closed_promise.future.on_failure { |e| listener.call(e) }
       end
 
       # @private
@@ -54,12 +67,14 @@ module Ione
         @state = CONNECTED_STATE
         Future.resolved(self)
       rescue => e
-        close
+        close(e)
         Future.failed(e)
       end
 
-      # Stop accepting connections
-      def close
+      # Closes the socket and stops accepting connections
+      #
+      # @return [true, false] returns false if the socket was already closed
+      def close(cause=nil)
         @lock.synchronize do
           return false if @state == CLOSED_STATE
           @state = CLOSED_STATE
@@ -67,11 +82,18 @@ module Ione
         if @io
           begin
             @io.close
+            @io = nil
           rescue SystemCallError, IOError
             # nothing to do, the socket was most likely already closed
-          ensure
-            @io = nil
           end
+        end
+        if cause && !cause.is_a?(IoError)
+          cause = ConnectionClosedError.new(cause.message)
+        end
+        if cause
+          @closed_promise.fail(cause)
+        else
+          @closed_promise.fulfill(self)
         end
         true
       end
