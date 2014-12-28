@@ -348,7 +348,11 @@ module Ione
       end
 
       def to_s
-        %(#<#{self.class.name} @state=#{@state.inspect}>)
+        state_constant_name = self.class.constants.find do |name|
+          name.to_s.end_with?('_STATE') && self.class.const_get(name) == @state
+        end
+        state = state_constant_name.to_s.rpartition('_').first
+        %(#<#{self.class.name} #{state}>)
       end
     end
 
