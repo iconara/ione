@@ -95,8 +95,7 @@ module Ione
         @clock = options[:clock] || Time
         @state = PENDING_STATE
         @error_listeners = []
-        @io_loop = IoLoopBody.new(@options)
-        @scheduler = Scheduler.new
+        reset
         @lock = Mutex.new
       end
 
@@ -144,8 +143,6 @@ module Ione
             @state = RUNNING_STATE
           end
         end
-        @unblocker = Unblocker.new
-        @io_loop.add_socket(@unblocker)
         @started_promise = Promise.new
         @stopped_promise = Promise.new
         @error_listeners.each do |listener|
@@ -161,8 +158,10 @@ module Ione
           ensure
             begin
               @io_loop.close_sockets
+              @io_loop = nil
               @scheduler.cancel_timers
-              @unblocker = nil
+              @scheduler = nil
+              reset
             ensure
               if $!
                 @state = CRASHED_STATE
@@ -354,18 +353,26 @@ module Ione
         state = state_constant_name.to_s.rpartition('_').first
         %(#<#{self.class.name} #{state}>)
       end
+
+      private
+
+      def reset
+        @unblocker ||= Unblocker.new
+        @io_loop ||= IoLoopBody.new(@unblocker, @options)
+        @scheduler ||= Scheduler.new
+      end
     end
 
     # @private
     class Unblocker
       OPEN_STATE = 0
       CLOSED_STATE = 1
+      UNBLOCKED_STATE = 2
 
       def initialize
         @out, @in = IO.pipe
         @lock = Mutex.new
         @state = OPEN_STATE
-        @unblocked = false
         @writables = [@in]
       end
 
@@ -382,28 +389,40 @@ module Ione
       end
 
       def closed?
+        @lock.lock
         @state == CLOSED_STATE
+      ensure
+        @lock.unlock
       end
 
-      def unblock
-        if @state != CLOSED_STATE
+      if RUBY_ENGINE == 'jruby'
+        def unblock
           @lock.lock
-          begin
-            if @state != CLOSED_STATE && IO.select(nil, @writables, nil, 0)
-              @in.write_nonblock(PING_BYTE)
-            end
-          ensure
-            @lock.unlock
+          if @state == OPEN_STATE
+            @in.write_nonblock(PING_BYTE)
+            @state = UNBLOCKED_STATE
           end
+        ensure
+          @lock.unlock
+        end
+      else
+        def unblock
+          @lock.lock
+          if @state != CLOSED_STATE && IO.select(nil, @writables, nil, 0)
+            @in.write_nonblock(PING_BYTE)
+            @state = UNBLOCKED_STATE
+          end
+        ensure
+          @lock.unlock
         end
       end
 
       def read
         @lock.lock
-        if @state != CLOSED_STATE
+        if @state == UNBLOCKED_STATE
           @out.read_nonblock(65536)
-          @unblocked = false
         end
+        @state = OPEN_STATE
       ensure
         @lock.unlock
       end
@@ -460,12 +479,13 @@ module Ione
 
     # @private
     class IoLoopBody
-      def initialize(options={})
+      def initialize(unblocker, options={})
+        @unblocker = unblocker
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
         @timeout = options[:tick_resolution] || 1
         @lock = Mutex.new
-        @sockets = []
+        @sockets = [@unblocker]
       end
 
       def add_socket(socket)
