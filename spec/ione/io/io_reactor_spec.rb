@@ -561,7 +561,7 @@ module Ione
       end
 
       let :unblocker do
-        double(:unblocker, closed?: false, connected?: true, connecting?: false, writable?: false, close: nil, enable: nil, disable: nil)
+        double(:unblocker, closed?: false, close: nil)
       end
 
       let :selector do
@@ -573,7 +573,7 @@ module Ione
       end
 
       let :socket do
-        double(:socket, connected?: false, connecting?: false, writable?: false, closed?: false)
+        IoReactorSpec::FakeSocket.new
       end
 
       describe '#tick' do
@@ -608,7 +608,7 @@ module Ione
         end
 
         it 'filters out closed sockets' do
-          socket.stub(:closed?).and_return(true)
+          socket.close
           selector.should_receive(:select).with([unblocker], [], anything, anything).and_return([nil, nil, nil])
           loop_body.tick
         end
@@ -661,23 +661,23 @@ module Ione
 
       describe '#close_sockets' do
         it 'closes all sockets' do
-          socket1 = double(:socket1, closed?: false)
-          socket2 = double(:socket2, closed?: false)
-          socket1.should_receive(:close)
-          socket2.should_receive(:close)
+          socket1 = IoReactorSpec::FakeSocket.new
+          socket2 = IoReactorSpec::FakeSocket.new
           loop_body.add_socket(socket1)
           loop_body.add_socket(socket2)
           loop_body.close_sockets
+          socket1.should be_closed
+          socket2.should be_closed
         end
 
         it 'closes all sockets, even when one of them raises an error' do
-          socket1 = double(:socket1, closed?: false)
-          socket2 = double(:socket2, closed?: false)
+          socket1 = IoReactorSpec::FakeSocket.new
+          socket2 = IoReactorSpec::FakeSocket.new
           socket1.stub(:close).and_raise('Blurgh')
-          socket2.should_receive(:close)
           loop_body.add_socket(socket1)
           loop_body.add_socket(socket2)
           loop_body.close_sockets
+          socket2.should be_closed
         end
       end
     end
@@ -746,6 +746,39 @@ module IoReactorSpec
     def select(*args)
       @last_arguments = args
       @body.call(*args)
+    end
+  end
+
+  class FakeSocket
+    def initialize
+      @closed_listeners = []
+      @closed = false
+    end
+
+    def on_closed(&listener)
+      @closed_listeners << listener
+    end
+
+    def close
+      @closed_listeners.each(&:call)
+      @closed_listeners = []
+      @closed = true
+    end
+
+    def closed?
+      @closed
+    end
+
+    def connected?
+      false
+    end
+
+    def connecting?
+      false
+    end
+
+    def writable?
+      false
     end
   end
 end

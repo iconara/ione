@@ -468,17 +468,22 @@ module Ione
       end
 
       def add_socket(socket)
+        socket.on_closed { remove_socket(socket) }
         @lock.lock
-        sockets = @sockets.reject { |s| s.closed? }
-        sockets << socket
-        @sockets = sockets
-      ensure
-        @lock.unlock
+        begin
+          sockets = @sockets.dup
+          sockets << socket
+          @sockets = sockets
+        ensure
+          @lock.unlock
+        end
       end
 
       def remove_socket(socket)
         @lock.synchronize do
-          @sockets = @sockets.reject { |s| s == socket || s.closed? }
+          sockets = @sockets.dup
+          sockets.delete(socket)
+          @sockets = sockets
         end
       end
 
