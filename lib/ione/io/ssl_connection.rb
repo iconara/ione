@@ -23,7 +23,7 @@ module Ione
           @io = @socket_impl.new(@raw_io)
         end
         @io.connect_nonblock
-        @state = :connected
+        @state = CONNECTED_STATE
         @connected_promise.fulfill(self)
         @connected_promise.future
       rescue IO::WaitReadable, IO::WaitWritable

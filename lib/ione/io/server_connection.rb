@@ -8,7 +8,7 @@ module Ione
       def initialize(socket, host, port, unblocker)
         super(host, port, unblocker)
         @io = socket
-        @state = :connected
+        @state = CONNECTED_STATE
       end
     end
   end

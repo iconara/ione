@@ -9,6 +9,10 @@ module Ione
       # @private
       ServerSocket = RUBY_ENGINE == 'jruby' ? ::ServerSocket : Socket
 
+      BINDING_STATE = 0
+      CONNECTED_STATE = 1
+      CLOSED_STATE = 2
+
       attr_reader :backlog
 
       # @private
@@ -21,7 +25,7 @@ module Ione
         @socket_impl = socket_impl || ServerSocket
         @accept_listeners = []
         @lock = Mutex.new
-        @state = :binding
+        @state = BINDING_STATE
       end
 
       # Register a listener to be notified when client connections are accepted
@@ -47,7 +51,7 @@ module Ione
             retry
           end
         end
-        @state = :connected
+        @state = CONNECTED_STATE
         Future.resolved(self)
       rescue => e
         close
@@ -57,8 +61,8 @@ module Ione
       # Stop accepting connections
       def close
         @lock.synchronize do
-          return false if @state == :closed
-          @state = :closed
+          return false if @state == CLOSED_STATE
+          @state = CLOSED_STATE
         end
         if @io
           begin
@@ -79,12 +83,12 @@ module Ione
 
       # Returns true if the acceptor has stopped accepting connections
       def closed?
-        @state == :closed
+        @state == CLOSED_STATE
       end
 
       # Returns true if the acceptor is accepting connections
       def connected?
-        @state != :closed
+        @state != CLOSED_STATE
       end
 
       # @private

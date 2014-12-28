@@ -4,6 +4,11 @@ module Ione
   module Io
     # @since v1.0.0
     class BaseConnection
+      CONNECTING_STATE = 0
+      CONNECTED_STATE = 1
+      DRAINING_STATE = 2
+      CLOSED_STATE = 3
+
       attr_reader :host, :port
 
       # @private
@@ -11,7 +16,7 @@ module Ione
         @host = host
         @port = port
         @unblocker = unblocker
-        @state = :connecting
+        @state = CONNECTING_STATE
         @writable = false
         @lock = Mutex.new
         @write_buffer = ByteBuffer.new
@@ -23,8 +28,8 @@ module Ione
       # @return [true, false] returns false if the connection was already closed
       def close(cause=nil)
         @lock.synchronize do
-          return false if @state == :closed
-          @state = :closed
+          return false if @state == CLOSED_STATE
+          @state = CLOSED_STATE
           @writable = false
         end
         if @io
@@ -54,29 +59,29 @@ module Ione
       #   has closed
       # @since v1.1.0
       def drain
-        @state = :draining
+        @state = DRAINING_STATE
         close unless @writable
         @closed_promise.future
       end
 
       # @private
       def connecting?
-        @state == :connecting
+        @state == CONNECTING_STATE
       end
 
       # Returns true if the connection is connected
       def connected?
-        @state == :connected
+        @state == CONNECTED_STATE
       end
 
       # Returns true if the connection is closed
       def closed?
-        @state == :closed
+        @state == CLOSED_STATE
       end
 
       # @private
       def writable?
-        @writable && @state != :closed
+        @writable && @state != CLOSED_STATE
       end
 
       # Register to receive notifications when new data is read from the socket.
@@ -122,7 +127,7 @@ module Ione
       # @yieldparam buffer [Ione::ByteBuffer] the connection's internal buffer
       # @param bytes [String, Ione::ByteBuffer] the data to write to the socket
       def write(bytes=nil)
-        if @state == :connected || @state == :connecting
+        if @state == CONNECTED_STATE || @state == CONNECTING_STATE
           @lock.lock
           begin
             if block_given?
@@ -140,7 +145,7 @@ module Ione
 
       # @private
       def flush
-        if @state == :connected || @state == :draining
+        if @state == CONNECTED_STATE || @state == DRAINING_STATE
           @lock.lock
           begin
             if @writable
@@ -148,7 +153,7 @@ module Ione
               @write_buffer.discard(bytes_written)
             end
             @writable = !@write_buffer.empty?
-            if @state == :draining && !@writable
+            if @state == DRAINING_STATE && !@writable
               close
             end
           ensure
@@ -173,7 +178,11 @@ module Ione
       end
 
       def to_s
-        %(#<#{self.class.name} #{@state} #{@host}:#{@port}>)
+        state_constant_name = self.class.constants.find do |name|
+          name.to_s.end_with?('_STATE') && self.class.const_get(name) == @state
+        end
+        state = state_constant_name.to_s.rpartition('_').first
+        %(#<#{self.class.name} #{state} #{@host}:#{@port}>)
       end
     end
   end

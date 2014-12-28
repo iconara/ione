@@ -549,7 +549,7 @@ module Ione
           end
 
           it 'includes the state' do
-            reactor.to_s.should include('@state=:pending')
+            reactor.to_s.should include('PENDING')
           end
         end
       end
