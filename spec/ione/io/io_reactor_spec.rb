@@ -104,14 +104,16 @@ module Ione
             reactor.start.value
             stopped_future = reactor.stop
             restarted_future = reactor.start
-            sequence = []
-            stopped_future.on_failure { sequence << :crashed }
-            restarted_future.on_complete { sequence << :restarted }
+            crashed = false
+            restarted = false
+            stopped_future.on_failure { crashed = true }
+            restarted_future.on_complete { restarted = true }
             barrier.push(:fail)
             stopped_future.value rescue nil
             restarted_future.value
             begin
-              sequence.should == [:crashed, :restarted]
+              crashed.should be_true
+              restarted.should be_true
             ensure
               reactor.stop
               barrier.push(nil) while reactor.running?
