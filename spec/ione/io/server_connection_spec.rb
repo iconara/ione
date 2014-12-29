@@ -21,6 +21,14 @@ module Ione
 
       it_behaves_like 'a connection'
 
+      context 'when created' do
+        it 'calls connected listeners immediately' do
+          called = false
+          handler.on_connected { called = true }
+          called.should be_true
+        end
+      end
+
       describe '#to_io' do
         it 'returns the socket' do
           handler.to_io.should equal(socket)

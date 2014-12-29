@@ -465,15 +465,40 @@ module Ione
         @timeout = options[:tick_resolution] || 1
         @lock = Mutex.new
         @sockets = []
+        @connecting = []
+        @readables = [@unblocker]
+        @writables = []
       end
 
       def add_socket(socket)
-        socket.on_closed { remove_socket(socket) }
+        socket.on_closed do
+          remove_socket(socket)
+        end
+        socket.on_connected do
+          @connecting.delete(socket)
+          @readables << socket
+        end
+        socket.on_writable do |writable|
+          p [:writable, writable, socket.class.name]
+          @lock.lock
+          begin
+            if writable && !@writables.include?(socket)
+              @writables << socket
+            elsif !writable
+              @writables.delete(socket)
+            end
+            p @writables.size
+          ensure
+            @lock.unlock
+          end
+        end
         @lock.lock
         begin
-          sockets = @sockets.dup
-          sockets << socket
-          @sockets = sockets
+          if socket.connecting?
+            @connecting << socket
+            @writables << socket
+          end
+          @sockets << socket
         ensure
           @lock.unlock
         end
@@ -481,40 +506,22 @@ module Ione
 
       def remove_socket(socket)
         @lock.synchronize do
-          sockets = @sockets.dup
-          sockets.delete(socket)
-          @sockets = sockets
+          @sockets.delete(socket)
+          @readables.delete(socket)
+          @writables.delete(socket)
+          @connecting.delete(socket)
         end
       end
 
       def close_sockets
-        @sockets.each do |s|
-          begin
-            s.close
-          rescue
-            # the socket had most likely already closed due to an error
-          end
-        end
-        @sockets = []
+        sockets, @sockets = @sockets.dup, nil
+        sockets.each { |s| s.close rescue nil }
       end
 
       def tick
-        readables = [@unblocker]
-        writables = []
-        connecting = []
-        @sockets.each do |s|
-          if s.connected?
-            readables << s
-          elsif s.connecting?
-            connecting << s
-          end
-          if s.connecting? || s.writable?
-            writables << s
-          end
-        end
         begin
-          r, w, _ = @selector.select(readables, writables, nil, @timeout)
-          connecting.each { |s| s.connect }
+          r, w, _ = @selector.select(@readables, @writables, nil, @timeout)
+          @connecting.each { |s| s.connect }
           r && r.each { |s| s.read }
           w && w.each { |s| s.flush }
         rescue IOError, Errno::EBADF

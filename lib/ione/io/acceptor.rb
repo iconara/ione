@@ -27,6 +27,7 @@ module Ione
         @lock = Mutex.new
         @state = BINDING_STATE
         @closed_promise = Promise.new
+        @bound_promise = Promise.new
       end
 
       # Register a listener to be notified when client connections are accepted
@@ -50,6 +51,14 @@ module Ione
         @closed_promise.future.on_failure { |e| listener.call(e) }
       end
 
+      def on_writable
+      end
+
+      def on_connected(&listener)
+        @bound_promise.future.on_value { listener.call(nil) }
+        @bound_promise.future.on_failure { |e| listener.call(e) }
+      end
+
       # @private
       def bind
         addrinfos = @socket_impl.getaddrinfo(@host, @port, nil, Socket::SOCK_STREAM)
@@ -65,10 +74,12 @@ module Ione
           end
         end
         @state = CONNECTED_STATE
-        Future.resolved(self)
+        @bound_promise.fulfill(self)
+        @bound_promise.future
       rescue => e
         close(e)
-        Future.failed(e)
+        @bound_promise.fail(e)
+        @bound_promise.future
       end
 
       # Closes the socket and stops accepting connections

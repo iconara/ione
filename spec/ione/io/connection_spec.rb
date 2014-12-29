@@ -101,6 +101,13 @@ module Ione
             handler.connect
             handler.should be_connected
           end
+
+          it 'calls the connected listeners' do
+            called = false
+            handler.on_connected { called = true }
+            handler.connect
+            called.should be_true
+          end
         end
 
         context 'when #connect_nonblock does not raise any error' do

@@ -582,28 +582,21 @@ module Ione
         end
 
         it 'passes connected sockets as readables to the selector' do
-          socket.stub(:connected?).and_return(true)
           selector.should_receive(:select).with([unblocker, socket], anything, anything, anything).and_return([nil, nil, nil])
           loop_body.tick
         end
 
-        it 'passes writable sockets as writable to the selector' do
-          socket.stub(:writable?).and_return(true)
-          selector.should_receive(:select).with(anything, [socket], anything, anything).and_return([nil, nil, nil])
-          loop_body.tick
-        end
-
         it 'passes writable sockets as both readable and writable to the selector' do
-          socket.stub(:connected?).and_return(true)
-          socket.stub(:writable?).and_return(true)
+          socket.writable = true
           selector.should_receive(:select).with([unblocker, socket], [socket], anything, anything).and_return([nil, nil, nil])
           loop_body.tick
         end
 
         it 'passes connecting sockets as writable to the selector' do
-          socket.stub(:connecting?).and_return(true)
-          socket.stub(:connect)
-          selector.should_receive(:select).with(anything, [socket], anything, anything).and_return([nil, nil, nil])
+          another_socket = IoReactorSpec::FakeSocket.new
+          another_socket.connecting = true
+          loop_body.add_socket(another_socket)
+          selector.should_receive(:select).with(anything, [another_socket], anything, anything).and_return([nil, nil, nil])
           loop_body.tick
         end
 
@@ -637,8 +630,10 @@ module Ione
         end
 
         it 'calls #connect on all connecting sockets' do
-          socket.stub(:connecting?).and_return(true)
-          socket.should_receive(:connect)
+          another_socket = IoReactorSpec::FakeSocket.new
+          another_socket.connecting = true
+          another_socket.should_receive(:connect)
+          loop_body.add_socket(another_socket)
           selector.stub(:select).and_return([nil, nil, nil])
           loop_body.tick
         end
@@ -752,17 +747,52 @@ module IoReactorSpec
   class FakeSocket
     def initialize
       @closed_listeners = []
+      @writable_listeners = []
+      @connected_listeners = []
       @closed = false
+      @writable = false
+      @connected = true
+      @connecting = false
     end
 
     def on_closed(&listener)
       @closed_listeners << listener
     end
 
+    def on_writable(&listener)
+      @writable_listeners << listener
+    end
+
+    def on_connected(&listener)
+      if @connected
+        listener.call
+      else
+        @connected_listeners << listener
+      end
+    end
+
+    def writable=(state)
+      @writable = state
+      @writable_listeners.each { |l| l.call(state) rescue nil }
+    end
+
+    def connected=(state)
+      @connected = state
+      @connecting = !state
+      @connected_listeners.each(&:call)
+    end
+
+    def connecting=(state)
+      @connecting = state
+      @connected = !state
+    end
+
     def close
-      @closed_listeners.each(&:call)
-      @closed_listeners = []
       @closed = true
+      @closed_listeners.each(&:call)
+    end
+
+    def connect
     end
 
     def closed?
@@ -770,15 +800,15 @@ module IoReactorSpec
     end
 
     def connected?
-      false
+      @connected
     end
 
     def connecting?
-      false
+      @connecting
     end
 
     def writable?
-      false
+      @writable
     end
   end
 end

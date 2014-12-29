@@ -120,6 +120,13 @@ module Ione
           f.should be_resolved
           f.value.should equal(acceptor)
         end
+
+        it 'calls the connected listeners' do
+          called = false
+          acceptor.on_connected { called = true }
+          acceptor.bind
+          called.should be_true
+        end
       end
 
       describe '#close' do

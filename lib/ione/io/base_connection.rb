@@ -21,6 +21,8 @@ module Ione
         @lock = Mutex.new
         @write_buffer = ByteBuffer.new
         @closed_promise = Promise.new
+        @connected_listeners = []
+        @writable_listeners = []
       end
 
       # Closes the connection
@@ -118,6 +120,18 @@ module Ione
         @closed_promise.future.on_failure { |e| listener.call(e) }
       end
 
+      def on_connected(&listener)
+      end
+
+      def on_writable(&listener)
+        @lock.lock
+        listeners = @writable_listeners.dup
+        listeners << listener
+        @writable_listeners = listeners
+      ensure
+        @lock.unlock
+      end
+
       # Write bytes to the socket.
       #
       # You can either pass in bytes (as a string or as a `ByteBuffer`), or you
@@ -128,6 +142,7 @@ module Ione
       # @param bytes [String, Ione::ByteBuffer] the data to write to the socket
       def write(bytes=nil)
         if @state == CONNECTED_STATE || @state == CONNECTING_STATE
+          writable_changed = false
           @lock.lock
           begin
             if block_given?
@@ -135,9 +150,13 @@ module Ione
             elsif bytes
               @write_buffer.append(bytes)
             end
+            writable_changed = @writable != @write_buffer.empty?
             @writable = !@write_buffer.empty?
           ensure
             @lock.unlock
+          end
+          if writable_changed
+            @writable_listeners.each { |listener| listener.call(!was_writable) rescue nil }
           end
           @unblocker.unblock
         end
@@ -146,6 +165,7 @@ module Ione
       # @private
       def flush
         if @state == CONNECTED_STATE || @state == DRAINING_STATE
+          writable_changed = false
           @lock.lock
           begin
             if @writable
@@ -153,11 +173,16 @@ module Ione
               @write_buffer.discard(bytes_written)
             end
             @writable = !@write_buffer.empty?
+            writable_changed = @writable != @write_buffer.empty?
             if @state == DRAINING_STATE && !@writable
               close
+              writable_changed = false
             end
           ensure
             @lock.unlock
+          end
+          if writable_changed
+            @writable_listeners.each { |listener| listener.call(!was_writable) rescue nil }
           end
         end
       rescue => e

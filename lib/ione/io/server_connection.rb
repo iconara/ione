@@ -10,6 +10,10 @@ module Ione
         @io = socket
         @state = CONNECTED_STATE
       end
+
+      def on_connected
+        yield
+      end
     end
   end
 end

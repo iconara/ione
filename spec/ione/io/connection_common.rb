@@ -90,6 +90,15 @@ shared_examples_for 'a connection' do |options|
       handler.flush
       f.should be_completed
     end
+
+    it 'does not call the writable listeners when drained' do
+      called = false
+      handler.write('hello world')
+      handler.on_writable { called = true }
+      handler.drain
+      handler.flush
+      called.should be_false
+    end
   end
 
   describe '#write/#flush' do
@@ -137,6 +146,20 @@ shared_examples_for 'a connection' do |options|
       handler.flush
       socket.should_not_receive(:write_nonblock)
       handler.flush
+    end
+
+    it 'calls the writable listeners when it becomes writable and was not before' do
+      socket.stub(:write_nonblock) { |str| str.bytesize }
+      calls = []
+      handler.on_writable { |writable| calls << writable }
+      handler.flush
+      handler.write('hello world')
+      handler.flush
+      handler.flush
+      handler.write('hello world')
+      handler.write('hello world')
+      handler.write('hello world')
+      calls.should == [true, false, true]
     end
 
     context 'with a block' do

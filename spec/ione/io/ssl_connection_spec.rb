@@ -101,6 +101,13 @@ module Ione
           handler.connect
           handler.should be_closed
         end
+
+        it 'calls the connected listeners' do
+          called = false
+          handler.on_connected { called = true }
+          handler.connect
+          called.should be_true
+        end
       end
 
       describe '#to_io' do

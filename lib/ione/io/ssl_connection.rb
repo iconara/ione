@@ -34,6 +34,11 @@ module Ione
         @connected_promise.future
       end
 
+      def on_connected(&listener)
+        @connected_promise.future.on_value { listener.call(nil) }
+        @connected_promise.future.on_failure { |e| listener.call(e) }
+      end
+
       def to_io
         @raw_io
       end
