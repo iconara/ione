@@ -23,7 +23,7 @@ module Ione
         @unblocker = unblocker
         @reactor = reactor
         @socket_impl = socket_impl || ServerSocket
-        @accept_stream = Stream::PushStream.new
+        @accept_stream = Stream::Source.new
         @lock = Mutex.new
         @state = BINDING_STATE
       end

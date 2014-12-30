@@ -2,43 +2,47 @@
 
 module Ione
   # @abstract Base class for streams
-  # @see Ione::Stream::PushStream
+  # @see Ione::Stream::Publisher
   class Stream
-    # @private
-    def initialize
-      @subscribers = []
-      @lock = Mutex.new
-    end
-
-    # @yieldparam [Object] element each element that flows through the stream
-    # @return [self] the stream itself
-    def subscribe(subscriber=nil, &block)
-      @lock.lock
-      subscribers = @subscribers.dup
-      subscribers << (subscriber || block)
-      @subscribers = subscribers
-      self
-    ensure
-      @lock.unlock
-    end
-    alias_method :each, :subscribe
-
-    def unsubscribe(subscriber)
-      @lock.lock
-      subscribers = @subscribers.dup
-      subscribers.delete(subscriber)
-      @subscribers = subscribers
-    ensure
-      @lock.unlock
-    end
-
-    private
-
-    def deliver(element)
-      @subscribers.each do |subscriber|
-        subscriber.call(element) rescue nil
+    class Publisher
+      # @private
+      def initialize
+        @subscribers = {}
+        @lock = Mutex.new
       end
-      self
+
+      # @yieldparam [Object] element each element that flows through the stream
+      # @return [self] the stream itself
+      def subscribe(subscriber=nil, &block)
+        subscriber ||= block
+        unless subscriber.respond_to?(:call)
+          raise ArgumentError, %(A subscriber must respond to #call)
+        end
+        @lock.lock
+        begin
+          @subscribers[subscriber] = 1
+          self
+        ensure
+          @lock.unlock
+        end
+        subscriber
+      end
+      alias_method :each, :subscribe
+
+      # @param [Object] subscriber
+      # @return [self] the stream itself
+      def unsubscribe(subscriber)
+        @lock.lock
+        @subscribers.delete(subscriber)
+        subscriber
+      ensure
+        @lock.unlock
+      end
+    end
+
+    module Subscriber
+      def call(element)
+      end
     end
 
     module Combinators
@@ -46,116 +50,124 @@ module Ione
       # @yieldreturn [Object] the transformed element
       # @return [Ione::Stream]
       def map(&transformer)
-        TransformedStream.new(self, transformer)
+        subscribe(TransformedStream.new(transformer))
       end
 
       # @yieldparam [Object] element
       # @yieldreturn [Boolean] whether or not to pass the element downstream
       # @return [Ione::Stream]
       def select(&filter)
-        FilteredStream.new(self, filter)
+        subscribe(FilteredStream.new(filter))
       end
 
       # @param [Object] state
       # @yieldparam [Object] element
-      # @yieldparam [Ione::Stream::PushStream] downstream
+      # @yieldparam [Ione::Stream::Publisher] downstream
       # @yieldparam [Object] state
       # @yieldreturn [Object] the next state
       # @return [Ione::Stream]
       def aggregate(state=nil, &aggregator)
-        AggregatingStream.new(self, aggregator, state)
+        subscribe(AggregatingStream.new(aggregator, state))
       end
 
       # @param [Integer] n the number of elements to pass downstream before
       #   unsubscribing
       # @return [Ione::Stream]
       def take(n)
-        LimitedStream.new(self, n)
+        subscribe(LimitedStream.new(self, n))
       end
 
       # @param [Integer] n the number of elements to skip before passing
       #   elements downstream
       # @return [Ione::Stream]
       def drop(n)
-        SkippingStream.new(self, n)
+        subscribe(SkippingStream.new(n))
       end
     end
 
-    include Combinators
-
-    class PushStream < Stream
-      module_eval do
-        # this crazyness is just to hide these declarations from Yard
-        alias_method :push, :deliver
-        public :push
-        alias_method :<<, :deliver
-        public :<<
-      end
-
-      # @!parse
-      #   # @param [Object] element
-      #   # @return [self]
-      #   def push(element); end
-      #   alias_method :<<, :push
-
-      # @return [Proc] a Proc that can be used to push elements to this stream
-      def to_proc
-        method(:push).to_proc
-      end
+    class Processor < Publisher
+      include Subscriber
+      include Combinators
     end
 
-    # @private
-    class TransformedStream < Stream
-      def initialize(upstream, transformer)
-        super()
-        upstream.each { |e| deliver(transformer.call(e)) }
-      end
-    end
-
-    # @private
-    class FilteredStream < Stream
-      def initialize(upstream, filter)
-        super()
-        upstream.each { |e| deliver(e) if filter.call(e) }
-      end
-    end
-
-    # @private
-    class AggregatingStream < PushStream
-      def initialize(upstream, aggregator, state)
-        super()
-        upstream.each { |e| state = aggregator.call(e, self, state) }
-      end
-    end
-
-    # @private
-    class LimitedStream < Stream
-      def initialize(upstream, n)
-        super()
-        counter = 0
-        subscriber = proc do |e|
-          if counter < n
-            deliver(e)
-          else
-            upstream.unsubscribe(subscriber)
-          end
-          counter += 1
+    class Source < Processor
+      def <<(element)
+        @subscribers.each_key do |subscriber|
+          subscriber.call(element) rescue nil
         end
-        upstream.subscribe(subscriber)
+        element
       end
     end
 
     # @private
-    class SkippingStream < Stream
+    class TransformedStream < Source
+      def initialize(transformer)
+        super()
+        @transformer = transformer
+      end
+
+      def call(element)
+        self << @transformer.call(element)
+      end
+    end
+
+    # @private
+    class FilteredStream < Source
+      def initialize(filter)
+        super()
+        @filter = filter
+      end
+
+      def call(element)
+        self << element if @filter.call(element)
+      end
+    end
+
+    # @private
+    class AggregatingStream < Source
+      def initialize(aggregator, state)
+        super()
+        @aggregator = aggregator
+        @state = state
+      end
+
+      def call(element)
+        @state = @aggregator.call(element, self, @state)
+      end
+    end
+
+    # @private
+    class LimitedStream < Source
       def initialize(upstream, n)
         super()
-        counter = 0
-        upstream.subscribe do |e|
-          if counter == n
-            deliver(e)
-          else
-            counter += 1
-          end
+        @upstream = upstream
+        @counter = 0
+        @limit = n
+      end
+
+      def call(element)
+        if @counter < @limit
+          self << element
+        else
+          @upstream.unsubscribe(self)
+        end
+        @counter += 1
+      end
+    end
+
+    # @private
+    class SkippingStream < Source
+      def initialize(n)
+        super()
+        @counter = 0
+        @skips = n
+      end
+
+      def call(element)
+        if @counter == @skips
+          self << element
+        else
+          @counter += 1
         end
       end
     end

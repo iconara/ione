@@ -21,7 +21,7 @@ module Ione
         @lock = Mutex.new
         @write_buffer = ByteBuffer.new
         @closed_promise = Promise.new
-        @data_stream = Stream::PushStream.new
+        @data_stream = Stream::Source.new
       end
 
       # Closes the connection
