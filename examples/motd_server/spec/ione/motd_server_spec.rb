@@ -3,6 +3,7 @@
 require 'ione/motd_server'
 require 'tempfile'
 
+require 'tempfile'
 
 module Ione
   describe MotdServer do

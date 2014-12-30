@@ -255,6 +255,14 @@ module Ione
       end
 
       describe '#schedule_timer' do
+        let :clock do
+          double(:clock, now: 1)
+        end
+
+        let :reactor do
+          described_class.new(selector: selector, clock: clock, tick_resolution: 2)
+        end
+
         before do
           reactor.start.value
         end
@@ -264,9 +272,32 @@ module Ione
         end
 
         it 'returns a future that is resolved after the specified duration' do
-          clock.stub(:now).and_return(1)
           f = reactor.schedule_timer(0.1)
           clock.stub(:now).and_return(1.1)
+          await { f.resolved? }
+        end
+
+        it 'uses the time until the timer expires as the next select timeout' do
+          f = reactor.schedule_timer(0.1).flat_map do
+            timeout = selector.last_arguments[3]
+            Future.resolved(timeout)
+          end
+          clock.stub(:now).and_return(1.1)
+          await { f.resolved? }
+          f.value.should <= 0.1
+        end
+
+        it 'unblocks the reactor when the timeout occurs before the next tick' do
+          reactor.should_receive(:unblock)
+          f = reactor.schedule_timer(0.1)
+          clock.stub(:now).and_return(1.2)
+          await { f.resolved? }
+        end
+
+        it 'does not unblock the reactor when the timeout occurs after the next tick' do
+          reactor.should_not_receive(:unblock)
+          f = reactor.schedule_timer(2.1)
+          clock.stub(:now).and_return(3.2)
           await { f.resolved? }
         end
       end
@@ -436,6 +467,28 @@ module Ione
           selector.should_receive(:select).with(anything, anything, anything, 99).and_return([[], [], []])
           loop_body.tick
         end
+
+        it 'uses the specified timeout instead of the default' do
+          loop_body = described_class.new(selector: selector, clock: clock, tick_resolution: 99)
+          selector.should_receive(:select).with(anything, anything, anything, 2).and_return([[], [], []])
+          loop_body.tick(2)
+        end
+      end
+
+      describe '#next_tick_before?' do
+        before do
+          selector.stub(:select)
+        end
+
+        it 'returns true if the given time occurs after the next tick' do
+          loop_body.tick
+          loop_body.next_tick_before?(3).should be_true
+        end
+
+        it 'returns false if the given time occurs before the next tick' do
+          loop_body.tick
+          loop_body.next_tick_before?(0.5).should be_false
+        end
       end
 
       describe '#close_sockets' do
@@ -488,6 +541,24 @@ module Ione
           scheduler.tick
           future.should be_completed
           expect { scheduler.tick }.to_not raise_error
+        end
+
+        it 'returns the time until the next timer expires' do
+          clock.stub(:now).and_return(1)
+          scheduler.schedule_timer(4)
+          clock.stub(:now).and_return(2)
+          scheduler.tick
+          scheduler.timeout.should == 3
+        end
+
+        it 'returns nil if there are no scheduled timers' do
+          clock.stub(:now).and_return(1)
+          scheduler.tick
+          scheduler.timeout.should be_nil
+          scheduler.schedule_timer(1)
+          clock.stub(:now).and_return(3)
+          scheduler.tick
+          scheduler.timeout.should be_nil
         end
       end
 

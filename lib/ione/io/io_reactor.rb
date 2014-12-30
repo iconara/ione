@@ -132,7 +132,7 @@ module Ione
           @started_promise.fulfill(self)
           begin
             until @stopped
-              @io_loop.tick
+              @io_loop.tick(@scheduler.timeout)
               @scheduler.tick
             end
           ensure
@@ -197,7 +197,7 @@ module Ione
         connection = Connection.new(host, port, timeout, @unblocker, @clock)
         f = connection.connect
         @io_loop.add_socket(connection)
-        @unblocker.unblock
+        unblock
         if ssl
           f = f.flat_map do
             ssl_context = ssl == true ? nil : ssl
@@ -205,7 +205,7 @@ module Ione
             ff = upgraded_connection.connect
             @io_loop.remove_socket(connection)
             @io_loop.add_socket(upgraded_connection)
-            @unblocker.unblock
+            unblock
             ff
           end
         end
@@ -282,7 +282,7 @@ module Ione
         end
         f = server.bind
         @io_loop.add_socket(server)
-        @unblocker.unblock
+        unblock
         f = f.map(&block) if block_given?
         f
       end
@@ -290,7 +290,7 @@ module Ione
       # @private
       def accept(socket)
         @io_loop.add_socket(socket)
-        @unblocker.unblock
+        unblock
       end
 
       # Returns a future that completes after the specified number of seconds.
@@ -299,7 +299,12 @@ module Ione
       #   future is completed
       # @return [Ione::Future] a future that completes when the timer expires
       def schedule_timer(timeout)
-        @scheduler.schedule_timer(timeout)
+        late_timeout = @io_loop.next_tick_before?(@clock.now + timeout)
+        future = @scheduler.schedule_timer(timeout)
+        unless late_timeout
+          unblock
+        end
+        future
       end
 
       # Cancels a previously scheduled timer.
@@ -310,6 +315,11 @@ module Ione
       # @since v1.1.3
       def cancel_timer(timer_future)
         @scheduler.cancel_timer(timer_future)
+      end
+
+      # @private
+      def unblock
+        @unblocker.unblock
       end
 
       def to_s
@@ -420,6 +430,7 @@ module Ione
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
         @timeout = options[:tick_resolution] || 1
+        @next_timeout_time = @clock.now
         @lock = Mutex.new
         @sockets = []
       end
@@ -449,7 +460,7 @@ module Ione
         end
       end
 
-      def tick
+      def tick(tick_timeout = nil)
         readables = []
         writables = []
         connecting = []
@@ -464,12 +475,19 @@ module Ione
           end
         end
         begin
-          r, w, _ = @selector.select(readables, writables, nil, @timeout)
+          select_timeout = tick_timeout || @timeout
+          select_timeout = 0 if select_timeout < 0
+          @next_timeout_time = @clock.now + select_timeout
+          r, w, _ = @selector.select(readables, writables, nil, select_timeout)
           connecting.each { |s| s.connect }
           r && r.each { |s| s.read }
           w && w.each { |s| s.flush }
         rescue IOError, Errno::EBADF
         end
+      end
+
+      def next_tick_before?(time)
+        @next_timeout_time <= time
       end
 
       def to_s
@@ -548,6 +566,11 @@ module Ione
             end
           end
         end
+      end
+
+      def timeout
+        next_timer = @timer_queue.peek
+        next_timer && next_timer.time - @clock.now
       end
 
       def to_s
