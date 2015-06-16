@@ -105,7 +105,7 @@ module Ione
   #
   # @example Creating a future for a blocking operation
   #   def find_my_ip
-  #     promise = Promse.new
+  #     promise = Promise.new
   #     Thread.start do
   #       begin
   #         data = JSON.load(open('http://jsonip.org/').read)
