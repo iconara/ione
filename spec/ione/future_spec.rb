@@ -971,7 +971,7 @@ module Ione
           p1.fail(StandardError.new('hurgh'))
           p3.fail(StandardError.new('murgasd'))
           p4.fulfill
-          expect { f.value }.to raise_error('hurgh')
+          expect { f.value }.to raise_error(/hurgh|murgasd/)
           f.should be_failed
         end
 

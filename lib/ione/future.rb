@@ -229,7 +229,7 @@ module Ione
       # @since v1.3.0
       def after(*futures)
         if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
-          futures = fs
+          *futures = *fs
         end
         if futures.count == 0
           ResolvedFuture::NIL
@@ -837,25 +837,19 @@ module Ione
   class CombinedNilFuture < CompletableFuture
     def initialize(futures)
       super()
-      remaining = futures.count
-      futures.each do |f|
-        f.on_complete do |v, e|
-          unless failed?
-            if e
-              fail(e)
-            else
-              @lock.lock
-              begin
-                remaining -= 1
-              ensure
-                @lock.unlock
-              end
-              if remaining == 0
-                resolve
-              end
-            end
-          end
-        end
+      @futures = futures
+      await_next(nil, nil)
+    end
+
+    def await_next(v, e)
+      if e
+        @futures = nil
+        fail(e)
+      elsif @futures.empty?
+        @futures = nil
+        resolve
+      else
+        @futures.pop.on_complete(&method(:await_next))
       end
     end
   end
