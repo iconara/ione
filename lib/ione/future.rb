@@ -214,6 +214,33 @@ module Ione
         end
       end
 
+      # Combines multiple futures into a new future which resolves when all
+      # constituent futures complete, or fails when one or more of them fails.
+      #
+      # The resulting future has no value.
+      #
+      # @example
+      #   future = Future.after(delete_thing(1), delete_thing(2))
+      #   future.value # => nil
+      #
+      # @param [Array<Ione::Future>] futures the futures to combine (this argument
+      #   can be a splatted array or a regular array passed as sole argument)
+      # @return [Ione::Future] with a nil value once all futures have succeeded
+      # @since v1.3.0
+      def after(*futures)
+        if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
+          futures = fs
+        end
+        if futures.count == 0
+          ResolvedFuture::NIL
+        elsif futures.count == 1
+          futures.first.map(nil)
+        else
+          CombinedNilFuture.new(futures)
+        end
+      end
+
+
       # Returns a future which will be resolved with the value of the first
       # (resolved) of the specified futures. If all of the futures fail, the
       # returned future will also fail (with the error of the last failed future).
@@ -798,6 +825,33 @@ module Ione
               end
               if remaining == 0
                 resolve(values)
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  # @private
+  class CombinedNilFuture < CompletableFuture
+    def initialize(futures)
+      super()
+      remaining = futures.count
+      futures.each do |f|
+        f.on_complete do |v, e|
+          unless failed?
+            if e
+              fail(e)
+            else
+              @lock.lock
+              begin
+                remaining -= 1
+              ensure
+                @lock.unlock
+              end
+              if remaining == 0
+                resolve
               end
             end
           end

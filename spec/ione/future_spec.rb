@@ -938,6 +938,95 @@ module Ione
       end
     end
 
+    describe '.after' do
+      context 'returns a new future which' do
+        it 'is resolved when the source futures are resolved' do
+          p1 = Promise.new
+          p2 = Promise.new
+          f = Future.after(p1.future, p2.future)
+          p1.fulfill
+          f.should_not be_resolved
+          p2.fulfill
+          f.should be_resolved
+        end
+
+        it 'returns no value' do
+          p1 = Promise.new
+          p2 = Promise.new
+          p3 = Promise.new
+          f = Future.after(p1.future, p2.future, p3.future)
+          p2.fulfill(2)
+          p1.fulfill(1)
+          p3.fulfill(3)
+          f.value.should be_nil
+        end
+
+        it 'fails if any of the source futures fail' do
+          p1 = Promise.new
+          p2 = Promise.new
+          p3 = Promise.new
+          p4 = Promise.new
+          f = Future.after(p1.future, p2.future, p3.future, p4.future)
+          p2.fulfill
+          p1.fail(StandardError.new('hurgh'))
+          p3.fail(StandardError.new('murgasd'))
+          p4.fulfill
+          expect { f.value }.to raise_error('hurgh')
+          f.should be_failed
+        end
+
+        it 'completes with nil when no futures are given' do
+          Future.after.value.should be_nil
+        end
+
+        it 'completes with nil when an empty list is given' do
+          Future.after([]).value.should be_nil
+        end
+
+        it 'completes with nil when an empty enumerable is given' do
+          Future.after([].to_enum).value.should be_nil
+        end
+
+        it 'completes with nil when a single future is given' do
+          f = Future.resolved(1)
+          Future.after(f).value.should be_nil
+        end
+
+        it 'accepts a list of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future)
+          f = Future.after(futures)
+          promises.each(&:fulfill)
+          f.value.should be_nil
+        end
+
+        it 'accepts an enumerable of futures' do
+          promises = [Promise.new, Promise.new, Promise.new]
+          futures = promises.map(&:future).to_enum
+          f = Future.after(futures)
+          promises.each(&:fulfill)
+          f.value.should be_nil
+        end
+
+        it 'accepts an enumerable of one future' do
+          promises = [Promise.new]
+          futures = promises.map(&:future).to_enum
+          f = Future.after(futures)
+          promises.each(&:fulfill)
+          f.value.should be_nil
+        end
+
+        it 'accepts anything that implements #on_complete as futures' do
+          ff1, ff2, ff3 = double, double, double
+          ff1.stub(:on_complete) { |&listener| listener.call(1, nil) }
+          ff2.stub(:on_complete) { |&listener| listener.call(2, nil) }
+          ff3.stub(:on_complete) { |&listener| listener.call(3, nil) }
+          future = Future.after(ff1, ff2, ff3)
+          future.value.should be_nil
+        end
+      end
+    end
+
     describe '.all' do
       context 'returns a new future which' do
         it 'is resolved when the source futures are resolved' do
