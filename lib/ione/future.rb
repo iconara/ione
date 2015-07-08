@@ -808,12 +808,14 @@ module Ione
 
   # @private
   class ReducingFuture < CompletableFuture
+    NO_INITIAL_VALUE = Object.new
+
     def initialize(futures, initial_value, reducer)
       super()
       @futures = Array(futures)
       @remaining = @futures.size
       @initial_value = initial_value
-      @accumulator = initial_value
+      @accumulator = initial_value.nil? ? NO_INITIAL_VALUE : initial_value
       @reducer = reducer
     end
 
@@ -823,10 +825,10 @@ module Ione
       unless failed?
         @lock.lock
         begin
-          if @accumulator
-            @accumulator = @reducer.call(@accumulator, value)
-          else
+          if @accumulator.equal?(NO_INITIAL_VALUE)
             @accumulator = value
+          else
+            @accumulator = @reducer.call(@accumulator, value)
           end
           @remaining -= 1
         rescue => e

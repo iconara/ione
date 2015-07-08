@@ -822,6 +822,17 @@ module Ione
         future.value.should == {'foo' => 'bar', 'qux' => 'baz', 'hello' => 'world'}
       end
 
+      it 'accepts boolean accumulators' do
+        futures = [
+          Future.resolved([:foo]),
+          Future.resolved([]),
+        ]
+        future = Future.reduce(futures, false) do |accumulator, value|
+          accumulator || value.empty?
+        end
+        future.value.should == true
+      end
+
       it 'calls the block with the values in the order of the source futures' do
         promises = [Promise.new, Promise.new, Promise.new, Promise.new, Promise.new]
         futures = promises.map(&:future)
