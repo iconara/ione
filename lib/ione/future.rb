@@ -226,7 +226,7 @@ module Ione
       # @param [Array<Ione::Future>] futures the futures to combine (this argument
       #   can be a splatted array or a regular array passed as sole argument)
       # @return [Ione::Future] with a nil value once all futures have succeeded
-      # @since v1.3.0
+      # @since v1.2.1
       def after(*futures)
         if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
           *futures = *fs
