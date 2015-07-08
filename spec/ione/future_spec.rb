@@ -879,6 +879,18 @@ module Ione
         future.should be_failed
       end
 
+      it 'allows invocations to return nil' do
+        futures = [Future.resolved(1), Future.resolved(2), Future.resolved(3)]
+        future = Future.reduce(futures, []) do |accumulator, value|
+          if value == 2
+            nil
+          else
+            value
+          end
+        end
+        future.value.should eq(3)
+      end
+
       context 'when the list of futures is empty' do
         it 'returns a future that resolves to the initial value' do
           Future.reduce([], :foo).value.should == :foo
