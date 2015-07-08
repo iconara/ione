@@ -321,7 +321,8 @@ module Ione
       #
       # @param [Array<Ione::Future>] futures an array of futures whose values
       #   should be reduced
-      # @param [Object] initial_value the initial value of the accumulator
+      # @param [Object] initial_value the initial value of the accumulator. When
+      #   nil (the default) the value of the first future will be used instead. 
       # @param [Hash] options
       # @option options [Boolean] :ordered (true) whether or not to respect the
       #   order of the input when reducing – when true the block will be called
