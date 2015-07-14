@@ -1047,6 +1047,12 @@ module Ione
           future = Future.after(ff1, ff2, ff3)
           future.value.should be_nil
         end
+
+        it 'handles a really long list of futures' do
+          futures = Array.new(10000, Future.resolved)
+          future = Future.after(futures)
+          future.value.should be_nil
+        end
       end
     end
 
