@@ -25,10 +25,15 @@ module Ione
     # reactor. A thread pool is any object that responds to `#submit`, takes a
     # block and returns a future which resolves to the value of calling the
     # block. It's completely up to the implementation when and how the block is
-    # called. The default implementation, simply calls the block immediately.
+    # called. The default implementation simply calls the block immediately.
+    #
     # The callbacks that are called in the thread pool are `Connection#on_data`,
     # `ServerConnection#on_data` ({BaseConnection#on_data}) and
     # {Acceptor#on_accept}.
+    #
+    # If you provide a thread pool with more than one thread multiple chunks
+    # from the same connection can be processed in parallel, and it's up to you
+    # to serialize the processing per connection.
     #
     # The IO reactor is completely protocol agnostic, and it's up to you to
     # create objects that can interpret the bytes received from remote hosts,
