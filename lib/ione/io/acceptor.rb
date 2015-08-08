@@ -31,6 +31,15 @@ module Ione
 
       # Register a listener to be notified when client connections are accepted
       #
+      # It is very important that you don't do any heavy lifting in the callback
+      # since it by default is called from the IO reactor thread, and as long as
+      # the callback is working the reactor can't handle any IO and no other
+      # callbacks can be called. However, if you have provided a thread pool to
+      # your reactor then each call to the callback will be submitted to that
+      # pool and you're free to do as much work as you want.
+      #
+      # Errors raised by the callback will be ignored.
+      #
       # @yieldparam [Ione::Io::ServerConnection] the connection to the client
       def on_accept(&listener)
         @lock.synchronize do
@@ -136,7 +145,11 @@ module Ione
 
       def notify_accept_listeners(connection)
         listeners = @lock.synchronize { @accept_listeners }
-        listeners.each { |l| l.call(connection) rescue nil }
+        listeners.each do |listener|
+          @thread_pool.submit do
+            listener.call(connection)
+          end
+        end
       end
     end
   end

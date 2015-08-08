@@ -206,6 +206,21 @@ module Ione
           received_connection2.port.should == 3333
         end
 
+        it 'calls the accept listeners in the provided thread pool' do
+          thread_pool.auto_run = false
+          called1 = false
+          called2 = false
+          acceptor.on_accept { |c| called1 = true }
+          acceptor.on_accept { |c| called2 = true }
+          acceptor.bind
+          acceptor.read
+          called1.should be_false
+          called2.should be_false
+          thread_pool.run_all
+          called1.should be_true
+          called2.should be_true
+        end
+
         it 'ignores exceptions raised by the connection callback' do
           called = false
           acceptor.on_accept { |c| raise 'bork!' }

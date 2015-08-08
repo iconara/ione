@@ -20,14 +20,15 @@ module Ione
     # run in the reactor thread, and every cycle you use there is a cycle which
     # can't be used to handle IO.
     #
-    # You can provide the reactor with a thread pool to use when calling data
-    # handling callbacks (e.g. `Connection#on_data` and
-    # `ServerConnection#on_data`). This way you don't have to worry about the
-    # protocol parsing blocking the reactor. A thread pool is any object that
-    # responds to `#submit`, takes a block and returns a future which resolves
-    # to the value of calling the block. It's completely up to the
-    # implementation when and how the block is called. The default
-    # implementation, simply calls the block immediately.
+    # You can provide the reactor with a thread pool to use when callbacks. This
+    # way you don't have to worry about the protocol parsing blocking the
+    # reactor. A thread pool is any object that responds to `#submit`, takes a
+    # block and returns a future which resolves to the value of calling the
+    # block. It's completely up to the implementation when and how the block is
+    # called. The default implementation, simply calls the block immediately.
+    # The callbacks that are called in the thread pool are `Connection#on_data`,
+    # `ServerConnection#on_data` ({BaseConnection#on_data}) and
+    # {Acceptor#on_accept}.
     #
     # The IO reactor is completely protocol agnostic, and it's up to you to
     # create objects that can interpret the bytes received from remote hosts,
