@@ -3,12 +3,14 @@
 require 'ione'
 require 'http_parser'
 require 'uri'
+require 'thread'
 
 
 module Ione
   class HttpClient
     def initialize(cert_store=nil)
-      @reactor = Io::IoReactor.new
+      @thread_pool = SingleThreadPool.new
+      @reactor = Io::IoReactor.new(thread_pool: @thread_pool)
       if cert_store
         @cert_store = cert_store
       else
@@ -18,11 +20,11 @@ module Ione
     end
 
     def start
-      @reactor.start.map(self)
+      @thread_pool.start.then { @reactor.start }.map(self)
     end
 
     def stop
-      @reactor.stop.map(self)
+      @reactor.stop.then { @thread_pool.stop }.map(self)
     end
 
     def get(url, headers={})
@@ -95,6 +97,43 @@ module Ione
       @status = status
       @headers = headers
       @body = body
+    end
+  end
+
+  class SingleThreadPool
+    StoppedError = Class.new(StandardError)
+
+    def initialize
+      @queue = Queue.new
+      @stopped_promise = Promise.new
+    end
+
+    def submit(&task)
+      if @stopped
+        Future.failed(StoppedError.new('Thread pool stopped'))
+      else
+        promise = Promise.new
+        @queue << [task, promise]
+        promise.future
+      end
+    end
+
+    def start
+      @thread = Thread.start do
+        until (job = @queue.pop) == :die
+          task, promise = job
+          promise.try(&task)
+        end
+        @stopped_promise.fulfill
+      end
+      Future.resolved
+    end
+
+    def stop
+      @stopped = true
+      @queue.clear
+      @queue << :die
+      @stopped_promise.future
     end
   end
 end
