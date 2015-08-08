@@ -850,7 +850,19 @@ module Ione
         @futures = nil
         resolve
       else
-        @futures.pop.on_complete(&method(:await_next))
+        outer = Thread.current
+        looping = more = true
+        while more
+          more = false
+          @futures.pop.on_complete do |v, e|
+            if e || @futures.empty? || !looping || !Thread.current.equal?(outer)
+              await_next(v, e)
+            else
+              more = true
+            end
+          end
+        end
+        looping = false
       end
     end
   end
