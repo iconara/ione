@@ -153,20 +153,23 @@ module Ione
         end
         Thread.start do
           @started_promise.fulfill(self)
+          error = nil
           begin
             while @state == RUNNING_STATE
               @io_loop.tick
               @scheduler.tick
             end
+          rescue => e
+            error = e
           ensure
             begin
               @io_loop.close_sockets
               @scheduler.cancel_timers
               @unblocker = nil
             ensure
-              if $!
+              if error
                 @state = CRASHED_STATE
-                @stopped_promise.fail($!)
+                @stopped_promise.fail(error)
               else
                 @state = STOPPED_STATE
                 @stopped_promise.fulfill(self)
