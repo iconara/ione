@@ -20,6 +20,15 @@ module Ione
     # run in the reactor thread, and every cycle you use there is a cycle which
     # can't be used to handle IO.
     #
+    # You can provide the reactor with a thread pool to use when calling data
+    # handling callbacks (e.g. `Connection#on_data` and
+    # `ServerConnection#on_data`). This way you don't have to worry about the
+    # protocol parsing blocking the reactor. A thread pool is any object that
+    # responds to `#submit`, takes a block and returns a future which resolves
+    # to the value of calling the block. It's completely up to the
+    # implementation when and how the block is called. The default
+    # implementation, simply calls the block immediately.
+    #
     # The IO reactor is completely protocol agnostic, and it's up to you to
     # create objects that can interpret the bytes received from remote hosts,
     # and to send the correct commands back. The way this works is that when you
@@ -89,9 +98,12 @@ module Ione
 
       # Initializes a new IO reactor.
       #
-      # @param options [Hash] only used to inject behaviour during tests
+      # @param options [Hash]
+      # @option options [#submit] :thread_pool (nil) a thread pool which will
+      #   be used for (some) callbacks
       def initialize(options={})
-        @options = options
+        @options = options.dup
+        @thread_pool = options.delete(:thread_pool) || NULL_THREAD_POOL
         @clock = options[:clock] || Time
         @state = PENDING_STATE
         @error_listeners = []
@@ -238,14 +250,14 @@ module Ione
           timeout = options[:timeout] || 5
           ssl = options[:ssl]
         end
-        connection = Connection.new(host, port, timeout, @unblocker, @clock)
+        connection = Connection.new(host, port, timeout, @unblocker, @thread_pool, @clock)
         f = connection.connect
         @io_loop.add_socket(connection)
         @unblocker.unblock if running?
         if ssl
           f = f.flat_map do
             ssl_context = ssl == true ? nil : ssl
-            upgraded_connection = SslConnection.new(host, port, connection.to_io, @unblocker, ssl_context)
+            upgraded_connection = SslConnection.new(host, port, connection.to_io, @unblocker, @thread_pool, ssl_context)
             ff = upgraded_connection.connect
             @io_loop.remove_socket(connection)
             @io_loop.add_socket(upgraded_connection)
@@ -320,9 +332,9 @@ module Ione
           ssl_context = options[:ssl]
         end
         if ssl_context
-          server = SslAcceptor.new(host, port, backlog, @unblocker, self, ssl_context)
+          server = SslAcceptor.new(host, port, backlog, @unblocker, @thread_pool, self, ssl_context)
         else
-          server = Acceptor.new(host, port, backlog, @unblocker, self)
+          server = Acceptor.new(host, port, backlog, @unblocker, @thread_pool, self)
         end
         f = server.bind
         @io_loop.add_socket(server)

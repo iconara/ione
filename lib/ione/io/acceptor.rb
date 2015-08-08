@@ -16,12 +16,13 @@ module Ione
       attr_reader :backlog
 
       # @private
-      def initialize(host, port, backlog, unblocker, reactor, socket_impl=nil)
+      def initialize(host, port, backlog, unblocker, thread_pool, reactor, socket_impl=nil)
         @host = host
         @port = port
         @backlog = backlog
         @unblocker = unblocker
         @reactor = reactor
+        @thread_pool = thread_pool
         @socket_impl = socket_impl || ServerSocket
         @accept_listeners = []
         @lock = Mutex.new
@@ -107,7 +108,7 @@ module Ione
       # @private
       def read
         client_socket, host, port = accept
-        connection = ServerConnection.new(client_socket, host, port, @unblocker)
+        connection = ServerConnection.new(client_socket, host, port, @unblocker, @thread_pool)
         @reactor.accept(connection)
         notify_accept_listeners(connection)
       end

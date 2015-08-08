@@ -9,8 +9,8 @@ module Ione
       attr_reader :connection_timeout
 
       # @private
-      def initialize(host, port, connection_timeout, unblocker, clock, socket_impl=Socket)
-        super(host, port, unblocker)
+      def initialize(host, port, connection_timeout, unblocker, thread_pool, clock, socket_impl=Socket)
+        super(host, port, unblocker, thread_pool)
         @connection_timeout = connection_timeout
         @clock = clock
         @socket_impl = socket_impl

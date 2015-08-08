@@ -8,7 +8,7 @@ module Ione
   module Io
     describe Connection do
       let :handler do
-        described_class.new('example.com', 55555, 5, unblocker, clock, socket_impl)
+        described_class.new('example.com', 55555, 5, unblocker, thread_pool, clock, socket_impl)
       end
 
       let :unblocker do
@@ -27,6 +27,10 @@ module Ione
         double(:socket)
       end
 
+      let :thread_pool do
+        FakeThreadPool.new
+      end
+
       before do
         socket_impl.stub(:getaddrinfo)
           .with('example.com', 55555, nil, Socket::SOCK_STREAM)
@@ -42,6 +46,10 @@ module Ione
       before do
         socket.stub(:connect_nonblock)
         socket.stub(:close)
+      end
+
+      before do
+        thread_pool.auto_run = true
       end
 
       it_behaves_like 'a connection' do

@@ -254,6 +254,17 @@ shared_examples_for 'a connection' do |options|
         data.should == 'foo bar'
       end
 
+      it 'calls the data listener in the provided thread pool' do
+        thread_pool.auto_run = false
+        socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
+        data = nil
+        handler.on_data { |d| data = d }
+        handler.read
+        data.should be_nil
+        thread_pool.run_all
+        data.should eq('foo bar')
+      end
+
       context 'when #read_nonblock raises an error' do
         before do
           socket.stub(:close)

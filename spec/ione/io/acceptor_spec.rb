@@ -7,7 +7,7 @@ module Ione
   module Io
     describe Acceptor do
       let :acceptor do
-        described_class.new('example.com', 4321, backlog, unblocker, reactor, socket_impl)
+        described_class.new('example.com', 4321, backlog, unblocker, thread_pool, reactor, socket_impl)
       end
 
       let :backlog do
@@ -16,6 +16,10 @@ module Ione
 
       let :unblocker do
         double(:unblocker)
+      end
+
+      let :thread_pool do
+        FakeThreadPool.new(true)
       end
 
       let :reactor do

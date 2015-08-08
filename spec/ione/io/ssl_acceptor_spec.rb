@@ -7,11 +7,15 @@ module Ione
   module Io
     describe SslAcceptor do
       let :acceptor do
-        described_class.new('example.com', 4321, backlog = 3, unblocker, reactor, ssl_context, socket_impl, ssl_socket_impl)
+        described_class.new('example.com', 4321, backlog = 3, unblocker, thread_pool, reactor, ssl_context, socket_impl, ssl_socket_impl)
       end
 
       let :unblocker do
         double(:unblocker)
+      end
+
+      let :thread_pool do
+        FakeThreadPool.new(true)
       end
 
       let :reactor do
