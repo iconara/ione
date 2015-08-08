@@ -11,13 +11,17 @@ class FakeThreadPool
   def run_all
     until @tasks.empty?
       task, promise = @tasks.shift
-      promise.fulfill(task.call)
+      promise.try { task.call }
     end
   end
 
   def submit(&task)
     if @auto_run
-      Ione::Future.resolved(task.call)
+      begin
+        Ione::Future.resolved(task.call)
+      rescue => e
+        Ione::Future.failed(e)
+      end
     else
       promise = Ione::Promise.new
       @tasks << [task, promise]

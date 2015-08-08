@@ -9,6 +9,8 @@ module Ione
     # @return [Ione::Future] a future that resolves to the value of the given block
     def submit(&task)
       Future.resolved(task.call)
+    rescue => e
+      Future.failed(e)
     end
   end
 
