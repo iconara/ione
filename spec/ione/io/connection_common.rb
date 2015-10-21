@@ -90,6 +90,13 @@ shared_examples_for 'a connection' do |options|
       handler.flush
       f.should be_completed
     end
+
+    it 'does not attempt to acquire the lock multiple times from the same thread' do
+      handler.write('hello world')
+      f = handler.drain
+      handler.flush
+      expect { f.value }.to_not raise_error
+    end
   end
 
   describe '#write/#flush' do

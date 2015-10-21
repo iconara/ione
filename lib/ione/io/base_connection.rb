@@ -145,6 +145,7 @@ module Ione
 
       # @private
       def flush
+        should_close = false
         if @state == CONNECTED_STATE || @state == DRAINING_STATE
           @lock.lock
           begin
@@ -154,11 +155,12 @@ module Ione
             end
             @writable = !@write_buffer.empty?
             if @state == DRAINING_STATE && !@writable
-              close
+              should_close = true
             end
           ensure
             @lock.unlock
           end
+          close if should_close
         end
       rescue => e
         close(e)
