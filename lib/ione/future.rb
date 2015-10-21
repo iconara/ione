@@ -209,6 +209,8 @@ module Ione
         end
         if futures.count == 0
           resolved([])
+        elsif (failed = futures.find { |f| f.respond_to?(:failed?) && f.failed? })
+          failed
         else
           CombinedFuture.new(futures)
         end
@@ -231,6 +233,7 @@ module Ione
         if futures.size == 1 && (fs = futures.first).is_a?(Enumerable)
           *futures = *fs
         end
+        futures.reject! { |f| f.respond_to?(:resolved?) && f.resolved? }
         if futures.count == 0
           ResolvedFuture::NIL
         elsif futures.count == 1
@@ -262,7 +265,9 @@ module Ione
           futures = fs
         end
         if futures.count == 0
-          resolved
+          ResolvedFuture::NIL
+        elsif (done = futures.find { |f| f.respond_to?(:resolved?) && f.resolved? })
+          done
         else
           FirstFuture.new(futures)
         end
