@@ -874,39 +874,8 @@ module Ione
     def initialize(futures, initial_value, reducer)
       super()
       @futures = Array(futures)
-      @remaining = @futures.size
-      @initial_value = initial_value
-      @accumulator = initial_value.nil? ? NO_INITIAL_VALUE : initial_value
+      @initial_value = initial_value.nil? ? NO_INITIAL_VALUE : initial_value
       @reducer = reducer
-    end
-
-    private
-
-    def reduce_one(value)
-      unless failed?
-        @lock.lock
-        begin
-          if @accumulator.equal?(NO_INITIAL_VALUE)
-            @accumulator = value
-          else
-            @accumulator = @reducer.call(@accumulator, value)
-          end
-          @remaining -= 1
-        rescue => e
-          @lock.unlock
-          fail(e)
-        else
-          @lock.unlock
-        end
-        unless failed?
-          if @remaining == 0
-            resolve(@accumulator)
-            :done
-          else
-            :continue
-          end
-        end
-      end
     end
   end
 
@@ -914,24 +883,47 @@ module Ione
   class OrderedReducingFuture < ReducingFuture
     def initialize(futures, initial_value, reducer)
       super
-      if @remaining > 0
-        reduce_next(0)
+      if @futures.empty?
+        resolve(@initial_value.equal?(NO_INITIAL_VALUE) ? nil : @initial_value)
+      elsif @initial_value.equal?(NO_INITIAL_VALUE)
+        @futures.shift.on_complete(&method(:reduce_next))
       else
-        resolve(@initial_value)
+        reduce_next(@initial_value, nil)
       end
     end
 
     private
 
-    def reduce_next(i)
-      @futures[i].on_complete do |v, e|
-        unless failed?
-          if e
-            fail(e)
-          elsif reduce_one(v) == :continue
-            reduce_next(i + 1)
+    def reduce_next(accumulator, e)
+      if e
+        @futures = nil
+        fail(e)
+      elsif @futures.empty?
+        @futures = nil
+        resolve(accumulator)
+      else
+        outer = Thread.current
+        looping = more = true
+        while more
+          more = false
+          @futures.shift.on_complete do |v, ee|
+            if ee
+              reduce_next(nil, ee)
+            else
+              begin
+                accumulator = @reducer.call(accumulator, v)
+                if @futures.empty? || !looping || !Thread.current.equal?(outer)
+                  reduce_next(accumulator, nil)
+                else
+                  more = true
+                end
+              rescue => eee
+                reduce_next(nil, eee)
+              end
+            end
           end
         end
+        looping = false
       end
     end
   end
@@ -940,20 +932,37 @@ module Ione
   class UnorderedReducingFuture < ReducingFuture
     def initialize(futures, initial_value, reducer)
       super
-      if @remaining > 0
-        futures.each do |f|
+      if @futures.empty?
+        resolve(@initial_value.equal?(NO_INITIAL_VALUE) ? nil : @initial_value)
+      else
+        accumulator = @initial_value
+        remaining = @futures.size
+        @futures.each do |f|
           f.on_complete do |v, e|
             unless failed?
               if e
                 fail(e)
               else
-                reduce_one(v)
+                done = false
+                @lock.lock
+                begin
+                  accumulator = accumulator.equal?(NO_INITIAL_VALUE) ? v : @reducer.call(accumulator, v)
+                  remaining -= 1
+                  done = (remaining == 0)
+                rescue => ee
+                  @lock.unlock
+                  fail(ee)
+                else
+                  @lock.unlock
+                end
+                if done
+                  @futures = nil
+                  resolve(accumulator)
+                end
               end
             end
           end
         end
-      else
-        resolve(@initial_value)
       end
     end
   end
