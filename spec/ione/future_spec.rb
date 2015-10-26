@@ -916,6 +916,12 @@ module Ione
         future.value.should == 6
       end
 
+      it 'handles a really long list of futures' do
+        futures = Array.new(10000, Future.resolved(1))
+        future = Future.reduce(futures, 0, &:+)
+        future.value.should eq(10000)
+      end
+
       context 'when the :ordered option is false' do
         it 'calls the block with the values in the order of completion, when the :ordered option is false' do
           promises = [Promise.new, Promise.new, Promise.new]
@@ -947,6 +953,12 @@ module Ione
             end
           end
           future.should be_failed
+        end
+
+        it 'handles a really long list of futures' do
+          futures = Array.new(10000, Future.resolved(1))
+          future = Future.reduce(futures, 0, ordered: false, &:+)
+          future.value.should eq(10000)
         end
 
         context 'when the list of futures is empty' do
