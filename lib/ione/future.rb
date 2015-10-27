@@ -34,7 +34,7 @@ module Ione
     # Fulfills the promise like {#fulfill}, but returns false instead of raising.
     #
     # @param [Object] value the value of the future
-    # @return [true, false] returns false if the connection was already closed
+    # @return [true, false] returns false if the promise was already completed.
     def try_fulfill(value=nil)
       @future.try_resolve(value)
     end
@@ -53,7 +53,7 @@ module Ione
     # Fails the promise like {#fail}, but returns false instead of raising.
     #
     # @param [Error] error the error which prevented the promise to be fulfilled
-    # @raise [FutureError] if the promise was already completed.
+    # @return [true, false] returns false if the promise was already completed.
     def try_fail(error)
       @future.try_fail(error)
     end
