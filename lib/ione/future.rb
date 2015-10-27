@@ -739,31 +739,10 @@ module Ione
       end
     end
 
-    class <<self
-      # Set the global listener for handling uncaught errors in other registered
-      # future listeners. The listener will be called with the error that failed
-      # the future as sole argument.
-      #
-      # Errors raised from the global listener will be ignored.
-      #
-      # By default, the global error handler does nothing.
-      #
-      # @example
-      #   Future.on_listener_error do do |error|
-      #     LOGGER.warn("Uncaught error: #{error} (#{error.class})")
-      #   end
-      #
-      # @yieldparam [Object] error the uncaught error from the listener dispatch
-      def on_listener_error(&listener_error_handler)
-        @listener_error_handler = listener_error_handler
-        nil
-      end
-
-      # @private
-      attr_reader :listener_error_handler
-    end
-
     private
+
+    def discard_error(e)
+    end
 
     def call_listener(listener)
       begin
@@ -778,13 +757,7 @@ module Ione
           listener.call(@value, @error, self)
         end
       rescue => e
-        begin
-          if (error_handler = Ione::Future.listener_error_handler)
-            error_handler.call(e)
-          end
-        rescue
-          # swallowed
-        end
+        discard_error(e)
       end
     end
   end

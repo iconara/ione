@@ -127,20 +127,6 @@ module Ione
       StandardError.new('bork')
     end
 
-    let :listener_error_handler do
-      double(:listener_error_handler)
-    end
-
-    before do
-      @old_error_handler = Ione::Future.listener_error_handler
-      listener_error_handler.stub(:call)
-      Ione::Future.on_listener_error { |error| listener_error_handler.call(error) }
-    end
-
-    after do
-      Ione::Future.on_listener_error(&@old_error_handler)
-    end
-
     def async(*context, &listener)
       Thread.start(*context, &listener)
     end
@@ -344,22 +330,6 @@ module Ione
           err.message.should == 'bork'
         end
 
-        it 'notifies the global error listener when one raises an error' do
-          future.on_complete { |f| raise IoError, 'Blurgh' }
-          future.on_complete { |f| 'foo' }
-          promise.fulfill('bar')
-          listener_error_handler.should have_received(:call).with(kind_of(IoError))
-        end
-
-        it 'notifies all listeners when the promise is fulfilled, even when one raises an error and the global error listener raises an error' do
-          value = nil
-          listener_error_handler.stub(:call).and_raise(RuntimeError, 'bork')
-          future.on_complete { |f| raise 'Blurgh' }
-          future.on_complete { |f| value = f.value }
-          promise.fulfill('bar')
-          value.should == 'bar'
-        end
-
         it 'notifies listeners registered after the promise was fulfilled' do
           f, v, e = nil, nil, nil
           promise.fulfill('bar')
@@ -380,18 +350,6 @@ module Ione
 
         it 'does not raise any error when the listener raises an error when already failed' do
           promise.fail(error)
-          expect { future.on_complete { raise 'blurgh' } }.to_not raise_error
-        end
-
-        it 'notifies the global error listener when one raises an error when future already failed' do
-          promise.fail(error)
-          expect { future.on_complete { raise IoError, 'blurgh' } }.to_not raise_error
-          listener_error_handler.should have_received(:call).with(kind_of(IoError))
-        end
-
-        it 'does not raise any error when the global error listener fails when future already failed' do
-          promise.fail(error)
-          listener_error_handler.stub(:call).and_raise(RuntimeError, 'bork')
           expect { future.on_complete { raise 'blurgh' } }.to_not raise_error
         end
 
@@ -430,22 +388,6 @@ module Ione
           value.should == 'bar'
         end
 
-        it 'notifies the global error listener when one raises an error' do
-          future.on_value { |v| raise IoError, 'Blurgh' }
-          future.on_value { |v| 'foo' }
-          promise.fulfill('bar')
-          listener_error_handler.should have_received(:call).with(kind_of(IoError))
-        end
-
-        it 'notifies all listeners when the promise is fulfilled, even when one raises an error and the global error listener raises an error' do
-          value = nil
-          listener_error_handler.stub(:call).and_raise(RuntimeError, 'bork')
-          future.on_value { |v| raise 'Blurgh' }
-          future.on_value { |v| value = v }
-          promise.fulfill('bar')
-          value.should == 'bar'
-        end
-
         it 'notifies listeners registered after the promise was resolved' do
           v1, v2 = nil, nil
           promise.fulfill('bar')
@@ -458,18 +400,6 @@ module Ione
         it 'does not raise any error when the listener raises an error when already resolved' do
           promise.fulfill('bar')
           expect { future.on_value { |v| raise 'blurgh' } }.to_not raise_error
-        end
-
-        it 'notifies the global error listener when one raises an error when future already resolved' do
-          promise.fulfill('bar')
-          expect { future.on_value { raise IoError, 'blurgh' } }.to_not raise_error
-          listener_error_handler.should have_received(:call).with(kind_of(IoError))
-        end
-
-        it 'does not raise any error when the global error listener fails when future already resolved' do
-          promise.fulfill('bar')
-          listener_error_handler.stub(:call).and_raise(RuntimeError, 'bork')
-          expect { future.on_value { raise 'blurgh' } }.to_not raise_error
         end
 
         it 'returns nil' do
@@ -502,24 +432,6 @@ module Ione
           e.message.should eql(error.message)
         end
 
-        it 'notifies the global error listener when one raises an error' do
-          e = nil
-          future.on_failure { |err| raise IoError, 'Blurgh' }
-          future.on_failure { |err| e = err }
-          promise.fail(error)
-          listener_error_handler.should have_received(:call).with(kind_of(IoError))
-          e.message.should eql(error.message)
-        end
-
-        it 'notifies all listeners when the promise is fulfilled, even when one raises an error and the global error listener raises an error' do
-          e = nil
-          listener_error_handler.stub(:call).and_raise(RuntimeError, 'bork')
-          future.on_failure { |err| raise 'Blurgh' }
-          future.on_failure { |err| e = err }
-          promise.fail(error)
-          e.message.should eql(error.message)
-        end
-
         it 'notifies new listeners even when already failed' do
           e1, e2 = nil, nil
           promise.fail(error)
@@ -532,18 +444,6 @@ module Ione
         it 'does not raise any error when the listener raises an error when already failed' do
           promise.fail(error)
           expect { future.on_failure { |e| raise 'Blurgh' } }.to_not raise_error
-        end
-
-        it 'notifies the global error listener when one raises an error when future already failed' do
-          promise.fail(error)
-          expect { future.on_failure { raise IoError, 'blurgh' } }.to_not raise_error
-          listener_error_handler.should have_received(:call).with(kind_of(IoError))
-        end
-
-        it 'does not raise any error when the global error listener fails when future already failed' do
-          promise.fail(error)
-          listener_error_handler.stub(:call).and_raise(RuntimeError, 'bork')
-          expect { future.on_failure { raise 'blurgh' } }.to_not raise_error
         end
 
         it 'returns nil' do
