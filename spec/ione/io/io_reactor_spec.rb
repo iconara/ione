@@ -93,6 +93,7 @@ module Ione
           end
 
           it 'restarts the reactor even when restarted before a failed stop' do
+            pending 'This test is broken in JRuby' if RUBY_ENGINE == 'jruby'
             barrier = Queue.new
             selector.handler do
               if barrier.pop == :fail
