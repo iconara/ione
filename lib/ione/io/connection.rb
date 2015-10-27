@@ -63,9 +63,7 @@ module Ione
         if cause && !cause.is_a?(IoError)
           cause = ConnectionError.new(cause.message)
         end
-        unless @connected_promise.future.completed?
-          @connected_promise.fail(cause)
-        end
+        @connected_promise.try_fail(cause)
       end
     end
   end

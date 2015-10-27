@@ -857,7 +857,7 @@ module Ione
         f.on_complete do |v, e|
           unless failed?
             if e
-              fail(e)
+              try_fail(e)
             else
               @lock.lock
               begin
@@ -983,7 +983,7 @@ module Ione
           f.on_complete do |v, e|
             unless failed?
               if e
-                fail(e)
+                try_fail(e)
               else
                 done = false
                 @lock.lock
@@ -993,7 +993,7 @@ module Ione
                   done = (remaining == 0)
                 rescue => ee
                   @lock.unlock
-                  fail(ee)
+                  try_fail(ee)
                 else
                   @lock.unlock
                 end
@@ -1021,7 +1021,7 @@ module Ione
                 fail(e)
               end
             else
-              resolve(v)
+              try_resolve(v)
             end
           end
         end
