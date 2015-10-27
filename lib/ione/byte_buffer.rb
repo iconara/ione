@@ -179,10 +179,12 @@ module Ione
         swap_buffers
       end
       read_buffer_length = @read_buffer.bytesize
-      if start_index < read_buffer_length - @offset && (index = @read_buffer.index(substring, @offset + start_index))
+      if start_index + substring.bytesize <= read_buffer_length - @offset && (index = @read_buffer.index(substring, @offset + start_index))
         index - @offset
-      elsif (index = @write_buffer.index(substring, start_index - read_buffer_length + @offset))
-        index + read_buffer_length - @offset
+      elsif start_index + substring.bytesize <= read_buffer_length - @offset + @write_buffer.bytesize
+        merge_read_buffer
+        start_index = read_buffer_length - substring.bytesize if read_buffer_length - substring.bytesize > start_index
+        @read_buffer.index(substring, start_index)
       else
         nil
       end
@@ -297,6 +299,12 @@ module Ione
       @offset -= @read_buffer.bytesize
       @read_buffer = @write_buffer
       @write_buffer = ''
+    end
+
+    def merge_read_buffer
+      @read_buffer = @read_buffer[@offset, @read_buffer.length - @offset] << @write_buffer
+      @write_buffer = ''
+      @offset = 0
     end
   end
 end

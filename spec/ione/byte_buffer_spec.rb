@@ -354,6 +354,20 @@ module Ione
         buffer.append(' baz baz')
         buffer.index('baz', 8).should == 11
       end
+
+      it 'returns the first index when the matching substring spans the read and write buffer' do
+        buffer.append('foo bar')
+        buffer.read(1)
+        buffer.append('bar barbar')
+        buffer.index('barbar', 0).should == 3
+      end
+
+      it 'returns nil when the substring does not fit in the search space' do
+        buffer.append('foo')
+        buffer.read(1)
+        buffer.append('bar')
+        buffer.index('bar', 3).should be_nil
+      end
     end
 
     context 'when reading and appending' do
