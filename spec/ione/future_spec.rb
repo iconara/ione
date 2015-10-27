@@ -38,6 +38,22 @@ module Ione
       end
     end
 
+    describe '#fulfill' do
+      it 'resolves its future' do
+        promise.try_fulfill
+        future.should be_resolved
+      end
+
+      it 'returns true' do
+        promise.try_fulfill(:foo).should eq(true)
+      end
+
+      it 'raises an error if fulfilled a second time' do
+        promise.try_fulfill
+        promise.try_fulfill.should eq(false)
+      end
+    end
+
     describe '#fail' do
       it 'fails its future' do
         promise.fail(error)
@@ -56,6 +72,22 @@ module Ione
 
       it 'returns nil' do
         promise.fail(error).should be_nil
+      end
+    end
+
+    describe '#try_fail' do
+      it 'fails its future' do
+        promise.try_fail(error)
+        future.should be_failed
+      end
+
+      it 'returns true' do
+        promise.try_fail(error).should eq(true)
+      end
+
+      it 'returns false if failed a second time' do
+        promise.try_fail(error)
+        promise.try_fail(error).should eq(false)
       end
     end
 

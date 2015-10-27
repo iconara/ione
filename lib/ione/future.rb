@@ -26,8 +26,17 @@ module Ione
     # no value is specified.
     #
     # @param [Object] value the value of the future
+    # @raise [FutureError] if the promise was already completed.
     def fulfill(value=nil)
       @future.resolve(value)
+    end
+
+    # Fulfills the promise like {#fulfill}, but returns false instead of raising.
+    #
+    # @param [Object] value the value of the future
+    # @return [true, false] returns false if the connection was already closed
+    def try_fulfill(value=nil)
+      @future.try_resolve(value)
     end
 
     # Fails the promise.
@@ -36,8 +45,17 @@ module Ione
     # future.
     #
     # @param [Error] error the error which prevented the promise to be fulfilled
+    # @raise [FutureError] if the promise was already completed.
     def fail(error)
       @future.fail(error)
+    end
+
+    # Fails the promise like {#fail}, but returns false instead of raising.
+    #
+    # @param [Error] error the error which prevented the promise to be fulfilled
+    # @raise [FutureError] if the promise was already completed.
+    def try_fail(error)
+      @future.try_fail(error)
     end
 
     # Observe a future and fulfill the promise with the future's value when the
@@ -47,9 +65,9 @@ module Ione
     def observe(future)
       future.on_complete do |v, e|
         if e
-          fail(e)
+          @future.fail(e)
         else
-          fulfill(v)
+          @future.resolve(v)
         end
       end
     end
@@ -74,9 +92,16 @@ module Ione
     #
     # @yieldparam [Array] ctx the arguments passed to {#try}
     def try(*ctx)
-      fulfill(yield(*ctx))
-    rescue => e
-      fail(e)
+      success = false
+      begin
+        success = @future.try_resolve(yield(*ctx))
+      rescue => e
+        @future.fail(e)
+      else
+        unless success
+          raise FutureError, 'Promise already completed'
+        end
+      end
     end
   end
 
@@ -774,10 +799,16 @@ module Ione
   # @private
   class CompletableFuture < Future
     def resolve(v=nil)
+      unless try_resolve(v)
+        raise FutureError, 'Future already completed'
+      end
+    end
+
+    def try_resolve(v=nil)
       listeners = nil
       @lock.lock
       begin
-        raise FutureError, 'Future already completed' unless @state == PENDING_STATE
+        return false unless @state == PENDING_STATE
         @value = v
         @state = RESOLVED_STATE
         listeners = @listeners
@@ -788,14 +819,20 @@ module Ione
       listeners.each do |listener|
         call_listener(listener)
       end
-      nil
+      true
     end
 
     def fail(error)
+      unless try_fail(error)
+        raise FutureError, 'Future already completed'
+      end
+    end
+
+    def try_fail(error)
       listeners = nil
       @lock.lock
       begin
-        raise FutureError, 'Future already completed' unless @state == PENDING_STATE
+        return false unless @state == PENDING_STATE
         @error = error
         @state = FAILED_STATE
         listeners = @listeners
@@ -806,7 +843,7 @@ module Ione
       listeners.each do |listener|
         call_listener(listener)
       end
-      nil
+      true
     end
   end
 
