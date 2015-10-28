@@ -59,8 +59,24 @@ module Ione
       #   has closed
       # @since v1.1.0
       def drain
-        @state = DRAINING_STATE
-        close unless @writable
+        @lock.lock
+        begin
+          return if @state == DRAINING_STATE || @state == CLOSED_STATE
+          @state = DRAINING_STATE
+        ensure
+          @lock.unlock
+        end
+        if writable?
+          if @io.respond_to?(:close_read)
+            begin
+              @io.close_read
+            rescue SystemCallError, IOError
+              # nothing to do, the socket was most likely already closed
+            end
+          end
+        else
+          close
+        end
         @closed_promise.future
       end
 

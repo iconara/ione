@@ -83,6 +83,19 @@ shared_examples_for 'a connection' do |options|
       handler.should be_closed
     end
 
+    it 'closes the socket for reading if possible' do
+      socket.stub(:close_read)
+      handler.write('hello world')
+      handler.drain
+      socket.should have_received(:close_read)
+    end
+
+    it 'ignores IO errors when closing for reading' do
+      socket.stub(:close_read).and_raise(IOError, 'Boork')
+      handler.write('hello world')
+      expect { handler.drain }.to_not raise_error
+    end
+
     it 'returns a future that completes when the socket has closed' do
       handler.write('hello world')
       f = handler.drain
