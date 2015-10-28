@@ -124,7 +124,7 @@ module Ione
       # after {#stop} has been called, but false when the future returned by
       # {#stop} completes.
       def running?
-        @state == RUNNING_STATE
+        (state = @state) == RUNNING_STATE || state == STOPPING_STATE
       end
 
       # Starts the reactor. This will spawn a background thread that will manage
