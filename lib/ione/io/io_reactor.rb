@@ -498,10 +498,10 @@ module Ione
 
       def drain_sockets
         threshold = @clock.now + @drain_timeout
-        until @clock.now >= threshold || @sockets.none? { |s| s.writable? }
+        until @clock.now >= threshold || @sockets.none?(&:writable?)
           @sockets.each(&:drain)
           tick
-          @lock.synchronize { @sockets = @sockets.reject { |s| s.closed? } }
+          @lock.synchronize { @sockets = @sockets.reject(&:closed?) }
         end
         if @clock.now >= threshold
           raise ReactorError, sprintf('Socket drain timeout after %p s', @drain_timeout)
