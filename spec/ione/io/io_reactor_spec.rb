@@ -193,44 +193,19 @@ module Ione
         end
 
         it 'drains all sockets' do
-          running_barrier = Queue.new
-          tick_barrier = Queue.new
-          selector.handler do |*args|
-            running_barrier.push(nil)
-            tick_barrier.pop
-            IO.select(*args)
-          end
           reactor.start.value
           TCPServer.open(0) do |server|
-            lazy_accept = Thread.new { server.accept }
-            nil while lazy_accept.status == 'running'
-            f = reactor.connect(server.addr[3], server.addr[1], 5)
-            until f.completed?
-              tick_barrier.push(nil) if tick_barrier.empty?
+            lazy_socket = Thread.start { server.accept }
+            connection = reactor.connect(server.addr[3], server.addr[1], 5).value
+            connection.stub(:writable?).and_return(false)
+            connection.write('12345678')
+            sleep 0.1
+            connection.stub(:writable?).and_return(true)
+            connection.stub(:flush) do
+              connection.stub(:writable?).and_return(false)
             end
-            connection = f.value
-            server_side = lazy_accept.value
-            begin
-              loop do
-                server_side.write_nonblock 'unblock'
-              end
-            rescue IO::WaitWritable
-              server_side.close_write
-            end
-            written = 0
-            begin
-              loop do
-                connection.write('12345678')
-                written += 8
-                written -= server_side.read_nonblock(8).size
-              end
-            rescue IO::WaitReadable
-            end
-            f = reactor.stop
-            tick_barrier.push(nil) until f.completed?
-            sleep 0.5
-            server_side.read.size.should == written
-            server_side.close_read
+            reactor.stop.value
+            connection.should have_received(:flush)
           end
         end
 
@@ -239,6 +214,22 @@ module Ione
           connection = reactor.connect('example.com', 9999, 5).value
           reactor.stop.value
           connection.should be_closed
+        end
+
+        it 'closes all sockets even if drain fails' do
+          reactor.start.value
+          TCPServer.open(0) do |server|
+            lazy_socket = Thread.start { server.accept }
+            connection = reactor.connect(server.addr[3], server.addr[1], 5).value
+            connection.stub(:writable?).and_return(false)
+            connection.write('12345678')
+            sleep 0.1
+            connection.stub(:writable?).and_return(true)
+            connection.stub(:flush).and_raise(StandardError, 'Boork')
+            f = reactor.stop
+            expect { f.value }.to raise_error(StandardError, 'Boork')
+            connection.should be_closed
+          end
         end
 
         it 'cancels all active timers' do
