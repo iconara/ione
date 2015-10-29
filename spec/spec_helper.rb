@@ -6,6 +6,7 @@ require 'bundler/setup'
 
 require 'support/fake_server'
 require 'support/await_helper'
+require 'support/server_helper'
 
 unless ENV['COVERAGE'] == 'no' || RUBY_ENGINE == 'rbx'
   require 'coveralls'

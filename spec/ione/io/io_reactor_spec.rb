@@ -254,20 +254,19 @@ module Ione
         end
 
         it 'waits on drain to complete upto five seconds by default' do
-          options.delete(:drain_timeout)
-          time = time_increment = next_increment = 0
-          mutex = Mutex.new
-          selector.handler do |_, writables, _, _|
-            mutex.synchronize do
-              clock.stub(:now).and_return(time += time_increment)
-              time_increment = next_increment
+          with_server do |host, port|
+            options.delete(:drain_timeout)
+            time = time_increment = next_increment = 0
+            mutex = Mutex.new
+            selector.handler do |_, writables, _, _|
+              mutex.synchronize do
+                clock.stub(:now).and_return(time += time_increment)
+                time_increment = next_increment
+              end
+              [[], writables, []]
             end
-            [[], writables, []]
-          end
-          reactor.start.value
-          TCPServer.open(0) do |server|
-            lazy_socket = Thread.start { server.accept }
-            connection = reactor.connect(server.addr[3], server.addr[1], 5).value
+            reactor.start.value
+            connection = reactor.connect(host, port, 5).value
             stopped_future = nil
             mutex.synchronize do
               connection.stub(:writable?).and_return(true)
@@ -281,17 +280,18 @@ module Ione
         end
 
         it 'closes all sockets' do
-          reactor.start.value
-          connection = reactor.connect('example.com', 9999, 5).value
-          reactor.stop.value
-          connection.should be_closed
+          with_server do |host, port|
+            reactor.start.value
+            connection = reactor.connect(host, port, 5).value
+            reactor.stop.value
+            connection.should be_closed
+          end
         end
 
         it 'closes all sockets even if drain fails' do
-          reactor.start.value
-          TCPServer.open(0) do |server|
-            lazy_socket = Thread.start { server.accept }
-            connection = reactor.connect(server.addr[3], server.addr[1], 5).value
+          with_server do |host, port|
+            reactor.start.value
+            connection = reactor.connect(host, port, 5).value
             connection.stub(:writable?).and_return(false)
             connection.write('12345678')
             sleep 0.1
@@ -397,70 +397,90 @@ module Ione
         include_context 'running_reactor'
 
         it 'calls the given block with a connection' do
-          connection = nil
-          reactor.start.value
-          reactor.connect('example.com', 9999, 5) { |c| connection = c }.value
-          connection.should_not be_nil
+          with_server do |host, port|
+            connection = nil
+            reactor.start.value
+            reactor.connect(host, port, 5) { |c| connection = c }.value
+            connection.should_not be_nil
+          end
         end
 
         it 'returns a future that resolves to what the given block returns' do
-          reactor.start.value
-          x = reactor.connect('example.com', 9999, 5) { :foo }.value
-          x.should == :foo
+          with_server do |host, port|
+            reactor.start.value
+            x = reactor.connect(host, port, 5) { :foo }.value
+            x.should == :foo
+          end
         end
 
         it 'defaults to 5 as the connection timeout' do
-          reactor.start.value
-          connection = reactor.connect('example.com', 9999).value
-          connection.connection_timeout.should == 5
+          with_server do |host, port|
+            reactor.start.value
+            connection = reactor.connect(host, port).value
+            connection.connection_timeout.should == 5
+          end
         end
 
         it 'takes the connection timeout from the :timeout option' do
-          reactor.start.value
-          connection = reactor.connect('example.com', 9999, timeout: 9).value
-          connection.connection_timeout.should == 9
+          with_server do |host, port|
+            reactor.start.value
+            connection = reactor.connect(host, port, timeout: 9).value
+            connection.connection_timeout.should == 9
+          end
         end
 
         it 'returns the connection when no block is given' do
-          reactor.start.value
-          reactor.connect('example.com', 9999, 5).value.should be_a(Connection)
+          with_server do |host, port|
+            reactor.start.value
+            reactor.connect(host, port, 5).value.should be_a(Connection)
+          end
         end
 
         it 'creates a connection and passes it to the selector as a readable' do
-          reactor.start.value
-          connection = reactor.connect('example.com', 9999, 5).value
-          await { selector.last_arguments[0].length > 1 }
-          selector.last_arguments[0].should include(connection)
+          with_server do |host, port|
+            reactor.start.value
+            connection = reactor.connect(host, port, 5).value
+            await { selector.last_arguments[0].length > 1 }
+            selector.last_arguments[0].should include(connection)
+          end
         end
 
         it 'upgrades the connection to SSL' do
-          reactor.start.value
-          connection = reactor.connect('example.com', 9999, ssl: true).value
-          connection.should be_a(SslConnection)
+          with_server do |host, port|
+            reactor.start.value
+            connection = reactor.connect(host, port, ssl: true).value
+            connection.should be_a(SslConnection)
+          end
         end
 
         it 'passes an SSL context to the SSL connection' do
-          ssl_context = double(:ssl_context)
-          reactor.start.value
-          f = reactor.connect('example.com', 9999, ssl: ssl_context)
-          expect { f.value }.to raise_error
+          with_server do |host, port|
+            ssl_context = double(:ssl_context)
+            reactor.start.value
+            f = reactor.connect(host, port, ssl: ssl_context)
+            expect { f.value }.to raise_error
+          end
         end
 
         context 'when called before the reactor is started' do
           it 'waits for the reactor to start' do
-            f = reactor.connect('example.com', 9999)
-            reactor.start.value
-            f.value
+            with_server do |host, port|
+              f = reactor.connect(host, port)
+              reactor.start.value
+              f.value
+            end
           end
         end
 
         context 'when called after the reactor has stopped' do
           it 'waits for the reactor to be restarted' do
-            reactor.start.value
-            reactor.stop.value
-            f = reactor.connect('example.com', 9999)
-            reactor.start.value
-            f.value
+            with_server do |host, port|
+              reactor.start.value
+              reactor.stop.value
+              f = reactor.connect(host, port)
+              reactor.start.value
+              f.value
+            end
           end
         end
       end
