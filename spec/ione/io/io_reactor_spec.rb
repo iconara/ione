@@ -7,7 +7,11 @@ module Ione
   module Io
     describe IoReactor do
       let :reactor do
-        described_class.new(selector: selector, clock: clock)
+        described_class.new(options)
+      end
+
+      let :options do
+        {selector: selector, clock: clock, drain_timeout: 3}
       end
 
       let! :selector do
@@ -37,7 +41,7 @@ module Ione
         end
 
         after do
-          reactor.stop if reactor.running?
+          reactor.stop.value if reactor.running?
         end
       end
 
@@ -192,11 +196,111 @@ module Ione
           stop_barrier.push(nil) until future.completed?
         end
 
+        it 'unblocks the reactor' do
+          running_barrier = Queue.new
+          selector.handler do |readables, writables, _, _|
+            running_barrier.push(nil)
+            IO.select(readables, writables, nil, 5)
+          end
+          reactor.start.value
+          running_barrier.pop
+          stopped_future = reactor.stop
+          sleep 0.5
+          stopped_future.should be_completed
+          stopped_future.value
+        end
+
+        it 'drains all sockets' do
+          reactor.start.value
+          TCPServer.open(0) do |server|
+            lazy_socket = Thread.start { server.accept }
+            connection = reactor.connect(server.addr[3], server.addr[1], 5).value
+            connection.stub(:writable?).and_return(false)
+            connection.write('12345678')
+            sleep 0.1
+            connection.stub(:writable?).and_return(true)
+            connection.stub(:flush) do
+              connection.stub(:writable?).and_return(false)
+            end
+            reactor.stop.value
+            connection.should have_received(:flush)
+          end
+        end
+
+        it 'waits on drain to complete upto the specified drain timeout' do
+          time = time_increment = next_increment = 0
+          mutex = Mutex.new
+          selector.handler do |_, writables, _, _|
+            mutex.synchronize do
+              clock.stub(:now).and_return(time += time_increment)
+              time_increment = next_increment
+            end
+            [[], writables, []]
+          end
+          reactor.start.value
+          TCPServer.open(0) do |server|
+            lazy_socket = Thread.start { server.accept }
+            connection = reactor.connect(server.addr[3], server.addr[1], 5).value
+            stopped_future = nil
+            mutex.synchronize do
+              connection.stub(:writable?).and_return(true)
+              connection.stub(:flush)
+              next_increment = 1
+              stopped_future = reactor.stop
+            end
+            expect { stopped_future.value }.to raise_error(ReactorError, /timeout/)
+            (time).should eq(3)
+          end
+        end
+
+        it 'waits on drain to complete upto five seconds by default' do
+          options.delete(:drain_timeout)
+          time = time_increment = next_increment = 0
+          mutex = Mutex.new
+          selector.handler do |_, writables, _, _|
+            mutex.synchronize do
+              clock.stub(:now).and_return(time += time_increment)
+              time_increment = next_increment
+            end
+            [[], writables, []]
+          end
+          reactor.start.value
+          TCPServer.open(0) do |server|
+            lazy_socket = Thread.start { server.accept }
+            connection = reactor.connect(server.addr[3], server.addr[1], 5).value
+            stopped_future = nil
+            mutex.synchronize do
+              connection.stub(:writable?).and_return(true)
+              connection.stub(:flush)
+              next_increment = 1
+              stopped_future = reactor.stop
+            end
+            expect { stopped_future.value }.to raise_error(ReactorError, /timeout/)
+            (time).should eq(5)
+          end
+        end
+
         it 'closes all sockets' do
           reactor.start.value
           connection = reactor.connect('example.com', 9999, 5).value
           reactor.stop.value
           connection.should be_closed
+        end
+
+        it 'closes all sockets even if drain fails' do
+          reactor.start.value
+          TCPServer.open(0) do |server|
+            lazy_socket = Thread.start { server.accept }
+            connection = reactor.connect(server.addr[3], server.addr[1], 5).value
+            connection.stub(:writable?).and_return(false)
+            connection.write('12345678')
+            sleep 0.1
+            connection.stub(:writable?).and_return(true)
+            connection.stub(:flush).and_raise(StandardError, 'Boork')
+            f = reactor.stop
+            expect { f.value }.to raise_error(StandardError, 'Boork')
+            connection.should be_closed
+          end
         end
 
         it 'cancels all active timers' do

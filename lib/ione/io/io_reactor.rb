@@ -163,6 +163,11 @@ module Ione
             error = e
           ensure
             begin
+              begin
+                @io_loop.drain_sockets
+              rescue => ee
+                error ||= ee
+              end
               @io_loop.close_sockets
               @scheduler.cancel_timers
               @unblocker = nil
@@ -193,6 +198,7 @@ module Ione
             Future.resolved(self)
           elsif @state != STOPPED_STATE && @state != CRASHED_STATE
             @state = STOPPING_STATE
+            @unblocker.unblock
             @stopped_promise.future
           else
             @stopped_promise.future
@@ -422,6 +428,9 @@ module Ione
         @out = nil
       end
 
+      def drain
+      end
+
       def to_io
         @out
       end
@@ -467,6 +476,7 @@ module Ione
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
         @timeout = options[:tick_resolution] || 1
+        @drain_timeout = options[:drain_timeout] || 5
         @lock = Mutex.new
         @sockets = []
       end
@@ -483,6 +493,18 @@ module Ione
       def remove_socket(socket)
         @lock.synchronize do
           @sockets = @sockets.reject { |s| s == socket || s.closed? }
+        end
+      end
+
+      def drain_sockets
+        threshold = @clock.now + @drain_timeout
+        until @clock.now >= threshold || @sockets.none?(&:writable?)
+          @sockets.each(&:drain)
+          tick
+          @lock.synchronize { @sockets = @sockets.reject(&:closed?) }
+        end
+        if @clock.now >= threshold
+          raise ReactorError, sprintf('Socket drain timeout after %p s', @drain_timeout)
         end
       end
 
