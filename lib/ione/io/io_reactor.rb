@@ -163,6 +163,11 @@ module Ione
             error = e
           ensure
             begin
+              begin
+                @io_loop.drain_sockets(5)
+              rescue => ee
+                error ||= ee
+              end
               @io_loop.close_sockets
               @scheduler.cancel_timers
               @unblocker = nil
@@ -422,6 +427,9 @@ module Ione
         @out = nil
       end
 
+      def drain
+      end
+
       def to_io
         @out
       end
@@ -483,6 +491,18 @@ module Ione
       def remove_socket(socket)
         @lock.synchronize do
           @sockets = @sockets.reject { |s| s == socket || s.closed? }
+        end
+      end
+
+      def drain_sockets(timeout)
+        threshold = @clock.now + timeout
+        until @clock.now > threshold || @sockets.none? { |s| s.writable? }
+          @sockets.each(&:drain)
+          tick
+          @lock.synchronize { @sockets = @sockets.reject { |s| s.closed? } }
+        end
+        if @clock.now > threshold
+          raise ReactorError, sprintf('Sockets failed to drain in %d s', timeout)
         end
       end
 

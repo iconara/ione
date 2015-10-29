@@ -37,7 +37,7 @@ module Ione
         end
 
         after do
-          reactor.stop if reactor.running?
+          reactor.stop.value if reactor.running?
         end
       end
 
@@ -190,6 +190,48 @@ module Ione
           running_barrier.pop
           reactor.should be_running
           stop_barrier.push(nil) until future.completed?
+        end
+
+        it 'drains all sockets' do
+          running_barrier = Queue.new
+          tick_barrier = Queue.new
+          selector.handler do |*args|
+            running_barrier.push(nil)
+            tick_barrier.pop
+            IO.select(*args)
+          end
+          reactor.start.value
+          TCPServer.open(0) do |server|
+            lazy_accept = Thread.new { server.accept }
+            nil while lazy_accept.status == 'running'
+            f = reactor.connect(server.addr[3], server.addr[1], 5)
+            until f.completed?
+              tick_barrier.push(nil) if tick_barrier.empty?
+            end
+            connection = f.value
+            server_side = lazy_accept.value
+            begin
+              loop do
+                server_side.write_nonblock 'unblock'
+              end
+            rescue IO::WaitWritable
+              server_side.close_write
+            end
+            written = 0
+            begin
+              loop do
+                connection.write('12345678')
+                written += 8
+                written -= server_side.read_nonblock(8).size
+              end
+            rescue IO::WaitReadable
+            end
+            f = reactor.stop
+            tick_barrier.push(nil) until f.completed?
+            sleep 0.5
+            server_side.read.size.should == written
+            server_side.close_read
+          end
         end
 
         it 'closes all sockets' do

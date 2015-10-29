@@ -77,6 +77,9 @@ module Ione
       end
 
       # @private
+      alias_method :drain, :close
+
+      # @private
       def to_io
         @io
       end
