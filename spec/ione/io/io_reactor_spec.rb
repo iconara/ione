@@ -172,10 +172,25 @@ module Ione
           reactor.stop.value.should equal(reactor)
         end
 
-        it 'is not running after being stopped' do
+        it 'is not running after stop completed' do
           reactor.start.value
           reactor.stop.value
           reactor.should_not be_running
+        end
+
+        it 'keeps running until stop completed' do
+          running_barrier = Queue.new
+          stop_barrier = Queue.new
+          selector.handler do
+            running_barrier.push(nil)
+            stop_barrier.pop
+            [[], [], []]
+          end
+          reactor.start.value
+          future = reactor.stop
+          running_barrier.pop
+          reactor.should be_running
+          stop_barrier.push(nil) until future.completed?
         end
 
         it 'closes all sockets' do
