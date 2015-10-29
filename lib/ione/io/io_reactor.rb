@@ -164,7 +164,7 @@ module Ione
           ensure
             begin
               begin
-                @io_loop.drain_sockets(5)
+                @io_loop.drain_sockets
               rescue => ee
                 error ||= ee
               end
@@ -475,6 +475,7 @@ module Ione
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
         @timeout = options[:tick_resolution] || 1
+        @drain_timeout = options[:drain_timeout] || 5
         @lock = Mutex.new
         @sockets = []
       end
@@ -494,15 +495,15 @@ module Ione
         end
       end
 
-      def drain_sockets(timeout)
-        threshold = @clock.now + timeout
-        until @clock.now > threshold || @sockets.none? { |s| s.writable? }
+      def drain_sockets
+        threshold = @clock.now + @drain_timeout
+        until @clock.now >= threshold || @sockets.none? { |s| s.writable? }
           @sockets.each(&:drain)
           tick
           @lock.synchronize { @sockets = @sockets.reject { |s| s.closed? } }
         end
-        if @clock.now > threshold
-          raise ReactorError, sprintf('Sockets failed to drain in %d s', timeout)
+        if @clock.now >= threshold
+          raise ReactorError, sprintf('Socket drain timeout after %p s', @drain_timeout)
         end
       end
 
