@@ -196,6 +196,20 @@ module Ione
           stop_barrier.push(nil) until future.completed?
         end
 
+        it 'unblocks the reactor' do
+          running_barrier = Queue.new
+          selector.handler do |readables, writables, _, _|
+            running_barrier.push(nil)
+            IO.select(readables, writables, nil, 5)
+          end
+          reactor.start.value
+          running_barrier.pop
+          stopped_future = reactor.stop
+          sleep 0.5
+          stopped_future.should be_completed
+          stopped_future.value
+        end
+
         it 'drains all sockets' do
           reactor.start.value
           TCPServer.open(0) do |server|

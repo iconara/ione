@@ -198,6 +198,7 @@ module Ione
             Future.resolved(self)
           elsif @state != STOPPED_STATE && @state != CRASHED_STATE
             @state = STOPPING_STATE
+            @unblocker.unblock
             @stopped_promise.future
           else
             @stopped_promise.future
