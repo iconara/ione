@@ -177,7 +177,7 @@ module Ione
           reactor.should_not be_running
         end
 
-        it 'keeps running until stop completed' do
+        it 'keeps running until stop completes' do
           running_barrier = Queue.new
           stop_barrier = Queue.new
           selector.handler do
