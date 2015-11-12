@@ -81,9 +81,9 @@ module Ione
             end
             reactor.start.value
             stopped_future = reactor.stop
-            restarted_future = reactor.start
             sequence = []
             stopped_future.on_complete { sequence << :stopped }
+            restarted_future = reactor.start
             restarted_future.on_complete { sequence << :restarted }
             barrier.push(nil)
             stopped_future.value
