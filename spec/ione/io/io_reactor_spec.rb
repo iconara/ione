@@ -230,9 +230,10 @@ module Ione
         it 'waits on drain to complete upto the specified drain timeout' do
           time = time_increment = next_increment = 0
           mutex = Mutex.new
+          clock.stub(:now) { mutex.synchronize { time } }
           selector.handler do |_, writables, _, _|
             mutex.synchronize do
-              clock.stub(:now).and_return(time += time_increment)
+              time += time_increment
               time_increment = next_increment
             end
             [[], writables, []]
