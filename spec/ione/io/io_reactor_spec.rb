@@ -258,9 +258,10 @@ module Ione
             options.delete(:drain_timeout)
             time = time_increment = next_increment = 0
             mutex = Mutex.new
+            clock.stub(:now) { mutex.synchronize { time } }
             selector.handler do |_, writables, _, _|
               mutex.synchronize do
-                clock.stub(:now).and_return(time += time_increment)
+                time += time_increment
                 time_increment = next_increment
               end
               [[], writables, []]
@@ -275,7 +276,7 @@ module Ione
               stopped_future = reactor.stop
             end
             expect { stopped_future.value }.to raise_error(ReactorError, /timeout/)
-            (time).should eq(5)
+            time.should eq(5)
           end
         end
 
