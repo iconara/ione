@@ -215,12 +215,14 @@ module Ione
           TCPServer.open(0) do |server|
             lazy_socket = Thread.start { server.accept }
             connection = reactor.connect(server.addr[3], server.addr[1], 5).value
-            connection.stub(:writable?).and_return(false)
+            writable = false
+            connection.stub(:stub_writable?) { writable }
+            class <<connection; alias_method :writable?, :stub_writable?; end
             connection.write('12345678')
             sleep 0.1
-            connection.stub(:writable?).and_return(true)
+            writable = true
             connection.stub(:flush) do
-              connection.stub(:writable?).and_return(false)
+              writable = false
             end
             reactor.stop.value
             connection.should have_received(:flush)
@@ -294,11 +296,13 @@ module Ione
           with_server do |host, port|
             reactor.start.value
             connection = reactor.connect(host, port, 5).value
-            connection.stub(:writable?).and_return(false)
+            writable = false
+            connection.stub(:stub_writable?) { writable }
+            class <<connection; alias_method :writable?, :stub_writable?; end
             connection.write('12345678')
             sleep 0.1
-            connection.stub(:writable?).and_return(true)
             connection.stub(:flush).and_raise(StandardError, 'Boork')
+            writable = true
             f = reactor.stop
             expect { f.value }.to raise_error(StandardError, 'Boork')
             connection.should be_closed
