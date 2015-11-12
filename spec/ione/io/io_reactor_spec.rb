@@ -88,6 +88,7 @@ module Ione
             barrier.push(nil)
             stopped_future.value
             restarted_future.value
+            sleep 0.1
             begin
               sequence.should == [:stopped, :restarted]
             ensure
@@ -115,6 +116,7 @@ module Ione
             barrier.push(:fail)
             stopped_future.value rescue nil
             restarted_future.value
+            sleep 0.1
             begin
               crashed.should be_true
               restarted.should be_true
@@ -296,6 +298,7 @@ module Ione
           with_server do |host, port|
             reactor.start.value
             connection = reactor.connect(host, port, 5).value
+            sleep 0.1
             writable = false
             connection.stub(:stub_writable?) { writable }
             class <<connection; alias_method :writable?, :stub_writable?; end
@@ -377,6 +380,7 @@ module Ione
           reactor.on_error { calls << :post_started }
           barrier.push(nil)
           await { !reactor.running? }
+          sleep 0.1
           reactor.on_error { calls << :pre_restarted }
           calls.should == [
             :pre_started,
