@@ -88,7 +88,7 @@ module Ione
             barrier.push(nil)
             stopped_future.value
             restarted_future.value
-            sleep 0.1
+            await { sequence.size >= 2 }
             begin
               sequence.should == [:stopped, :restarted]
             ensure
@@ -116,7 +116,7 @@ module Ione
             barrier.push(:fail)
             stopped_future.value rescue nil
             restarted_future.value
-            sleep 0.1
+            await { crashed && restarted }
             begin
               crashed.should be_true
               restarted.should be_true
@@ -207,7 +207,7 @@ module Ione
           reactor.start.value
           running_barrier.pop
           stopped_future = reactor.stop
-          sleep 0.5
+          await { stopped_future.completed? }
           stopped_future.should be_completed
           stopped_future.value
         end
@@ -221,11 +221,18 @@ module Ione
             connection.stub(:stub_writable?) { writable }
             class <<connection; alias_method :writable?, :stub_writable?; end
             connection.write('12345678')
-            sleep 0.1
-            writable = true
+            release_barrier = barrier = Queue.new
+            selector.handler do |readables, writables, _, _|
+              barrier.pop
+              [[], writables, []]
+            end
+            await { barrier.num_waiting > 0 }
+            barrier = []
+            release_barrier.push(nil)
             connection.stub(:flush) do
               writable = false
             end
+            writable = true
             reactor.stop.value
             connection.should have_received(:flush)
           end
@@ -298,12 +305,12 @@ module Ione
           with_server do |host, port|
             reactor.start.value
             connection = reactor.connect(host, port, 5).value
-            sleep 0.1
+            Thread.pass
             writable = false
             connection.stub(:stub_writable?) { writable }
             class <<connection; alias_method :writable?, :stub_writable?; end
             connection.write('12345678')
-            sleep 0.1
+            Thread.pass
             connection.stub(:flush).and_raise(StandardError, 'Boork')
             writable = true
             f = reactor.stop
@@ -380,7 +387,7 @@ module Ione
           reactor.on_error { calls << :post_started }
           barrier.push(nil)
           await { !reactor.running? }
-          sleep 0.1
+          await { calls.size >= 2 }
           reactor.on_error { calls << :pre_restarted }
           calls.should == [
             :pre_started,
