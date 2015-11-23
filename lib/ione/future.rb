@@ -610,11 +610,8 @@ module Ione
           semaphore << [value, error]
         end
         value, error = semaphore.pop
-        if f.resolved?
-          value
-        else
-          raise error
-        end
+        raise error if error
+        value
       end
     end
 
