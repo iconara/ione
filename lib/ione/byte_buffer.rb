@@ -174,6 +174,18 @@ module Ione
       b
     end
 
+    # Return the nt:h byte of the buffer, without removing it, and decode it as a signed or unsigned integer.
+    #
+    # @param [Integer] the zero-based positive position of the byte to read
+    # @return [Integer, nil] the integer interpretation of the byte at the specified position, or nil when beyond buffer size.
+    def getbyte(index, signed=false)
+      if @offset+index >= @read_buffer.bytesize
+        swap_buffers
+      end
+      b = @read_buffer.getbyte(@offset+index)
+      (signed && b >= 0x80) ? b - 0x100 : b
+    end
+
     def index(substring, start_index=0)
       if @offset >= @read_buffer.bytesize
         swap_buffers
