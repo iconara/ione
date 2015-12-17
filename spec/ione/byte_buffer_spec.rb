@@ -332,6 +332,37 @@ module Ione
       end
     end
 
+    describe '#getbyte' do
+      it 'returns the nth byte interpreted as an int' do
+        buffer.append("\x80\x01")
+        expect(buffer.getbyte(0)).to eq(0x80)
+        expect(buffer.getbyte(1)).to eq(0x01)
+      end
+
+      it 'returns nil if there are no bytes' do
+        expect(buffer.getbyte(0)).to be_nil
+      end
+
+      it 'returns nil if the index goes beyond the buffer' do
+        buffer.append("\x80\x01")
+        expect(buffer.getbyte(2)).to be_nil
+      end
+
+      it 'handles interleaved writes' do
+        buffer.append("\x80\x01")
+        buffer.read_byte
+        buffer.append("\x81\x02")
+        expect(buffer.getbyte(0)).to eq(0x01)
+        expect(buffer.getbyte(1)).to eq(0x81)
+      end
+
+      it 'can interpret the byte as signed' do
+        buffer.append("\x80\x02")
+        expect(buffer.getbyte(0, true)).to eq(-128)
+        expect(buffer.getbyte(1, true)).to eq(2)
+      end
+    end
+
     describe '#index' do
       it 'returns the first index of the specified substring' do
         buffer.append('fizz buzz')
