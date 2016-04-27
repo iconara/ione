@@ -373,7 +373,6 @@ module Ione
 
       def initialize
         @out, @in = IO.pipe
-        @lock = Mutex.new
         @state = BLOCKABLE_STATE
         @writables = [@in]
       end
@@ -413,10 +412,8 @@ module Ione
       end
 
       def close
-        @lock.synchronize do
-          return if @state == CLOSED_STATE
-          @state = CLOSED_STATE
-        end
+        return if @state == CLOSED_STATE
+        @state = CLOSED_STATE
         @in.close
         @out.close
         @in = nil
