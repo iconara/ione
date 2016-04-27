@@ -395,19 +395,14 @@ module Ione
       end
 
       def unblock
-        if @state != CLOSED_STATE
-          @lock.lock
-          begin
-            if @state == BLOCKABLE_STATE
-              @in.write_nonblock(PING_BYTE)
-              @state = UNBLOCKING_STATE
-            end
-          rescue IO::WaitWritable
-            $stderr.puts('Oh noes we got blocked while writing the unblocker')
-          ensure
-            @lock.unlock
-          end
+        if @state == BLOCKABLE_STATE
+          @state = UNBLOCKING_STATE
+          @in.write_nonblock(PING_BYTE)
         end
+      rescue IO::WaitWritable
+        $stderr.puts('Oh noes we got blocked while writing the unblocker')
+      rescue IOError
+        $stderr.puts('Oh noes we wrote to the unblocker after it got closed, probably')
       end
 
       def read
