@@ -367,14 +367,14 @@ module Ione
 
     # @private
     class Unblocker
-      OPEN_STATE = 0
-      CLOSED_STATE = 1
+      BLOCKABLE_STATE = 0
+      UNBLOCKING_STATE = 1
+      CLOSED_STATE = 2
 
       def initialize
         @out, @in = IO.pipe
         @lock = Mutex.new
-        @state = OPEN_STATE
-        @unblocked = false
+        @state = BLOCKABLE_STATE
         @writables = [@in]
       end
 
@@ -398,9 +398,12 @@ module Ione
         if @state != CLOSED_STATE
           @lock.lock
           begin
-            if @state != CLOSED_STATE && IO.select(nil, @writables, nil, 0)
+            if @state == BLOCKABLE_STATE
               @in.write_nonblock(PING_BYTE)
+              @state = UNBLOCKING_STATE
             end
+          rescue IO::WaitWritable
+            $stderr.puts('Oh noes we got blocked while writing the unblocker')
           ensure
             @lock.unlock
           end
@@ -411,8 +414,10 @@ module Ione
         @lock.lock
         if @state != CLOSED_STATE
           @out.read_nonblock(65536)
-          @unblocked = false
+          @state = BLOCKABLE_STATE
         end
+      rescue IO::WaitReadable
+        $stderr.puts('Oh noes we got blocked while reading the unblocker')
       ensure
         @lock.unlock
       end
