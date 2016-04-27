@@ -406,15 +406,10 @@ module Ione
       end
 
       def read
-        @lock.lock
-        if @state != CLOSED_STATE
-          @out.read_nonblock(65536)
-          @state = BLOCKABLE_STATE
-        end
-      rescue IO::WaitReadable
-        $stderr.puts('Oh noes we got blocked while reading the unblocker')
-      ensure
-        @lock.unlock
+        @out.read_nonblock(65536)
+        @state = BLOCKABLE_STATE
+      rescue IOError
+        $stderr.puts('Oh noes we read from the unblocker after it got closed, probably')
       end
 
       def close
