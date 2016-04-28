@@ -184,18 +184,17 @@ module Ione
         end
 
         it 'keeps running until stop completes' do
-          running_barrier = Queue.new
-          stop_barrier = Queue.new
+          barrier = Queue.new
           selector.handler do
-            running_barrier.push(nil)
-            stop_barrier.pop
+            barrier.pop
             [[], [], []]
           end
           reactor.start.value
           future = reactor.stop
-          running_barrier.pop
+          barrier.push(nil)
           reactor.should be_running
-          stop_barrier.push(nil) until future.completed?
+          barrier.push(nil) until future.completed?
+          reactor.should_not be_running
         end
 
         it 'unblocks the reactor' do
