@@ -95,7 +95,8 @@ module Ione
         @clock = options[:clock] || Time
         @state = PENDING_STATE
         @error_listeners = []
-        @io_loop = IoLoopBody.new(@options)
+        @unblocker = Unblocker.new
+        @io_loop = IoLoopBody.new(@unblocker, @options)
         @scheduler = Scheduler.new
         @lock = Mutex.new
       end
@@ -144,8 +145,6 @@ module Ione
             @state = RUNNING_STATE
           end
         end
-        @unblocker = Unblocker.new
-        @io_loop.add_socket(@unblocker)
         @started_promise = Promise.new
         @stopped_promise = Promise.new
         @error_listeners.each do |listener|
@@ -170,7 +169,6 @@ module Ione
               end
               @io_loop.close_sockets
               @scheduler.cancel_timers
-              @unblocker = nil
             ensure
               if error
                 @state = CRASHED_STATE
@@ -464,13 +462,13 @@ module Ione
 
     # @private
     class IoLoopBody
-      def initialize(options={})
+      def initialize(unblocker, options={})
         @selector = options[:selector] || IO
         @clock = options[:clock] || Time
         @timeout = options[:tick_resolution] || 1
         @drain_timeout = options[:drain_timeout] || 5
         @lock = Mutex.new
-        @sockets = []
+        @sockets = [unblocker]
       end
 
       def add_socket(socket)
