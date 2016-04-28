@@ -7,7 +7,15 @@ module Ione
   module Io
     describe Acceptor do
       let :acceptor do
-        described_class.new('example.com', 4321, backlog, unblocker, reactor, socket_impl)
+        described_class.new(host, port, backlog, unblocker, reactor, socket_impl)
+      end
+
+      let :host do
+        'example.com'
+      end
+
+      let :port do
+        4321
       end
 
       let :backlog do
@@ -30,6 +38,10 @@ module Ione
         double(:socket)
       end
 
+      let :local_address do
+        double(:local_address, ip_unpack: [host, port])
+      end
+
       shared_context 'accepting_connections' do
         let :client_socket do
           double(:client_socket)
@@ -49,7 +61,7 @@ module Ione
 
       before do
         socket_impl.stub(:getaddrinfo)
-          .with('example.com', 4321, nil, Socket::SOCK_STREAM)
+          .with('example.com', port, nil, Socket::SOCK_STREAM)
           .and_return([[nil, 'PORT', nil, 'IP1', 'FAMILY1', 'TYPE1'], [nil, 'PORT', nil, 'IP2', 'FAMILY2', 'TYPE2']])
         socket_impl.stub(:sockaddr_in)
           .with('PORT', 'IP1')
@@ -66,6 +78,7 @@ module Ione
         socket.stub(:close)
         socket.stub(:bind)
         socket.stub(:listen)
+        socket.stub(:local_address).and_return(local_address)
       end
 
       describe '#bind' do
@@ -223,6 +236,39 @@ module Ione
           acceptor.bind
           acceptor.close
           acceptor.to_io.should be_nil
+        end
+      end
+
+      describe '#host' do
+        let :local_address do
+          double(:local_address, ip_unpack: ['1.1.1.1', port])
+        end
+
+        it 'returns the host the server is listening on' do
+          acceptor.bind
+          acceptor.host.should eq('1.1.1.1')
+        end
+      end
+
+      describe '#port' do
+        it 'returns the port the server is listening on' do
+          acceptor.bind
+          acceptor.port.should eq(4321)
+        end
+
+        context 'when the requested port was 0' do
+          let :port do
+            0
+          end
+
+          let :local_address do
+            double(:local_address, ip_unpack: ['example.com', 65432])
+          end
+
+          it 'returns the port that was chosen for the server' do
+            acceptor.bind
+            acceptor.port.should eq(65432)
+          end
         end
       end
     end
