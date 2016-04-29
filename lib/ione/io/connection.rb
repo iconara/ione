@@ -6,7 +6,7 @@ module Ione
     # from and writing to the socket.
     # @since v1.0.0
     class Connection < BaseConnection
-      attr_reader :connection_timeout
+      attr_reader :connection_timeout, :local_host, :local_port
 
       # @private
       def initialize(host, port, connection_timeout, unblocker, clock, socket_impl=Socket)
@@ -37,6 +37,7 @@ module Ione
           end
         rescue Errno::EISCONN
           @state = CONNECTED_STATE
+          @local_host, @local_port = @io.local_address.ip_unpack
           @connected_promise.fulfill(self)
         rescue Errno::EINPROGRESS, Errno::EALREADY
           if @clock.now - @connection_started_at > @connection_timeout

@@ -27,6 +27,10 @@ module Ione
         double(:socket)
       end
 
+      let :local_address do
+        double(:local_address, ip_unpack: ['1.2.3.4', 65432])
+      end
+
       before do
         socket_impl.stub(:getaddrinfo)
           .with('example.com', 55555, nil, Socket::SOCK_STREAM)
@@ -42,6 +46,7 @@ module Ione
       before do
         socket.stub(:connect_nonblock)
         socket.stub(:close)
+        socket.stub(:local_address).and_return(local_address)
       end
 
       it_behaves_like 'a connection' do
@@ -321,6 +326,44 @@ module Ione
             handler.to_s.should include('CONNECTED')
             handler.close
             handler.to_s.should include('CLOSED')
+          end
+        end
+      end
+
+      describe '#local_host' do
+        context 'when not yet connected' do
+          it 'returns nil' do
+            handler.local_host.should be_nil
+          end
+        end
+
+        context 'when connected' do
+          before do
+            socket.stub(:connect_nonblock).and_raise(Errno::EISCONN)
+          end
+
+          it 'returns the hostname of the interface the socket is using' do
+            handler.connect
+            handler.local_host.should eq('1.2.3.4')
+          end
+        end
+      end
+
+      describe '#local_port' do
+        context 'when not yet connected' do
+          it 'returns nil' do
+            handler.local_host.should be_nil
+          end
+        end
+
+        context 'when connected' do
+          before do
+            socket.stub(:connect_nonblock).and_raise(Errno::EISCONN)
+          end
+
+          it 'returns the local port the socket is using' do
+            handler.connect
+            handler.local_port.should eq(65432)
           end
         end
       end

@@ -31,6 +31,10 @@ module Ione
         double(:ssl_context)
       end
 
+      let :local_addres do
+        double(:local_addres, ip_unpack: ['1.2.3.4', 65432])
+      end
+
       before do
         socket_impl.stub(:new).with(raw_socket, ssl_context).and_return(ssl_socket)
       end
@@ -38,6 +42,7 @@ module Ione
       before do
         ssl_socket.stub(:connect_nonblock)
         ssl_socket.stub(:close)
+        ssl_socket.stub(:local_address).and_return(local_addres)
       end
 
       it_behaves_like 'a connection', skip_read: true do
@@ -176,6 +181,36 @@ module Ione
           handler.connect
           handler.read
           handler.should be_closed
+        end
+      end
+
+      describe '#local_host' do
+        context 'when not yet connected' do
+          it 'returns nil' do
+            handler.local_host.should be_nil
+          end
+        end
+
+        context 'when connected' do
+          it 'returns the hostname of the interface the socket is using' do
+            handler.connect
+            handler.local_host.should eq('1.2.3.4')
+          end
+        end
+      end
+
+      describe '#local_port' do
+        context 'when not yet connected' do
+          it 'returns nil' do
+            handler.local_host.should be_nil
+          end
+        end
+
+        context 'when connected' do
+          it 'returns the local port the socket is using' do
+            handler.connect
+            handler.local_port.should eq(65432)
+          end
         end
       end
     end
