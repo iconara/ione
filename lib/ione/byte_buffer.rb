@@ -253,22 +253,35 @@ module Ione
     # in situations where a loop wants to offer some bytes but can't be sure
     # how many will be accepted — for example when writing to a socket.
     #
+    # By providing the readonly argument, the peek is even cheaper in that it
+    # only considers the read buffer. In this mode, the method returns nil
+    # to signify that the read buffer is empty. With just a single reader,
+    # like the IO reactor, where reads only happen in one thread, this means
+    # that `cheap_peek(true)` can be called without holding a lock to protect
+    # against concurrent writes
+    #
     # @example feeding bytes to a socket
     #   while true
     #     _, writables, _ = IO.select(nil, sockets)
     #     if writables
     #       writables.each do |io|
-    #         n = io.write_nonblock(buffer.cheap_peek)
+    #         bytes = buffer.cheap_peek(true)
+    #         unless bytes
+    #           bytes = buffer_lock.synchronize { buffer.cheap_peak }
+    #         end
+    #         n = io.write_nonblock(bytes)
     #         buffer.discard(n)
     #       end
     #     end
     #
-    # @return [String] some bytes from the start of the buffer
-    def cheap_peek
-      if @offset >= @read_buffer.bytesize
-        swap_buffers
+    # @param [Boolean] readonly to specify to only look at the read buffer
+    # @return [String, nil] some bytes from the start of the buffer, or nil when read buffer empty in readonly mode
+    def cheap_peek(readonly = false)
+      has_read_buffer = @offset < @read_buffer.bytesize
+      if has_read_buffer || !readonly
+        swap_buffers unless has_read_buffer
+        @read_buffer[@offset, @read_buffer.bytesize - @offset]
       end
-      @read_buffer[@offset, @read_buffer.bytesize - @offset]
     end
 
     def eql?(other)

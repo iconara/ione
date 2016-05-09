@@ -163,18 +163,29 @@ module Ione
       def flush
         should_close = false
         if @state == CONNECTED_STATE || @state == DRAINING_STATE
-          @lock.lock
-          begin
-            if @writable
-              bytes_written = @io.write_nonblock(@write_buffer.cheap_peek)
+          bytes = @write_buffer.cheap_peek(true)
+          unless bytes
+            @lock.lock
+            begin
+              if @writable
+                bytes = @write_buffer.cheap_peek
+              end
+            ensure
+              @lock.unlock
+            end
+          end
+          if bytes
+            bytes_written = @io.write_nonblock(bytes)
+            @lock.lock
+            begin
               @write_buffer.discard(bytes_written)
+              @writable = !@write_buffer.empty?
+              if @state == DRAINING_STATE && !@writable
+                should_close = true
+              end
+            ensure
+              @lock.unlock
             end
-            @writable = !@write_buffer.empty?
-            if @state == DRAINING_STATE && !@writable
-              should_close = true
-            end
-          ensure
-            @lock.unlock
           end
           close if should_close
         end
