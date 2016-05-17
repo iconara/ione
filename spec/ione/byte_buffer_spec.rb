@@ -330,6 +330,28 @@ module Ione
         x.bytesize.should be <= buffer.bytesize
         buffer.to_str.should start_with(x)
       end
+
+      it 'considers contents in the write when read buffer consumed' do
+        buffer.append('foo')
+        buffer.append('bar')
+        buffer.read_byte
+        buffer.discard(5)
+        buffer.append('hello')
+        x = buffer.cheap_peek
+        x.bytesize.should be > 0
+        x.bytesize.should be <= buffer.bytesize
+        buffer.to_str.should start_with(x)
+      end
+
+      it 'returns nil in readonly mode when read buffer is consumed' do
+        buffer.append('foo')
+        buffer.append('bar')
+        buffer.read_byte
+        buffer.discard(5)
+        buffer.append('hello')
+        x = buffer.cheap_peek(true)
+        x.should be_nil
+      end
     end
 
     describe '#getbyte' do
