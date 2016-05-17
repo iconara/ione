@@ -590,7 +590,7 @@ module Ione
       end
     end
 
-    # @since v1.x.x
+    # @since v1.3.0
     module Blockers
       # Awaits the completion of a future and either returns the value or raises
       # an error.
