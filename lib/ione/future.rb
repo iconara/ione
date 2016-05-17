@@ -590,7 +590,33 @@ module Ione
       end
     end
 
+    # @since v1.x.x
+    module Blockers
+      # Awaits the completion of a future and either returns the value or raises
+      # an error.
+      #
+      # @note
+      #   This is a blocking operation and should be used with caution. You should
+      #   never call this method in a block given to any of the other methods
+      #   on {Future}. Prefer using combinator methods like {#map} and {#flat_map}
+      #   to compose operations asynchronously, or use {#on_value}, {#on_failure}
+      #   or {#on_complete} to listen for values and/or failures.
+      #
+      # @raise [Error] the error that failed this future
+      # @return [Object] the value of this future
+      def await(f)
+        semaphore = Queue.new
+        f.on_complete do |value, error|
+          semaphore << [value, error]
+        end
+        value, error = semaphore.pop
+        raise error if error
+        value
+      end
+    end
+
     extend Factories
+    extend Blockers
     include Combinators
     include Callbacks
 
@@ -674,35 +700,19 @@ module Ione
     #   to compose operations asynchronously, or use {#on_value}, {#on_failure}
     #   or {#on_complete} to listen for values and/or failures.
     #
+    # @deprecated
+    #   This method will be removed in the next major release.
+    #   Use {Future.await}. Synchronously waiting for the result of a future is
+    #   very rarely the right thing to do, and as the only blocking method on
+    #   {Future}, {#value} doesn't belong.
+    #
     # @raise [Error] the error that failed this future
     # @return [Object] the value of this future
     # @see Callbacks#on_value
     # @see Callbacks#on_failure
     # @see Callbacks#on_complete
     def value
-      raise @error if @state == FAILED_STATE
-      return @value if @state == RESOLVED_STATE
-      semaphore = nil
-      @lock.lock
-      begin
-        raise @error if @state == FAILED_STATE
-        return @value if @state == RESOLVED_STATE
-        semaphore = Queue.new
-        u = proc { semaphore << :unblock }
-        @listeners << u
-      ensure
-        @lock.unlock
-      end
-      while true
-        @lock.lock
-        begin
-          raise @error if @state == FAILED_STATE
-          return @value if @state == RESOLVED_STATE
-        ensure
-          @lock.unlock
-        end
-        semaphore.pop
-      end
+      Future.await(self)
     end
     alias_method :get, :value
 
