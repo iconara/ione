@@ -8,7 +8,7 @@ module Ione
   module Io
     describe ServerConnection do
       let :handler do
-        described_class.new(socket, 'example.com', 4321, unblocker)
+        described_class.new(socket, 'example.com', 4321, unblocker, thread_pool)
       end
 
       let :socket do
@@ -17,6 +17,14 @@ module Ione
 
       let :unblocker do
         double(:unblocker, unblock: nil)
+      end
+
+      let :thread_pool do
+        FakeThreadPool.new
+      end
+
+      before do
+        thread_pool.auto_run = true
       end
 
       it_behaves_like 'a connection'

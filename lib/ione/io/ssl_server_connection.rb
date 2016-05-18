@@ -7,8 +7,8 @@ module Ione
       ACCEPTING_STATE = 0
       ESTABLISHED_STATE = 1
 
-      def initialize(socket, host, port, unblocker, ssl_context, accept_callback, ssl_socket_impl=nil)
-        super(socket, host, port, unblocker)
+      def initialize(socket, host, port, unblocker, thread_pool, ssl_context, accept_callback, ssl_socket_impl=nil)
+        super(socket, host, port, unblocker, thread_pool)
         @ssl_context = ssl_context
         @accept_callback = accept_callback
         @ssl_socket_impl = ssl_socket_impl || OpenSSL::SSL::SSLSocket

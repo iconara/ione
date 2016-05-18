@@ -12,10 +12,11 @@ module Ione
       attr_reader :host, :port
 
       # @private
-      def initialize(host, port, unblocker)
+      def initialize(host, port, unblocker, thread_pool)
         @host = host
         @port = port
         @unblocker = unblocker
+        @thread_pool = thread_pool
         @state = CONNECTING_STATE
         @writable = false
         @lock = Mutex.new
@@ -111,9 +112,11 @@ module Ione
       # yourself in your protocol handler.
       #
       # It is very important that you don't do any heavy lifting in the callback
-      # since it is called from the IO reactor thread, and as long as the
-      # callback is working the reactor can't handle any IO and no other
-      # callbacks can be called.
+      # since it by default is called from the IO reactor thread, and as long as
+      # the callback is working the reactor can't handle any IO and no other
+      # callbacks can be called. However, if you have provided a thread pool to
+      # your reactor then each call to the callback will be submitted to that
+      # pool and you're free to do as much work as you want.
       #
       # Errors raised by the callback will be ignored.
       #
@@ -196,7 +199,11 @@ module Ione
       # @private
       def read
         new_data = @io.read_nonblock(65536)
-        @data_listener.call(new_data) if @data_listener
+        if @data_listener
+          @thread_pool.submit do
+            @data_listener.call(new_data)
+          end
+        end
       rescue => e
         close(e)
       end

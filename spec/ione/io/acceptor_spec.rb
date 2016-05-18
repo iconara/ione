@@ -7,7 +7,7 @@ module Ione
   module Io
     describe Acceptor do
       let :acceptor do
-        described_class.new('example.com', 4321, backlog, unblocker, reactor, socket_impl)
+        described_class.new('example.com', 4321, backlog, unblocker, thread_pool, reactor, socket_impl)
       end
 
       let :backlog do
@@ -16,6 +16,10 @@ module Ione
 
       let :unblocker do
         double(:unblocker)
+      end
+
+      let :thread_pool do
+        FakeThreadPool.new(true)
       end
 
       let :reactor do
@@ -200,6 +204,21 @@ module Ione
           received_connection1.host.should == 'example.com'
           received_connection2.host.should == 'example.com'
           received_connection2.port.should == 3333
+        end
+
+        it 'calls the accept listeners in the provided thread pool' do
+          thread_pool.auto_run = false
+          called1 = false
+          called2 = false
+          acceptor.on_accept { |c| called1 = true }
+          acceptor.on_accept { |c| called2 = true }
+          acceptor.bind
+          acceptor.read
+          called1.should be_false
+          called2.should be_false
+          thread_pool.run_all
+          called1.should be_true
+          called2.should be_true
         end
 
         it 'ignores exceptions raised by the connection callback' do

@@ -7,8 +7,8 @@ module Ione
   module Io
     # @private
     class SslConnection < BaseConnection
-      def initialize(host, port, io, unblocker, ssl_context=nil, socket_impl=OpenSSL::SSL::SSLSocket)
-        super(host, port, unblocker)
+      def initialize(host, port, io, unblocker, thread_pool, ssl_context=nil, socket_impl=OpenSSL::SSL::SSLSocket)
+        super(host, port, unblocker, thread_pool)
         @socket_impl = socket_impl
         @ssl_context = ssl_context
         @raw_io = io

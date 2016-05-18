@@ -8,7 +8,7 @@ module Ione
   module Io
     describe SslServerConnection do
       let :handler do
-        described_class.new(socket, 'example.com', 4444, unblocker, ssl_context, accept_callback, ssl_socket_impl)
+        described_class.new(socket, 'example.com', 4444, unblocker, thread_pool, ssl_context, accept_callback, ssl_socket_impl)
       end
 
       let :socket do
@@ -17,6 +17,10 @@ module Ione
 
       let :unblocker do
         double(:unblocker)
+      end
+
+      let :thread_pool do
+        FakeThreadPool.new(true)
       end
 
       let :ssl_context do

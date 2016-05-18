@@ -8,7 +8,7 @@ module Ione
   module Io
     describe SslConnection do
       let :handler do
-        described_class.new('example.com', 55555, raw_socket, unblocker, ssl_context, socket_impl)
+        described_class.new('example.com', 55555, raw_socket, unblocker, thread_pool, ssl_context, socket_impl)
       end
 
       let :socket_impl do
@@ -25,6 +25,10 @@ module Ione
 
       let :unblocker do
         double(:unblocker, unblock: nil)
+      end
+
+      let :thread_pool do
+        FakeThreadPool.new(true)
       end
 
       let :ssl_context do
@@ -58,7 +62,7 @@ module Ione
 
         it 'does not pass the context parameter when the SSL context is nil' do
           socket_impl.stub(:new).and_return(ssl_socket)
-          h = described_class.new('example.com', 55555, raw_socket, unblocker, nil, socket_impl)
+          h = described_class.new('example.com', 55555, raw_socket, unblocker, thread_pool, nil, socket_impl)
           h.connect
           socket_impl.should have_received(:new).with(raw_socket)
         end
