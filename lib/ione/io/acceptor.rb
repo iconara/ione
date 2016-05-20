@@ -13,7 +13,7 @@ module Ione
       CONNECTED_STATE = 1
       CLOSED_STATE = 2
 
-      attr_reader :backlog
+      attr_reader :backlog, :host, :port
 
       # @private
       def initialize(host, port, backlog, unblocker, reactor, socket_impl=nil)
@@ -51,6 +51,7 @@ module Ione
             retry
           end
         end
+        @host, @port = @io.local_address.ip_unpack
         @state = CONNECTED_STATE
         Future.resolved(self)
       rescue => e

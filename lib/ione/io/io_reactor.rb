@@ -298,7 +298,8 @@ module Ione
       #
       # @param host [String] the host to bind to, for example 127.0.0.1,
       #   'example.com' – or '0.0.0.0' to bind to all interfaces
-      # @param port [Integer] the port to bind to
+      # @param port [Integer] the port to bind to – or 0 to bind to any
+      #   available port
       # @param options [Hash]
       # @option options [Integer] :backlog (5) the maximum number of pending
       #   (unaccepted) connections, i.e. Socket::SOMAXCONN
@@ -309,7 +310,7 @@ module Ione
       #   bound. The value will be the acceptor, or when a block is given, the
       #   value returned by the block.
       # @since v1.1.0
-      def bind(host, port, options=nil, &block)
+      def bind(host='0.0.0.0', port=0, options=nil, &block)
         if options.is_a?(Integer) || options.nil?
           backlog = options || 5
           ssl_context = nil

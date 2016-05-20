@@ -7,6 +7,8 @@ module Ione
   module Io
     # @private
     class SslConnection < BaseConnection
+      attr_reader :local_host, :local_port
+
       def initialize(host, port, io, unblocker, ssl_context=nil, socket_impl=OpenSSL::SSL::SSLSocket)
         super(host, port, unblocker)
         @socket_impl = socket_impl
@@ -23,6 +25,7 @@ module Ione
           @io = @socket_impl.new(@raw_io)
         end
         @io.connect_nonblock
+        @local_host, @local_port = @io.local_address.ip_unpack
         @state = CONNECTED_STATE
         @connected_promise.fulfill(self)
         @connected_promise.future
