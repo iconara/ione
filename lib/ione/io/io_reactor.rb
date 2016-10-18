@@ -95,6 +95,7 @@ module Ione
         @clock = options[:clock] || Time
         @state = PENDING_STATE
         @error_listeners = []
+        @unblocker = nil
         @io_loop = IoLoopBody.new(@options)
         @scheduler = Scheduler.new
         @lock = Mutex.new

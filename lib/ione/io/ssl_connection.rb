@@ -12,6 +12,7 @@ module Ione
         @socket_impl = socket_impl
         @ssl_context = ssl_context
         @raw_io = io
+        @io = nil
         @connected_promise = Promise.new
         on_closed(&method(:cleanup_on_close))
       end
