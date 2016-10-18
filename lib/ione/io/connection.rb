@@ -14,6 +14,7 @@ module Ione
         @connection_timeout = connection_timeout
         @clock = clock
         @socket_impl = socket_impl
+        @addrinfos = nil
         @connected_promise = Promise.new
         on_closed(&method(:cleanup_on_close))
       end
