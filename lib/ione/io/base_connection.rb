@@ -15,10 +15,12 @@ module Ione
       def initialize(host, port, unblocker)
         @host = host
         @port = port
+        @io = nil
         @unblocker = unblocker
         @state = CONNECTING_STATE
         @writable = false
         @lock = Mutex.new
+        @data_listener = nil
         @write_buffer = ByteBuffer.new
         @closed_promise = Promise.new
       end
