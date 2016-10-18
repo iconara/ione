@@ -599,6 +599,8 @@ module Ione
       @lock = Mutex.new
       @state = PENDING_STATE
       @listeners = []
+      @value = nil
+      @error = nil
     end
 
     # Registers a listener that will be called when this future completes,
