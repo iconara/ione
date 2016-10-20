@@ -11,6 +11,7 @@ class FakeServer
     @disconnects = 0
     @connections = []
     @received_bytes = ''
+    @running = nil
   end
 
   def start(options={})
