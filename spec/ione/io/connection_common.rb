@@ -40,7 +40,7 @@ shared_examples_for 'a connection' do |options|
       handler.on_closed { calls += 1 }
       handler.close
       handler.close
-      calls.should == 1
+      calls.should eq 1
     end
 
     it 'returns false if it did nothing' do
@@ -238,7 +238,7 @@ shared_examples_for 'a connection' do |options|
         data = nil
         handler.on_data { |d| data = d }
         handler.read
-        data.should == 'foo bar'
+        data.should eq 'foo bar'
       end
 
       context 'when #read_nonblock raises an error' do
