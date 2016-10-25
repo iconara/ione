@@ -1,0 +1,4 @@
+# Set whether full traces are enabled (c-call/c-return).
+# Options: [true, false], Default: false.
+
+debug.fullTrace=true
