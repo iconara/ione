@@ -871,9 +871,9 @@ module Ione
         looping = more = true
         while more
           more = false
-          @futures.pop.on_complete do |v, e|
-            if e || @futures.empty? || !looping || !Thread.current.equal?(outer)
-              await_next(v, e)
+          @futures.pop.on_complete do |val, err|
+            if err || @futures.empty? || !looping || !Thread.current.equal?(outer)
+              await_next(val, err)
             else
               more = true
             end
