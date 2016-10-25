@@ -16,7 +16,7 @@ module Ione
     it 'can set a value' do
       pending('Redis not running', unless: client)
       response = client.set('foo', 'bar').value
-      response.should == 'OK'
+      response.should eq 'OK'
     end
 
     it 'can get a value' do
@@ -24,7 +24,7 @@ module Ione
       f = client.set('foo', 'bar').flat_map do
         client.get('foo')
       end
-      f.value.should == 'bar'
+      f.value.should eq 'bar'
     end
 
     it 'can delete values' do
@@ -32,7 +32,7 @@ module Ione
       f = client.set('hello', 'world').flat_map do
         client.del('hello')
       end
-      f.value.should == 1
+      f.value.should eq 1
     end
 
     it 'handles nil values' do
@@ -54,9 +54,9 @@ module Ione
       f = client.del('stuff')
       f.value
       f = client.rpush('stuff', 'hello', 'world')
-      f.value.should == 2
+      f.value.should eq 2
       f = client.lrange('stuff', 0, 2)
-      f.value.should == ['hello', 'world']
+      f.value.should eq ['hello', 'world']
     end
 
     it 'handles nil values when reading multiple elements' do
@@ -64,7 +64,7 @@ module Ione
       client.del('things')
       client.hset('things', 'hello', 'world')
       f = client.hmget('things', 'hello', 'foo')
-      f.value.should == ['world', nil]
+      f.value.should eq ['world', nil]
     end
   end
 end

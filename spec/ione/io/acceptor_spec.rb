@@ -174,8 +174,8 @@ module Ione
           acceptor.bind
           acceptor.read
           accepted_handlers.should have(1).item
-          accepted_handlers.first.host.should == 'example.com'
-          accepted_handlers.first.port.should == 3333
+          accepted_handlers.first.host.should eq 'example.com'
+          accepted_handlers.first.port.should eq 3333
         end
 
         it 'passes the unblocker along to the connection handler' do
@@ -197,9 +197,9 @@ module Ione
           acceptor.on_accept { |c| received_connection2 = c }
           acceptor.bind
           acceptor.read
-          received_connection1.host.should == 'example.com'
-          received_connection2.host.should == 'example.com'
-          received_connection2.port.should == 3333
+          received_connection1.host.should eq 'example.com'
+          received_connection2.host.should eq 'example.com'
+          received_connection2.port.should eq 3333
         end
 
         it 'ignores exceptions raised by the connection callback' do

@@ -582,8 +582,8 @@ module Ione
         ensure
           @lock.unlock
         end
-        timers.each do |timer|
-          timer.fail(CancelledError.new)
+        timers.each do |t|
+          t.fail(CancelledError.new)
         end
         nil
       end
@@ -604,8 +604,8 @@ module Ione
             ensure
               @lock.unlock
             end
-            expired_timers.each do |timer|
-              timer.fulfill
+            expired_timers.each do |t|
+              t.fulfill
             end
           end
         end

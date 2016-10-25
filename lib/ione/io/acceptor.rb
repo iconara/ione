@@ -22,6 +22,7 @@ module Ione
         @backlog = backlog
         @unblocker = unblocker
         @reactor = reactor
+        @io = nil
         @socket_impl = socket_impl || ServerSocket
         @accept_listeners = []
         @lock = Mutex.new

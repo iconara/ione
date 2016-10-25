@@ -7,7 +7,7 @@ module Ione
   module Io
     describe SslAcceptor do
       let :acceptor do
-        described_class.new('example.com', 4321, backlog = 3, unblocker, reactor, ssl_context, socket_impl, ssl_socket_impl)
+        described_class.new('example.com', 4321, 3, unblocker, reactor, ssl_context, socket_impl, ssl_socket_impl)
       end
 
       let :unblocker do
@@ -80,8 +80,8 @@ module Ione
             acceptor.bind
             acceptor.read
             accepted_handlers.should have(1).item
-            accepted_handlers.first.host.should == 'example.com'
-            accepted_handlers.first.port.should == 3333
+            accepted_handlers.first.host.should eq 'example.com'
+            accepted_handlers.first.port.should eq 3333
           end
 
           it 'returns the raw socket from #to_io' do
