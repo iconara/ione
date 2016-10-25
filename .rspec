@@ -2,6 +2,7 @@
 -I examples/http_client/lib
 -I examples/motd_server/lib
 -I examples/redis_client/lib
+--require spec_helper.rb
 --color
 --format doc
 --pattern 'spec/**/*_spec.rb,examples/*/spec/**/*_spec.rb'
