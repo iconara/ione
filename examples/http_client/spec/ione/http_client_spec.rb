@@ -64,21 +64,21 @@ module Ione
       it 'sends a GET request' do
         f = client.get("#{base_uri}/helloworld")
         response = f.value
-        response.status.should == 200
-        response.body.should == 'Hello, World!'
+        response.status.should eq 200
+        response.body.should eq 'Hello, World!'
       end
 
       it 'sends an GET request with parameters' do
         response = client.get("#{base_uri}/fizzbuzz?n=3").value
-        response.body.should == 'buzz'
+        response.body.should eq 'buzz'
         response = client.get("#{base_uri}/fizzbuzz?n=4").value
-        response.body.should == '4'
+        response.body.should eq '4'
       end
 
       it 'sends a GET request with headers' do
         response = client.get("#{base_uri}/helloworld", 'Accept' => 'text/html').value
         response.headers.should include('Content-Type' => 'text/html')
-        response.body.should == '<h1>Hello, World!</h1>'
+        response.body.should eq '<h1>Hello, World!</h1>'
       end
     end
 
@@ -130,6 +130,11 @@ module Ione
       let :key do
         cert_and_key[1]
       end
+      
+      let :dh do
+        params_pem = "-----BEGIN DH PARAMETERS-----\nMIIBCAKCAQEAqZW+iOHx0naiwlVxLAFoBH/28TbLve42Q+doqV+tw1WHEqwVdNwJ\ntlk/HNmHIztaGBqToGe8/L2ljwfPJgPJymooOhlpUauzybMCaKs4gc7+D1WYZpVE\nG3bJng3HboAV/Cgf4IPVXNazrLT4FAKjPVgpxPsNdkf+sbh1aZB/dQxFVXptq4iE\n7pqZccRmLDLJhr9eu+HhftAN0Wxkpo4ajl6NebB/xmrKl+4lUh6AuicBvZPI4OcV\ndCMzyreE7HBMXzoeBPa9V5frBQ/Yy68rLxt4cwExGLLc3Fm/IVv6ruAIc2u16KLT\nEoTqMbSrHOl58ECxVYDOs81m+OiY9neKawIBAg==\n-----END DH PARAMETERS-----\n"
+        OpenSSL::PKey::DH.new(params_pem)
+      end
 
       let :cert_store do
         s = OpenSSL::X509::Store.new
@@ -143,6 +148,7 @@ module Ione
           :SSLEnable => true,
           :SSLCertificate => cert,
           :SSLPrivateKey => key,
+          :SSLTmpDhCallback => Proc.new{ dh },
           :Logger => Logger.new(File.open('/dev/null', 'w')),
           :AccessLog => File.open('/dev/null', 'w')
         )

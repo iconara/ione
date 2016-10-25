@@ -124,7 +124,7 @@ module Ione
             end
             handler.connect
             handler.read
-            read_sizes.drop(1).should == [read_sizes.first] * 3
+            read_sizes.drop(1).should eq [read_sizes.first] * 3
           end
         else
           it 'reads and initial chunk of data' do
@@ -134,7 +134,7 @@ module Ione
             ssl_socket.stub(:read_nonblock).and_return('fooo')
             handler.connect
             handler.read
-            data.should == ['fooo']
+            data.should eq ['fooo']
           end
 
           it 'reads once, and then again with the value of #pending, until #pending returns zero' do
@@ -149,7 +149,7 @@ module Ione
             end
             handler.connect
             handler.read
-            read_sizes.drop(1).should == [3, 2, 1]
+            read_sizes.drop(1).should eq [3, 2, 1]
           end
         end
 

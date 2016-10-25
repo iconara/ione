@@ -29,11 +29,17 @@ describe 'SSL' do
     cert.sign(ssl_key, OpenSSL::Digest::SHA1.new)
     cert
   end
+  
+  let :dh do
+    params_pem = "-----BEGIN DH PARAMETERS-----\nMIIBCAKCAQEAqZW+iOHx0naiwlVxLAFoBH/28TbLve42Q+doqV+tw1WHEqwVdNwJ\ntlk/HNmHIztaGBqToGe8/L2ljwfPJgPJymooOhlpUauzybMCaKs4gc7+D1WYZpVE\nG3bJng3HboAV/Cgf4IPVXNazrLT4FAKjPVgpxPsNdkf+sbh1aZB/dQxFVXptq4iE\n7pqZccRmLDLJhr9eu+HhftAN0Wxkpo4ajl6NebB/xmrKl+4lUh6AuicBvZPI4OcV\ndCMzyreE7HBMXzoeBPa9V5frBQ/Yy68rLxt4cwExGLLc3Fm/IVv6ruAIc2u16KLT\nEoTqMbSrHOl58ECxVYDOs81m+OiY9neKawIBAg==\n-----END DH PARAMETERS-----\n"
+    OpenSSL::PKey::DH.new(params_pem)
+  end
 
   let :ssl_context do
     ctx = OpenSSL::SSL::SSLContext.new
     ctx.cert = ssl_cert
     ctx.key = ssl_key
+    ctx.tmp_dh_callback = Proc.new{ dh }
     ctx
   end
 
@@ -49,6 +55,7 @@ describe 'SSL' do
     ssl_context = OpenSSL::SSL::SSLContext.new
     ssl_context.key = OpenSSL::PKey::RSA.new(ssl_key)
     ssl_context.cert = OpenSSL::X509::Certificate.new(ssl_cert)
+    ssl_context.tmp_dh_callback = Proc.new{ dh }
 
     f = io_reactor.start
     f = f.flat_map do
@@ -80,8 +87,8 @@ describe 'SSL' do
     end
     client.write('hello world')
     response_received.future.value
-    server_received_data.to_s.should == 'hello world'
-    client_received_data.to_s.should == 'dlrow olleh'
+    server_received_data.to_s.should eq 'hello world'
+    client_received_data.to_s.should eq 'dlrow olleh'
   end
 
   it 'fails to send a message when not using encryption' do
