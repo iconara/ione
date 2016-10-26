@@ -141,8 +141,6 @@ module Ione
 
         context 'when already started' do
           it 'is not started again' do
-            calls = 0
-            lock = Mutex.new
             ticks = Queue.new
             barrier = Queue.new
             selector.handler do
@@ -214,7 +212,7 @@ module Ione
         it 'drains all sockets' do
           reactor.start.value
           TCPServer.open(0) do |server|
-            lazy_socket = Thread.start { server.accept }
+            Thread.start { server.accept }
             connection = reactor.connect(server.addr[3], server.addr[1], 5).value
             writable = false
             connection.stub(:stub_writable?) { writable }
@@ -250,7 +248,7 @@ module Ione
           end
           reactor.start.value
           TCPServer.open(0) do |server|
-            lazy_socket = Thread.start { server.accept }
+            Thread.start { server.accept }
             connection = reactor.connect(server.addr[3], server.addr[1], 5).value
             stopped_future = nil
             mutex.synchronize do
