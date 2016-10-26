@@ -37,7 +37,7 @@ describe 'An IO reactor' do
       fake_server.await_connects(1)
       fake_server.broadcast('hello world')
       await { protocol_handler.data.bytesize > 0 }
-      protocol_handler.data.should == 'hello world'
+      protocol_handler.data.should eq('hello world')
     end
 
     it 'receives data on multiple connections' do
@@ -45,7 +45,7 @@ describe 'An IO reactor' do
       fake_server.await_connects(10)
       fake_server.broadcast('hello world')
       await { protocol_handlers.all? { |c| c.data.bytesize > 0 } }
-      protocol_handlers.sample.data.should == 'hello world'
+      protocol_handlers.sample.data.should eq('hello world')
     end
   end
 
@@ -81,7 +81,7 @@ describe 'An IO reactor' do
       socket = TCPSocket.new(ENV['SERVER_HOST'], port)
       socket.puts('HELLO')
       result = socket.read(5)
-      result.should == 'HELLO'
+      result.should eq('HELLO')
       socket.close
     end
   end

@@ -90,7 +90,7 @@ module Ione
             restarted_future.value
             await { sequence.size >= 2 }
             begin
-              sequence.should == [:stopped, :restarted]
+              sequence.should eq([:stopped, :restarted])
             ensure
               reactor.stop
               barrier.push(nil) while reactor.running?
@@ -357,7 +357,7 @@ module Ione
           reactor.on_error { |e| error = e }
           reactor.start
           await { error }
-          error.message.should == 'Blurgh'
+          error.message.should eq('Blurgh')
         end
 
         it 'calls the listener immediately when the reactor has already crashed' do
@@ -388,16 +388,16 @@ module Ione
           await { !reactor.running? }
           await { calls.size >= 2 }
           reactor.on_error { calls << :pre_restarted }
-          calls.should == [
+          calls.should eq([
             :pre_started,
             :post_started,
             :pre_restarted,
-          ]
+          ])
           reactor.start
           reactor.on_error { calls << :post_restarted }
           barrier.push(nil)
           await { !reactor.running? }
-          calls.should == [
+          calls.should eq([
             :pre_started,
             :post_started,
             :pre_restarted,
@@ -405,7 +405,7 @@ module Ione
             :post_started,
             :pre_restarted,
             :post_restarted,
-          ]
+          ])
         end
       end
 
@@ -425,7 +425,7 @@ module Ione
           with_server do |host, port|
             reactor.start.value
             x = reactor.connect(host, port, 5) { :foo }.value
-            x.should == :foo
+            x.should eq(:foo)
           end
         end
 
@@ -433,7 +433,7 @@ module Ione
           with_server do |host, port|
             reactor.start.value
             connection = reactor.connect(host, port).value
-            connection.connection_timeout.should == 5
+            connection.connection_timeout.should eq(5)
           end
         end
 
@@ -441,7 +441,7 @@ module Ione
           with_server do |host, port|
             reactor.start.value
             connection = reactor.connect(host, port, timeout: 9).value
-            connection.connection_timeout.should == 9
+            connection.connection_timeout.should eq(9)
           end
         end
 
@@ -518,19 +518,19 @@ module Ione
         it 'returns a future that resolves to what the given block returns' do
           reactor.start.value
           x = reactor.bind(ENV['SERVER_HOST'], port, 5) { |acceptor| :foo }.value
-          x.should == :foo
+          x.should eq(:foo)
         end
 
         it 'defaults to a backlog of 5' do
           reactor.start.value
           acceptor = reactor.bind(ENV['SERVER_HOST'], port).value
-          acceptor.backlog.should == 5
+          acceptor.backlog.should eq(5)
         end
 
         it 'takes the backlog from the :backlog option' do
           reactor.start.value
           acceptor = reactor.bind(ENV['SERVER_HOST'], port, backlog: 9).value
-          acceptor.backlog.should == 9
+          acceptor.backlog.should eq(9)
         end
 
         it 'returns the acceptor when no block is given' do

@@ -33,7 +33,7 @@ module Ione
       it 'responds with the contents of the motd file and closes the connection' do
         socket = TCPSocket.new('127.0.0.1', port)
         result = socket.read
-        result.should == "Lorem ipsum dolor sit\n"
+        result.should eq("Lorem ipsum dolor sit\n")
       end
     end
   end
