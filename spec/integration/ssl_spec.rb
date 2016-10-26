@@ -80,8 +80,8 @@ describe 'SSL' do
     end
     client.write('hello world')
     response_received.future.value
-    server_received_data.to_s.should == 'hello world'
-    client_received_data.to_s.should == 'dlrow olleh'
+    server_received_data.to_s.should eq('hello world')
+    client_received_data.to_s.should eq('dlrow olleh')
   end
 
   it 'fails to send a message when not using encryption' do

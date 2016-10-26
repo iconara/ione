@@ -91,7 +91,7 @@ module Ione
         promise.try do
           3 + 4
         end
-        promise.future.value.should == 7
+        promise.future.value.should eq(7)
       end
 
       it 'fails the promise when the block raises an error' do
@@ -105,7 +105,7 @@ module Ione
         promise.try(:foo, 3) do |a, b|
           a.length + b
         end
-        promise.future.value.should == 6
+        promise.future.value.should eq(6)
       end
 
       it 'returns nil' do
@@ -216,8 +216,8 @@ module Ione
           future.on_complete { |v, _| v1 = v }
           future.on_complete { |v, _| v2 = v }
           promise.fulfill('bar')
-          v1.should == 'bar'
-          v2.should == 'bar'
+          v1.should eq('bar')
+          v2.should eq('bar')
         end
 
         it 'passes future as the third parameter to the block when it expects three arguments' do
@@ -319,7 +319,7 @@ module Ione
           future.on_complete { |f| raise 'Blurgh' }
           future.on_complete { |f| value = f.value }
           promise.fulfill('bar')
-          value.should == 'bar'
+          value.should eq('bar')
         end
 
         it 'notifies all listeners when the promise fails, even when one raises an error' do
@@ -327,7 +327,7 @@ module Ione
           future.on_complete { |f| raise 'Blurgh' }
           future.on_complete { |f| begin; f.value; rescue => err; e = err; end }
           promise.fail(error)
-          err.message.should == 'bork'
+          err.message.should eq('bork')
         end
 
         it 'notifies listeners registered after the promise was fulfilled' do
@@ -335,7 +335,7 @@ module Ione
           promise.fulfill('bar')
           future.on_complete { |vv, ee, ff| v = vv; e = ee; f = ff }
           f.should equal(future)
-          v.should == 'bar'
+          v.should eq('bar')
           e.should be_nil
         end
 
@@ -345,7 +345,7 @@ module Ione
           future.on_complete { |vv, ee, ff| v = vv; e = ee; f = ff }
           f.should equal(future)
           v.should be_nil
-          e.message.should == 'bork'
+          e.message.should eq('bork')
         end
 
         it 'notifies listeners registered after the promise failed' do
@@ -376,8 +376,8 @@ module Ione
           future.on_value { |v| v1 = v }
           future.on_value { |v| v2 = v }
           promise.fulfill('bar')
-          v1.should == 'bar'
-          v2.should == 'bar'
+          v1.should eq('bar')
+          v2.should eq('bar')
         end
 
         it 'notifies all listeners even when one raises an error' do
@@ -385,7 +385,7 @@ module Ione
           future.on_value { |v| raise 'Blurgh' }
           future.on_value { |v| value = v }
           promise.fulfill('bar')
-          value.should == 'bar'
+          value.should eq('bar')
         end
 
         it 'notifies listeners registered after the promise was resolved' do
@@ -393,8 +393,8 @@ module Ione
           promise.fulfill('bar')
           future.on_value { |v| v1 = v }
           future.on_value { |v| v2 = v }
-          v1.should == 'bar'
-          v2.should == 'bar'
+          v1.should eq('bar')
+          v2.should eq('bar')
         end
 
         it 'does not raise any error when the listener raises an error when already resolved' do
@@ -479,7 +479,7 @@ module Ione
           p.fulfill('bar')
         end
         d.value
-        future.value.should == 'bar'
+        future.value.should eq('bar')
       end
 
       it 'blocks on #value until completed, when value is nil' do
@@ -506,7 +506,7 @@ module Ione
         end
         sleep 0.1
         promise.fulfill(:hello)
-        listeners.map(&:value).should == Array.new(10, :hello)
+        listeners.map(&:value).should eq(Array.new(10, :hello))
       end
 
       it 'is aliased as #get' do
@@ -524,7 +524,7 @@ module Ione
           f = p.future.map { |v| v * 2 }
           f.on_value { |v| mapped_value = v }
           p.fulfill(3)
-          mapped_value.should == 3 * 2
+          mapped_value.should eq(3 * 2)
         end
 
         it 'will be resolved with the specified value' do
@@ -533,7 +533,7 @@ module Ione
           f = p.future.map(7)
           f.on_value { |v| mapped_value = v }
           p.fulfill(3)
-          mapped_value.should == 7
+          mapped_value.should eq(7)
         end
 
         it 'will be resolved with the result of the given block, even if a value is specified' do
@@ -542,7 +542,7 @@ module Ione
           f = p.future.map(7) { |v| v * 2 }
           f.on_value { |v| mapped_value = v }
           p.fulfill(3)
-          mapped_value.should == 3 * 2
+          mapped_value.should eq(3 * 2)
         end
 
         it 'will be resolved with nil when neither value nor block is specified' do
@@ -581,7 +581,7 @@ module Ione
           p = Promise.new
           f = p.future.flat_map { |v| Future.resolved(v * 2) }
           p.fulfill(3)
-          f.value.should == 3 * 2
+          f.value.should eq(3 * 2)
         end
 
         it 'fails when the block raises an error' do
@@ -598,7 +598,7 @@ module Ione
         p = Promise.new
         f = p.future.flat_map { fake_future }
         p.fulfill
-        f.value.should == :foobar
+        f.value.should eq(:foobar)
       end
     end
 
@@ -608,7 +608,7 @@ module Ione
           p = Promise.new
           f = p.future.then { |v| Future.resolved(v * 2) }
           p.fulfill(3)
-          f.value.should == 3 * 2
+          f.value.should eq(3 * 2)
         end
       end
 
@@ -620,7 +620,7 @@ module Ione
             p = Promise.new
             f = p.future.then { |v| fake_future }
             p.fulfill
-            f.value.should == :foobar
+            f.value.should eq(:foobar)
           end
         end
 
@@ -641,7 +641,7 @@ module Ione
           p = Promise.new
           f = p.future.then { |v| v * 2 }
           p.fulfill(3)
-          f.value.should == 3 * 2
+          f.value.should eq(3 * 2)
         end
       end
 
@@ -662,21 +662,21 @@ module Ione
           p = Promise.new
           f = p.future.recover { 'foo' }
           p.fail(error)
-          f.value.should == 'foo'
+          f.value.should eq('foo')
         end
 
         it 'resolves to a specfied value when the source future fails' do
           p = Promise.new
           f = p.future.recover('bar')
           p.fail(error)
-          f.value.should == 'bar'
+          f.value.should eq('bar')
         end
 
         it 'resovles to a value created by the block even when a value is specified when the source future fails' do
           p = Promise.new
           f = p.future.recover('bar') { 'foo' }
           p.fail(error)
-          f.value.should == 'foo'
+          f.value.should eq('foo')
         end
 
         it 'resolves to nil value when no value nor block is specified and the source future fails' do
@@ -690,14 +690,14 @@ module Ione
           p = Promise.new
           f = p.future.recover { |e| e.message }
           p.fail(error)
-          f.value.should == error.message
+          f.value.should eq(error.message)
         end
 
         it 'resolves to the value of the source future when the source future is resolved' do
           p = Promise.new
           f = p.future.recover { 'foo' }
           p.fulfill('bar')
-          f.value.should == 'bar'
+          f.value.should eq('bar')
         end
 
         it 'fails with the error raised in the given block' do
@@ -717,7 +717,7 @@ module Ione
           f = p1.future.fallback { p2.future }
           p1.fail(error)
           p2.fulfill('foo')
-          f.value.should == 'foo'
+          f.value.should eq('foo')
         end
 
         it 'yields the error to the block' do
@@ -727,7 +727,7 @@ module Ione
             Future.resolved(error.message)
           end
           p1.fail(error)
-          f.value.should == error.message
+          f.value.should eq(error.message)
         end
 
         it 'is resolved with the value of the source future when the source future fullfills' do
@@ -736,7 +736,7 @@ module Ione
           f = p1.future.fallback { p2.future }
           p2.fulfill('bar')
           p1.fulfill('foo')
-          f.value.should == 'foo'
+          f.value.should eq('foo')
         end
 
         it 'fails when the block raises an error' do
@@ -761,7 +761,7 @@ module Ione
           p = Promise.new
           f = p.future.fallback { fake_future }
           p.fail(error)
-          f.value.should == 'foo'
+          f.value.should eq('foo')
         end
       end
     end
@@ -771,7 +771,7 @@ module Ione
         future = Future.traverse([1, 2, 3]) do |element|
           Future.resolved(element * 2)
         end
-        future.value.should == [2, 4, 6]
+        future.value.should eq([2, 4, 6])
       end
 
       it 'fails if any of the source futures fail' do
@@ -800,12 +800,12 @@ module Ione
         fake_future = double(:fake_future)
         fake_future.stub(:on_complete) { |&listener| listener.call(:foobar, nil) }
         future = Future.traverse([1, 2, 3]) { fake_future }
-        future.value.should == [:foobar, :foobar, :foobar]
+        future.value.should eq([:foobar, :foobar, :foobar])
       end
 
       it 'accepts an enumerable of values' do
         future = Future.traverse([1, 2, 3].to_enum) { |v| Future.resolved(v * 2) }
-        future.value.should == [2, 4, 6]
+        future.value.should eq([2, 4, 6])
       end
     end
 
@@ -819,7 +819,7 @@ module Ione
         future = Future.reduce(futures, {}) do |accumulator, value|
           accumulator.merge(value)
         end
-        future.value.should == {'foo' => 'bar', 'qux' => 'baz', 'hello' => 'world'}
+        future.value.should eq({'foo' => 'bar', 'qux' => 'baz', 'hello' => 'world'})
       end
 
       it 'accepts boolean accumulators' do
@@ -830,7 +830,7 @@ module Ione
         future = Future.reduce(futures, false) do |accumulator, value|
           accumulator || value.empty?
         end
-        future.value.should == true
+        future.value.should eq(true)
       end
 
       it 'calls the block with the values in the order of the source futures' do
@@ -844,7 +844,7 @@ module Ione
         promises[2].fulfill(2)
         promises[4].fulfill(4)
         promises[3].fulfill(3)
-        future.value.should == [0, 1, 2, 3, 4]
+        future.value.should eq([0, 1, 2, 3, 4])
       end
 
       it 'uses the first value as initial value when no intial value is given' do
@@ -856,7 +856,7 @@ module Ione
         promises[1].fulfill(2)
         promises[0].fulfill(1)
         promises[2].fulfill(3)
-        future.value.should == 6
+        future.value.should eq(6)
       end
 
       it 'fails if any of the source futures fail' do
@@ -893,7 +893,7 @@ module Ione
 
       context 'when the list of futures is empty' do
         it 'returns a future that resolves to the initial value' do
-          Future.reduce([], :foo).value.should == :foo
+          Future.reduce([], :foo).value.should eq(:foo)
         end
 
         it 'returns a future that resolves to nil there is also no initial value' do
@@ -907,13 +907,13 @@ module Ione
         ff2.stub(:on_complete) { |&listener| listener.call(2, nil) }
         ff3.stub(:on_complete) { |&listener| listener.call(3, nil) }
         future = Future.reduce([ff1, ff2, ff3], 0) { |sum, n| sum + n }
-        future.value.should == 6
+        future.value.should eq(6)
       end
 
       it 'accepts an enumerable of futures' do
         futures = [Future.resolved(1), Future.resolved(2), Future.resolved(3)].to_enum
         future = Future.reduce(futures, 0) { |sum, n| sum + n }
-        future.value.should == 6
+        future.value.should eq(6)
       end
 
       it 'handles a really long list of futures' do
@@ -932,7 +932,7 @@ module Ione
           promises[1].fulfill(1)
           promises[0].fulfill(0)
           promises[2].fulfill(2)
-          future.value.should == [1, 0, 2]
+          future.value.should eq([1, 0, 2])
         end
 
         it 'fails if any of the source futures fail' do
@@ -963,7 +963,7 @@ module Ione
 
         context 'when the list of futures is empty' do
           it 'returns a future that resolves to the initial value' do
-            Future.reduce([], :foo, ordered: false).value.should == :foo
+            Future.reduce([], :foo, ordered: false).value.should eq(:foo)
           end
 
           it 'returns a future that resolves to nil there is also no initial value' do
@@ -1088,7 +1088,7 @@ module Ione
           p2.fulfill(2)
           p1.fulfill(1)
           p3.fulfill(3)
-          f.value.should == [1, 2, 3]
+          f.value.should eq([1, 2, 3])
         end
 
         it 'fails if any of the source futures fail' do
@@ -1106,20 +1106,20 @@ module Ione
         end
 
         it 'completes with an empty list when no futures are given' do
-          Future.all.value.should == []
+          Future.all.value.should eq([])
         end
 
         it 'completes with an empty list when an empty list is given' do
-          Future.all([]).value.should == []
+          Future.all([]).value.should eq([])
         end
 
         it 'completes with an empty list when an empty enumerable is given' do
-          Future.all([].to_enum).value.should == []
+          Future.all([].to_enum).value.should eq([])
         end
 
         it 'completes with a list of one item when a single future is given' do
           f = Future.resolved(1)
-          Future.all(f).value.should == [1]
+          Future.all(f).value.should eq([1])
         end
 
         it 'accepts a list of futures' do
@@ -1152,7 +1152,7 @@ module Ione
           ff2.stub(:on_complete) { |&listener| listener.call(2, nil) }
           ff3.stub(:on_complete) { |&listener| listener.call(3, nil) }
           future = Future.all(ff1, ff2, ff3)
-          future.value.should == [1, 2, 3]
+          future.value.should eq([1, 2, 3])
         end
       end
     end
@@ -1174,7 +1174,7 @@ module Ione
           p3 = Promise.new
           f = Future.first(p1.future, p2.future, p3.future)
           p2.fulfill('foo')
-          f.value.should == 'foo'
+          f.value.should eq('foo')
         end
 
         it 'is unaffected by the fullfillment of the other futures' do
@@ -1226,7 +1226,7 @@ module Ione
         end
 
         it 'completes with the value of the given future, when only one is given' do
-          Future.first(Future.resolved('foo')).value.should == 'foo'
+          Future.first(Future.resolved('foo')).value.should eq('foo')
         end
 
         it 'accepts a list of futures' do
@@ -1250,7 +1250,7 @@ module Ione
           ff1.stub(:on_complete) { |&listener| listener.call(1, nil) }
           ff2.stub(:on_complete) { |&listener| listener.call(2, nil) }
           future = Future.first(ff1, ff2)
-          future.value.should == 1
+          future.value.should eq(1)
         end
       end
     end
@@ -1276,14 +1276,14 @@ module Ione
         it 'calls its value callbacks immediately' do
           value = nil
           future.on_value { |v| value = v }
-          value.should == 'hello world'
+          value.should eq('hello world')
         end
 
         it 'calls its complete callbacks immediately' do
           f, v = nil, nil
           future.on_complete { |vv, _, ff| f = ff; v = vv }
           f.should equal(future)
-          v.should == 'hello world'
+          v.should eq('hello world')
         end
 
         it 'calls its complete callbacks with the right arity' do
@@ -1293,11 +1293,11 @@ module Ione
           future.on_complete { |vv, ee, ff| f2 = ff }
           f1.should equal(future)
           f2.should equal(future)
-          v.should == 'hello world'
+          v.should eq('hello world')
         end
 
         it 'does not block on #value' do
-          future.value.should == 'hello world'
+          future.value.should eq('hello world')
         end
 
         it 'defaults to the value nil' do
@@ -1327,14 +1327,14 @@ module Ione
         it 'call its failure callbacks immediately' do
           error = nil
           future.on_failure { |e| error = e }
-          error.message.should == 'bork'
+          error.message.should eq('bork')
         end
 
         it 'calls its complete callbacks immediately' do
           f, e = nil, nil
           future.on_complete { |_, ee, ff| f = ff; e = ee }
           f.should equal(future)
-          e.message.should == 'bork'
+          e.message.should eq('bork')
         end
 
         it 'calls its complete callbacks with the right arity' do
@@ -1344,7 +1344,7 @@ module Ione
           future.on_complete { |vv, ee, ff| f2 = ff }
           f1.should equal(future)
           f2.should equal(future)
-          e.message.should == 'bork'
+          e.message.should eq('bork')
         end
 
         it 'does not block on #value' do
