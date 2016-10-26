@@ -15,28 +15,28 @@ module Ione
       end
 
       it 'can be initialized with bytes' do
-        described_class.new('hello').length.should == 5
+        described_class.new('hello').length.should eq(5)
       end
     end
 
     describe '#length/#size/#bytesize' do
       it 'returns the number of bytes in the buffer' do
         buffer << 'foo'
-        buffer.length.should == 3
+        buffer.length.should eq(3)
       end
 
       it 'is zero initially' do
-        buffer.length.should == 0
+        buffer.length.should eq(0)
       end
 
       it 'is aliased as #size' do
         buffer << 'foo'
-        buffer.size.should == 3
+        buffer.size.should eq(3)
       end
 
       it 'is aliased as #bytesize' do
         buffer << 'foo'
-        buffer.bytesize.should == 3
+        buffer.bytesize.should eq(3)
       end
     end
 
@@ -67,19 +67,19 @@ module Ione
       end
 
       it 'stores its bytes as binary' do
-        buffer.append('hällö').length.should == 7
-        buffer.to_s.encoding.should == ::Encoding::BINARY
+        buffer.append('hällö').length.should eq(7)
+        buffer.to_s.encoding.should eq(::Encoding::BINARY)
       end
 
       it 'handles appending with multibyte strings' do
         buffer.append('hello')
         buffer.append('würld')
-        buffer.to_s.should == 'hellowürld'.force_encoding(::Encoding::BINARY)
+        buffer.to_s.should eq('hellowürld'.force_encoding(::Encoding::BINARY))
       end
 
       it 'handles appending with another byte buffer' do
         buffer.append('hello ').append(ByteBuffer.new('world'))
-        buffer.to_s.should == 'hello world'
+        buffer.to_s.should eq('hello world')
       end
     end
 
@@ -105,7 +105,7 @@ module Ione
         b2 = described_class.new
         b1.append('foo')
         b2.append('foo')
-        b1.should == b2
+        b1.should eq(b2)
       end
 
       it 'is equal to another buffer when both are empty' do
@@ -121,7 +121,7 @@ module Ione
         b2 = described_class.new
         b1.append('foo')
         b2.append('foo')
-        b1.hash.should == b2.hash
+        b1.hash.should eq(b2.hash)
       end
 
       it 'is not equal to the hash code of another buffer with other contents' do
@@ -135,26 +135,26 @@ module Ione
       it 'is equal to the hash code of another buffer when both are empty' do
         b1 = described_class.new
         b2 = described_class.new
-        b1.hash.should == b2.hash
+        b1.hash.should eq(b2.hash)
       end
     end
 
     describe '#to_s' do
       it 'returns the bytes' do
-        buffer.append('hello world').to_s.should == 'hello world'
+        buffer.append('hello world').to_s.should eq('hello world')
       end
     end
 
     describe '#to_str' do
       it 'returns the bytes' do
-        buffer.append('hello world').to_str.should == 'hello world'
+        buffer.append('hello world').to_str.should eq('hello world')
       end
     end
 
     describe '#inspect' do
       it 'returns the bytes wrapped in ByteBuffer(...)' do
         buffer.append("\xca\xfe")
-        buffer.inspect.should == '#<Ione::ByteBuffer: "\xCA\xFE">'
+        buffer.inspect.should eq('#<Ione::ByteBuffer: "\xCA\xFE">')
       end
     end
 
@@ -162,12 +162,12 @@ module Ione
       it 'discards the specified number of bytes from the front of the buffer' do
         buffer.append('hello world')
         buffer.discard(4)
-        buffer.should == ByteBuffer.new('o world')
+        buffer.should eq(ByteBuffer.new('o world'))
       end
 
       it 'returns the byte buffer' do
         buffer.append('hello world')
-        buffer.discard(4).should == ByteBuffer.new('o world')
+        buffer.discard(4).should eq(ByteBuffer.new('o world'))
       end
 
       it 'raises an error if the number of bytes in the buffer is fewer than the number to discard' do
@@ -185,14 +185,14 @@ module Ione
     describe '#read' do
       it 'returns the specified number of bytes, as a string' do
         buffer.append('hello')
-        buffer.read(4).should == 'hell'
+        buffer.read(4).should eq('hell')
       end
 
       it 'removes the bytes from the buffer' do
         buffer.append('hello')
         buffer.read(3)
-        buffer.should == ByteBuffer.new('lo')
-        buffer.read(2).should == 'lo'
+        buffer.should eq(ByteBuffer.new('lo'))
+        buffer.read(2).should eq('lo')
       end
 
       it 'raises an error if there are not enough bytes' do
@@ -208,22 +208,22 @@ module Ione
 
       it 'returns a string with binary encoding' do
         buffer.append('hello')
-        buffer.read(4).encoding.should == ::Encoding::BINARY
+        buffer.read(4).encoding.should eq(::Encoding::BINARY)
         buffer.append('∆')
-        buffer.read(2).encoding.should == ::Encoding::BINARY
+        buffer.read(2).encoding.should eq(::Encoding::BINARY)
       end
     end
 
     describe '#read_int' do
       it 'returns the first four bytes interpreted as an int' do
         buffer.append("\xca\xfe\xba\xbe\x01")
-        buffer.read_int.should == 0xcafebabe
+        buffer.read_int.should eq(0xcafebabe)
       end
 
       it 'removes the bytes from the buffer' do
         buffer.append("\xca\xfe\xba\xbe\x01")
         buffer.read_int
-        buffer.should == ByteBuffer.new("\x01")
+        buffer.should eq(ByteBuffer.new("\x01"))
       end
 
       it 'raises an error if there are not enough bytes' do
@@ -235,13 +235,13 @@ module Ione
     describe '#read_short' do
       it 'returns the first two bytes interpreted as a short' do
         buffer.append("\xca\xfe\x01")
-        buffer.read_short.should == 0xcafe
+        buffer.read_short.should eq(0xcafe)
       end
 
       it 'removes the bytes from the buffer' do
         buffer.append("\xca\xfe\x01")
         buffer.read_short
-        buffer.should == ByteBuffer.new("\x01")
+        buffer.should eq(ByteBuffer.new("\x01"))
       end
 
       it 'raises an error if there are not enough bytes' do
@@ -253,14 +253,14 @@ module Ione
     describe '#read_byte' do
       it 'returns the first bytes interpreted as an int' do
         buffer.append("\x10\x01")
-        buffer.read_byte.should == 0x10
-        buffer.read_byte.should == 0x01
+        buffer.read_byte.should eq(0x10)
+        buffer.read_byte.should eq(0x01)
       end
 
       it 'removes the byte from the buffer' do
         buffer.append("\x10\x01")
         buffer.read_byte
-        buffer.should == ByteBuffer.new("\x01")
+        buffer.should eq(ByteBuffer.new("\x01"))
       end
 
       it 'raises an error if there are no bytes' do
@@ -269,8 +269,8 @@ module Ione
 
       it 'can interpret the byte as signed' do
         buffer.append("\x81\x02")
-        buffer.read_byte(true).should == -127
-        buffer.read_byte(true).should == 2
+        buffer.read_byte(true).should eq(-127)
+        buffer.read_byte(true).should eq(2)
       end
     end
 
@@ -278,14 +278,14 @@ module Ione
       it 'changes the bytes at the specified location' do
         buffer.append('foo bar')
         buffer.update(4, 'baz')
-        buffer.to_s.should == 'foo baz'
+        buffer.to_s.should eq('foo baz')
       end
 
       it 'handles updates after a read' do
         buffer.append('foo bar')
         buffer.read(1)
         buffer.update(3, 'baz')
-        buffer.to_s.should == 'oo baz'
+        buffer.to_s.should eq('oo baz')
       end
 
       it 'handles updates after multiple reads and appends' do
@@ -295,7 +295,7 @@ module Ione
         buffer.update(4, 'baz')
         buffer.append('yyyy')
         buffer.read(1)
-        buffer.to_s.should == 'o bbazyyyy'
+        buffer.to_s.should eq('o bbazyyyy')
       end
 
       it 'returns itself' do
@@ -388,12 +388,12 @@ module Ione
     describe '#index' do
       it 'returns the first index of the specified substring' do
         buffer.append('fizz buzz')
-        buffer.index('zz').should == 2
+        buffer.index('zz').should eq(2)
       end
 
       it 'returns the first index of the specified substring, after the specified index' do
         buffer.append('fizz buzz')
-        buffer.index('zz', 3).should == 7
+        buffer.index('zz', 3).should eq(7)
       end
 
       it 'returns nil when the substring is not found' do
@@ -405,14 +405,14 @@ module Ione
         buffer.append('foo bar')
         buffer.read(1)
         buffer.append(' baz baz')
-        buffer.index('baz', 8).should == 11
+        buffer.index('baz', 8).should eq(11)
       end
 
       it 'returns the first index when the matching substring spans the read and write buffer' do
         buffer.append('foo bar')
         buffer.read(1)
         buffer.append('bar barbar')
-        buffer.index('barbar', 0).should == 3
+        buffer.index('barbar', 0).should eq(3)
       end
 
       it 'returns nil when the substring does not fit in the search space' do

@@ -49,6 +49,7 @@ describe 'SSL' do
     ssl_context = OpenSSL::SSL::SSLContext.new
     ssl_context.key = OpenSSL::PKey::RSA.new(ssl_key)
     ssl_context.cert = OpenSSL::X509::Certificate.new(ssl_cert)
+    ssl_context.tmp_dh_callback = proc { SslSpec::DH_PARAMS }
 
     f = io_reactor.start
     f = f.flat_map do
@@ -80,8 +81,8 @@ describe 'SSL' do
     end
     client.write('hello world')
     response_received.future.value
-    server_received_data.to_s.should == 'hello world'
-    client_received_data.to_s.should == 'dlrow olleh'
+    server_received_data.to_s.should eq('hello world')
+    client_received_data.to_s.should eq('dlrow olleh')
   end
 
   it 'fails to send a message when not using encryption' do
@@ -94,4 +95,8 @@ describe 'SSL' do
     await { client.closed? }
     client.should be_closed
   end
+end
+
+module SslSpec
+  DH_PARAMS = OpenSSL::PKey::DH.new(File.read(File.expand_path('../../resources/dh.pem', __FILE__)))
 end

@@ -31,13 +31,13 @@ module Ione
           http.verify_mode = OpenSSL::SSL::VERIFY_PEER
         end
         http.request(Net::HTTP::Get.new('/'))
-      rescue Errno::ECONNREFUSED, Errno::ENOTCONN, OpenSSL::SSL::SSLError
+      rescue Errno::ECONNREFUSED, Errno::ENOTCONN, OpenSSL::SSL::SSLError => e
         attempts -= 1
         if attempts > 0
           sleep(0.01)
           retry
         else
-          fail('Server failed to start')
+          fail(sprintf('Server failed to start: %s (%s)', e.message, e.class.name))
         end
       end
     end
@@ -64,21 +64,21 @@ module Ione
       it 'sends a GET request' do
         f = client.get("#{base_uri}/helloworld")
         response = f.value
-        response.status.should == 200
-        response.body.should == 'Hello, World!'
+        response.status.should eq(200)
+        response.body.should eq('Hello, World!')
       end
 
       it 'sends an GET request with parameters' do
         response = client.get("#{base_uri}/fizzbuzz?n=3").value
-        response.body.should == 'buzz'
+        response.body.should eq('buzz')
         response = client.get("#{base_uri}/fizzbuzz?n=4").value
-        response.body.should == '4'
+        response.body.should eq('4')
       end
 
       it 'sends a GET request with headers' do
         response = client.get("#{base_uri}/helloworld", 'Accept' => 'text/html').value
         response.headers.should include('Content-Type' => 'text/html')
-        response.body.should == '<h1>Hello, World!</h1>'
+        response.body.should eq('<h1>Hello, World!</h1>')
       end
     end
 
@@ -143,6 +143,7 @@ module Ione
           :SSLEnable => true,
           :SSLCertificate => cert,
           :SSLPrivateKey => key,
+          :SSLTmpDhCallback => proc { HttpClientSpec::DH_PARAMS },
           :Logger => Logger.new(File.open('/dev/null', 'w')),
           :AccessLog => File.open('/dev/null', 'w')
         )
@@ -154,6 +155,8 @@ module Ione
 end
 
 module HttpClientSpec
+  DH_PARAMS = OpenSSL::PKey::DH.new(File.read(File.expand_path('../../../../../spec/resources/dh.pem', __FILE__)))
+
   class Servlet < WEBrick::HTTPServlet::AbstractServlet
     def do_GET(request, response)
       response['Content-Type'] = 'text/plain'

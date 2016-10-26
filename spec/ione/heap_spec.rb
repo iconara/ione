@@ -17,9 +17,9 @@ module Ione
       it 'returns the number of items in the heap' do
         heap.push(13)
         heap.push(100)
-        heap.size.should == 2
+        heap.size.should eq(2)
         heap.push(101)
-        heap.size.should == 3
+        heap.size.should eq(3)
       end
     end
 
@@ -40,7 +40,7 @@ module Ione
         heap.push(3)
         heap.push(6)
         heap.push(5)
-        heap.size.should == 4
+        heap.size.should eq(4)
       end
 
       it 'is aliased as #<<' do
@@ -48,14 +48,14 @@ module Ione
         heap << 3
         heap << 6
         heap << 5
-        heap.size.should == 4
+        heap.size.should eq(4)
       end
 
       it 'does not add duplicates' do
         heap << 3
         heap << 3
         heap << 3
-        heap.size.should == 1
+        heap.size.should eq(1)
       end
     end
 
@@ -66,21 +66,21 @@ module Ione
 
       it 'returns the only item when there is only one' do
         heap.push(3)
-        heap.peek.should == 3
+        heap.peek.should eq(3)
       end
 
       it 'returns the smallest item' do
         heap.push(10)
         heap.push(3)
         heap.push(7)
-        heap.peek.should == 3
+        heap.peek.should eq(3)
       end
 
       it 'does not remove the item from the heap' do
         heap.push(3)
-        heap.peek.should == 3
-        heap.peek.should == 3
-        heap.peek.should == 3
+        heap.peek.should eq(3)
+        heap.peek.should eq(3)
+        heap.peek.should eq(3)
       end
     end
 
@@ -91,7 +91,7 @@ module Ione
 
       it 'returns and removes the only item when there is only one' do
         heap.push(3)
-        heap.pop.should == 3
+        heap.pop.should eq(3)
         heap.should be_empty
       end
 
@@ -99,14 +99,14 @@ module Ione
         heap.push(10)
         heap.push(3)
         heap.push(7)
-        heap.pop.should == 3
-        heap.pop.should == 7
-        heap.size.should == 1
+        heap.pop.should eq(3)
+        heap.pop.should eq(7)
+        heap.size.should eq(1)
       end
 
       it 'removes the item from the heap' do
         heap.push(3)
-        heap.pop.should == 3
+        heap.pop.should eq(3)
         heap.pop.should be_nil
       end
     end
@@ -125,8 +125,8 @@ module Ione
         heap.push(101)
         heap.delete(4)
         heap.pop
-        heap.peek.should == 100
-        heap.size.should == 2
+        heap.peek.should eq(100)
+        heap.size.should eq(2)
       end
 
       it 'removes the last item from the heap' do
@@ -155,7 +155,7 @@ module Ione
         heap.push(3)
         heap.push(4)
         heap.push(5)
-        heap.delete(4).should == 4
+        heap.delete(4).should eq(4)
       end
 
       it 'returns nil when the item is not found' do
