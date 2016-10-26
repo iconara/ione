@@ -31,13 +31,13 @@ module Ione
           http.verify_mode = OpenSSL::SSL::VERIFY_PEER
         end
         http.request(Net::HTTP::Get.new('/'))
-      rescue Errno::ECONNREFUSED, Errno::ENOTCONN, OpenSSL::SSL::SSLError
+      rescue Errno::ECONNREFUSED, Errno::ENOTCONN, OpenSSL::SSL::SSLError => e
         attempts -= 1
         if attempts > 0
           sleep(0.01)
           retry
         else
-          fail('Server failed to start')
+          fail(sprintf('Server failed to start: %s (%s)', e.message, e.class.name))
         end
       end
     end
@@ -143,6 +143,7 @@ module Ione
           :SSLEnable => true,
           :SSLCertificate => cert,
           :SSLPrivateKey => key,
+          :SSLTmpDhCallback => proc { HttpClientSpec::DH_PARAMS },
           :Logger => Logger.new(File.open('/dev/null', 'w')),
           :AccessLog => File.open('/dev/null', 'w')
         )
@@ -154,6 +155,8 @@ module Ione
 end
 
 module HttpClientSpec
+  DH_PARAMS = OpenSSL::PKey::DH.new(File.read(File.expand_path('../../../../../spec/resources/dh.pem', __FILE__)))
+
   class Servlet < WEBrick::HTTPServlet::AbstractServlet
     def do_GET(request, response)
       response['Content-Type'] = 'text/plain'
