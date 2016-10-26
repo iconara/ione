@@ -136,8 +136,6 @@ module Ione
 
         context 'when already started' do
           it 'is not started again' do
-            calls = 0
-            lock = Mutex.new
             ticks = Queue.new
             barrier = Queue.new
             selector.handler do

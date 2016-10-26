@@ -325,7 +325,7 @@ module Ione
         it 'notifies all listeners when the promise fails, even when one raises an error' do
           err = nil
           future.on_complete { |f| raise 'Blurgh' }
-          future.on_complete { |f| begin; f.value; rescue => err; e = err; end }
+          future.on_complete { |f| begin; f.value; rescue => e; err = e; end }
           promise.fail(error)
           err.message.should eq('bork')
         end
@@ -721,12 +721,11 @@ module Ione
         end
 
         it 'yields the error to the block' do
-          p1 = Promise.new
-          p2 = Promise.new
-          f = p1.future.fallback do |error|
+          p = Promise.new
+          f = p.future.fallback do |error|
             Future.resolved(error.message)
           end
-          p1.fail(error)
+          p.fail(error)
           f.value.should eq(error.message)
         end
 
