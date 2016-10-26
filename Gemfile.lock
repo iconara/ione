@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    ione (1.2.3)
+    ione (1.2.4)
 
 GEM
   remote: https://rubygems.org/
@@ -52,3 +52,6 @@ DEPENDENCIES
   rspec
   simplecov
   yard
+
+BUNDLED WITH
+   1.12.5
