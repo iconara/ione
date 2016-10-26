@@ -23,4 +23,8 @@ unless ENV['COVERAGE'] == 'no' || RUBY_ENGINE == 'rbx'
   end
 end
 
+RSpec.configure do |config|
+  config.warnings = true
+end
+
 require 'ione'

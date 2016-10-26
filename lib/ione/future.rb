@@ -599,6 +599,8 @@ module Ione
       @lock = Mutex.new
       @state = PENDING_STATE
       @listeners = []
+      @value = nil
+      @error = nil
     end
 
     # Registers a listener that will be called when this future completes,
@@ -859,9 +861,9 @@ module Ione
         looping = more = true
         while more
           more = false
-          @futures.pop.on_complete do |v, e|
-            if e || @futures.empty? || !looping || !Thread.current.equal?(outer)
-              await_next(v, e)
+          @futures.pop.on_complete do |value, error|
+            if error || @futures.empty? || !looping || !Thread.current.equal?(outer)
+              await_next(value, error)
             else
               more = true
             end
