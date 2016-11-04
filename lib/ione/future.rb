@@ -753,6 +753,9 @@ module Ione
 
     private
 
+    def discard_error(e)
+    end
+
     def call_listener(listener)
       begin
         n = listener.arity
@@ -765,8 +768,8 @@ module Ione
         else
           listener.call(@value, @error, self)
         end
-      rescue
-        # swallowed
+      rescue => e
+        discard_error(e)
       end
     end
   end

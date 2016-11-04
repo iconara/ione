@@ -348,7 +348,7 @@ module Ione
           e.message.should eq('bork')
         end
 
-        it 'notifies listeners registered after the promise failed' do
+        it 'does not raise any error when the listener raises an error when already failed' do
           promise.fail(error)
           expect { future.on_complete { raise 'blurgh' } }.to_not raise_error
         end
