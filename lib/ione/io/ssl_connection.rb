@@ -43,8 +43,7 @@ module Ione
         # @private
         def read
           while true
-            new_data = @io.read_nonblock(2**16)
-            @data_listener.call(new_data) if @data_listener
+            @data_stream << @io.read_nonblock(2**16)
           end
         rescue IO::WaitReadable, IO::WaitWritable
           # no more data available
@@ -56,8 +55,7 @@ module Ione
         def read
           read_size = 2**16
           while read_size > 0
-            new_data = @io.read_nonblock(read_size)
-            @data_listener.call(new_data) if @data_listener
+            @data_stream << @io.read_nonblock(read_size)
             read_size = @io.pending
           end
         rescue IO::WaitReadable, IO::WaitWritable

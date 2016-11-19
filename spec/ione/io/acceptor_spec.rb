@@ -187,6 +187,23 @@ module Ione
         end
       end
 
+      describe '#to_stream' do
+        include_context 'accepting_connections'
+
+        it 'returns a a stream of accepted connections' do
+          received_connection1 = nil
+          received_connection2 = nil
+          stream = acceptor.to_stream
+          stream.subscribe { |c| received_connection1 = c }
+          stream.subscribe { |c| received_connection2 = c }
+          acceptor.bind
+          acceptor.read
+          received_connection1.host.should == 'example.com'
+          received_connection2.host.should == 'example.com'
+          received_connection2.port.should == 3333
+        end
+      end
+
       describe '#on_accept' do
         include_context 'accepting_connections'
 

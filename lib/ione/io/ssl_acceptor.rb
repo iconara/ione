@@ -13,7 +13,7 @@ module Ione
 
       def read
         client_socket, host, port = accept
-        connection = SslServerConnection.new(client_socket, host, port, @unblocker, @ssl_context, method(:notify_accept_listeners), @ssl_socket_impl)
+        connection = SslServerConnection.new(client_socket, host, port, @unblocker, @ssl_context, @accept_stream.to_proc, @ssl_socket_impl)
         @reactor.accept(connection)
       end
     end
