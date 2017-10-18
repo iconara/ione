@@ -512,24 +512,15 @@ module Ione
       def tick
         readables = []
         writables = []
-        connecting = []
         @sockets.each do |s|
-          if s.connected?
-            readables << s
-          elsif s.connecting?
-            connecting << s
-          end
-          if s.connecting? || s.writable?
-            writables << s
-          end
+          readables << s if s.connected?          
+          writables << s if s.connecting? || s.writable?
+          s.connect if s.connecting?          
         end
-        begin
           r, w, _ = @selector.select(readables, writables, nil, @timeout)
-          connecting.each { |s| s.connect }
-          r && r.each { |s| s.read }
-          w && w.each { |s| s.flush }
-        rescue IOError, Errno::EBADF
-        end
+          r && r.each(&:read)
+          w && w.each(&:flush)
+      rescue IOError, Errno::EBADF
       end
 
       def to_s
