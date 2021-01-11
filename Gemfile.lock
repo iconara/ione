@@ -18,7 +18,7 @@ GEM
     mime-types (2.1)
     multi_json (1.8.4)
     rake (10.1.1)
-    redcarpet (3.1.1)
+    redcarpet (3.5.1)
     rest-client (1.6.7)
       mime-types (>= 1.16)
     rspec (2.14.1)
