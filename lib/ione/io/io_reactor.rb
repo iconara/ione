@@ -117,7 +117,7 @@ module Ione
           @lock.unlock
         end
         if @state == RUNNING_STATE || @state == CRASHED_STATE
-          @stopped_promise.future.on_failure(&listener)
+          @stopped_promise.on_rejection(&listener)
         end
       end
 
@@ -138,20 +138,19 @@ module Ione
       def start
         @lock.synchronize do
           if @state == RUNNING_STATE
-            return @started_promise.future
+            return @started_promise
           elsif @state == STOPPING_STATE
-            return @stopped_promise.future.flat_map { start }.fallback { start }
+            return @stopped_promise.then { |_| start }.rescue { start }
           else
             @state = RUNNING_STATE
           end
         end
-        @started_promise = Promise.new
-        @stopped_promise = Promise.new
+        @started_promise = Concurrent::Promises.fulfilled_future(self)
+        @stopped_promise = Concurrent::Promises.resolvable_future
         @error_listeners.each do |listener|
-          @stopped_promise.future.on_failure(&listener)
+          @stopped_promise.on_rejection(&listener)
         end
         Thread.start do
-          @started_promise.fulfill(self)
           error = nil
           begin
             while @state == RUNNING_STATE
@@ -172,7 +171,7 @@ module Ione
             ensure
               if error
                 @state = CRASHED_STATE
-                @stopped_promise.fail(error)
+                @stopped_promise.reject(error)
               else
                 @state = STOPPED_STATE
                 @stopped_promise.fulfill(self)
@@ -180,7 +179,7 @@ module Ione
             end
           end
         end
-        @started_promise.future
+        @started_promise
       end
 
       # Stops the reactor.
@@ -193,13 +192,13 @@ module Ione
       def stop
         @lock.synchronize do
           if @state == PENDING_STATE
-            Future.resolved(self)
+            Concurrent::Promises.fulfilled_future(self)
           elsif @state != STOPPED_STATE && @state != CRASHED_STATE
             @state = STOPPING_STATE
             @unblocker.unblock
-            @stopped_promise.future
+            @stopped_promise
           else
-            @stopped_promise.future
+            @stopped_promise
           end
         end
       end

@@ -22,7 +22,7 @@ module Ione
         @lock = Mutex.new
         @data_listener = nil
         @write_buffer = ByteBuffer.new
-        @closed_promise = Promise.new
+        @closed_promise = Concurrent::Promises.resolvable_future
       end
 
       # Closes the connection
@@ -46,7 +46,7 @@ module Ione
           cause = ConnectionClosedError.new(cause.message)
         end
         if cause
-          @closed_promise.fail(cause)
+          @closed_promise.reject(cause)
         else
           @closed_promise.fulfill(self)
         end
@@ -79,7 +79,7 @@ module Ione
         else
           close
         end
-        @closed_promise.future
+        @closed_promise
       end
 
       # @private
@@ -132,8 +132,8 @@ module Ione
       # @yield [error, nil] the error that caused the socket to close, or nil if
       #   the socket closed with #close
       def on_closed(&listener)
-        @closed_promise.future.on_value { listener.call(nil) }
-        @closed_promise.future.on_failure { |e| listener.call(e) }
+        @closed_promise.on_fulfillment { listener.call(nil) }
+        @closed_promise.on_rejection { |e| listener.call(e) }
       end
 
       # Write bytes to the socket.

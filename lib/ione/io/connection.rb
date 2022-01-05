@@ -15,7 +15,7 @@ module Ione
         @clock = clock
         @socket_impl = socket_impl
         @addrinfos = nil
-        @connected_promise = Promise.new
+        @connected_promise = Concurrent::Promises.resolvable_future
         on_closed(&method(:cleanup_on_close))
       end
 
@@ -55,7 +55,7 @@ module Ione
         rescue SocketError => e
           close(e) || cleanup_on_close(e)
         end
-        @connected_promise.future
+        @connected_promise
       end
 
       private
@@ -64,8 +64,8 @@ module Ione
         if cause && !cause.is_a?(IoError)
           cause = ConnectionError.new(cause.message)
         end
-        unless @connected_promise.future.completed?
-          @connected_promise.fail(cause)
+        unless @connected_promise.complete?
+          @connected_promise.reject(cause)
         end
       end
     end

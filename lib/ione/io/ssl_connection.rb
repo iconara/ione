@@ -13,7 +13,7 @@ module Ione
         @ssl_context = ssl_context
         @raw_io = io
         @io = nil
-        @connected_promise = Promise.new
+        @connected_promise = Concurrent::Promises.resolvable_future
         on_closed(&method(:cleanup_on_close))
       end
 
@@ -26,13 +26,13 @@ module Ione
         @io.connect_nonblock
         @state = CONNECTED_STATE
         @connected_promise.fulfill(self)
-        @connected_promise.future
+        @connected_promise
       rescue IO::WaitReadable, IO::WaitWritable
         # WaitReadable in JRuby, WaitWritable in MRI
-        @connected_promise.future
+        @connected_promise
       rescue => e
         close(e)
-        @connected_promise.future
+        @connected_promise
       end
 
       def to_io
@@ -73,8 +73,8 @@ module Ione
         if cause && !cause.is_a?(IoError)
           cause = ConnectionError.new(cause.message)
         end
-        unless @connected_promise.future.completed?
-          @connected_promise.fail(cause)
+        unless @connected_promise.complete?
+          @connected_promise.reject(cause)
         end
       end
     end

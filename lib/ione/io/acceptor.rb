@@ -53,10 +53,10 @@ module Ione
           end
         end
         @state = CONNECTED_STATE
-        Future.resolved(self)
+        Concurrent::Promises.fulfilled_future(self)
       rescue => e
         close
-        Future.failed(e)
+        Concurrent::Promises.rejected_future(e)
       end
 
       # Stop accepting connections

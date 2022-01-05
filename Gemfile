@@ -3,6 +3,7 @@ source 'https://rubygems.org/'
 gemspec
 
 gem 'rake'
+gem 'concurrent-ruby'
 
 group :development do
   platforms :mri do
@@ -16,7 +17,8 @@ group :http_client_example do
 end
 
 group :test do
+  gem 'coveralls'
+  gem 'pry'
   gem 'rspec'
   gem 'simplecov'
-  gem 'coveralls'
 end
