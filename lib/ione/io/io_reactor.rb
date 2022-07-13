@@ -97,7 +97,7 @@ module Ione
         @error_listeners = []
         @unblocker = Unblocker.new
         @io_loop = IoLoopBody.new(@unblocker, @options)
-        @scheduler = Scheduler.new
+        @scheduler = Scheduler.new(@options)
         @lock = Mutex.new
       end
 
