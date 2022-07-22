@@ -581,10 +581,12 @@ module Ione
           end
 
           it 'returns a future that is resolved after the specified duration' do
+            start = Time.now
             clock.stub(:now).and_return(1)
-            f = reactor.schedule_timer(0.1)
-            clock.stub(:now).and_return(1.1)
+            f = reactor.schedule_timer(8)
+            clock.stub(:now).and_return(10.1)
             await { f.resolved? }
+            expect(Time.now - start).to be < 1
           end
         end
 
