@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    ione (1.2.4)
+    ione (1.2.5)
 
 GEM
   remote: https://rubygems.org/
@@ -54,4 +54,4 @@ DEPENDENCIES
   yard
 
 BUNDLED WITH
-   1.12.5
+   1.17.2
