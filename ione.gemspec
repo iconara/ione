@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.homepage      = 'http://github.com/iconara/ione'
   s.summary       = %q{Reactive programming framework for Ruby}
   s.description   = %q{Reactive programming framework for Ruby, painless evented IO, futures and an efficient byte buffer}
-  s.license       = 'Apache License 2.0'
+  s.license       = 'Apache-2.0'
 
   s.files         = Dir['lib/**/*.rb', 'README.md', '.yardopts']
   s.test_files    = Dir['spec/**/*.rb']
