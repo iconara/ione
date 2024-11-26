@@ -34,7 +34,9 @@ module Ione
         ctx.cert_store = @cert_store
         options[:ssl] = ctx
       end
-      f = @reactor.connect(uri.host, uri.port, options) { |connection| HttpProtocolHandler.new(connection) }
+      f = @reactor.connect(uri.host, uri.port, options) do |connection|
+        HttpProtocolHandler.new(connection)
+      end
       f.flat_map do |handler|
         handler.send_get(uri.path, uri.query, headers)
       end
@@ -44,24 +46,28 @@ module Ione
   class HttpProtocolHandler
     def initialize(connection)
       @connection = connection
-      @connection.on_data(&method(:process_data))
+      @connection.to_stream.subscribe(method(:process_data))
       @http_parser = Http::Parser.new(self)
       @promises = []
     end
 
     def send_get(path, query, headers)
-      message = 'GET '
-      message << path
-      message << '?' << query if query && !query.empty?
-      message << " HTTP/1.1\r\n"
-      headers.each do |key, value|
-        message << key
-        message << ': '
-        message << value
-        message << "\r\n"
+      @connection.write do |buffer|
+        buffer << 'GET '
+        buffer << path
+        if query && !query.empty?
+          buffer << '?'
+          buffer << query
+        end
+        buffer << " HTTP/1.1\r\n"
+        headers.each do |key, value|
+          buffer << key
+          buffer << ':'
+          buffer << value
+          buffer << "\r\n"
+        end
+        buffer << "\r\n"
       end
-      message << "\r\n"
-      @connection.write(message)
       @promises << Promise.new
       @promises.last.future
     end
@@ -84,7 +90,8 @@ module Ione
     end
 
     def on_message_complete
-      @promises.shift.fulfill(HttpResponse.new(@http_parser.status_code, @headers, @body))
+      response = HttpResponse.new(@http_parser.status_code, @headers, @body)
+      @promises.shift.fulfill(response)
     end
   end
 

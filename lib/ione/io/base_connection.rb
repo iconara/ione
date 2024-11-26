@@ -23,6 +23,7 @@ module Ione
         @data_listener = nil
         @write_buffer = ByteBuffer.new
         @closed_promise = Promise.new
+        @data_stream = Stream::Source.new
       end
 
       # Closes the connection
@@ -102,6 +103,29 @@ module Ione
         @writable && @state != CLOSED_STATE
       end
 
+      # Returns a stream of data chunks received by this connection
+      #
+      # It is very important that you don't do any heavy lifting in subscribers
+      # to this stream since they will be called from the IO reactor thread.
+      #
+      # @example Transforming a stream of data chunks to a stream of lines
+      #   data_chunk_stream = connection.to_stream
+      #   line_stream = data_chunk_stream.aggregate(ByteBuffer.new) do |chunk, downstream, buffer|
+      #     buffer << chunk
+      #     while (newline_index = buffer.index("\n"))
+      #       downstream << buffer.read(newline_index + 1)
+      #     end
+      #     buffer
+      #   end
+      #   line_stream.each do |line|
+      #     puts line
+      #   end
+      #
+      # @return [Ione::Stream<String>]
+      def to_stream
+        @data_stream
+      end
+
       # Register to receive notifications when new data is read from the socket.
       #
       # You should only call this method in your protocol handler constructor.
@@ -121,7 +145,8 @@ module Ione
       #
       # @yield [String] the new data
       def on_data(&listener)
-        @data_listener = listener
+        @data_stream.subscribe(listener)
+        nil
       end
 
       # Register to receive a notification when the socket is closed, both for
@@ -197,8 +222,7 @@ module Ione
 
       # @private
       def read
-        new_data = @io.read_nonblock(65536)
-        @data_listener.call(new_data) if @data_listener
+        @data_stream << @io.read_nonblock(65536)
       rescue => e
         close(e)
       end

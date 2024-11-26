@@ -24,18 +24,20 @@ module Ione
         @reactor = reactor
         @io = nil
         @socket_impl = socket_impl || ServerSocket
-        @accept_listeners = []
+        @accept_stream = Stream::Source.new
         @lock = Mutex.new
         @state = BINDING_STATE
+      end
+
+      def to_stream
+        @accept_stream
       end
 
       # Register a listener to be notified when client connections are accepted
       #
       # @yieldparam [Ione::Io::ServerConnection] the connection to the client
       def on_accept(&listener)
-        @lock.synchronize do
-          @accept_listeners << listener
-        end
+        @accept_stream.subscribe(listener)
       end
 
       # @private
@@ -110,7 +112,7 @@ module Ione
         client_socket, host, port = accept
         connection = ServerConnection.new(client_socket, host, port, @unblocker)
         @reactor.accept(connection)
-        notify_accept_listeners(connection)
+        @accept_stream << connection
       end
 
       if RUBY_ENGINE == 'jruby'
@@ -132,11 +134,6 @@ module Ione
         client_socket, client_sockaddr = @io.accept_nonblock
         port, host = @socket_impl.unpack_sockaddr_in(client_sockaddr)
         return client_socket, host, port
-      end
-
-      def notify_accept_listeners(connection)
-        listeners = @lock.synchronize { @accept_listeners }
-        listeners.each { |l| l.call(connection) rescue nil }
       end
     end
   end
