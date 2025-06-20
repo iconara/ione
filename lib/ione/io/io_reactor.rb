@@ -42,7 +42,7 @@ module Ione
     #       # register a listener method for new data, this must be done in the
     #       # in the constructor, and only one listener can be registered
     #       @connection.on_data(&method(:process_data))
-    #       @buffer = ''
+    #       @buffer = +''
     #     end
     #
     #     def process_data(new_data)

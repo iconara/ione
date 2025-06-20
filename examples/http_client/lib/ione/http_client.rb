@@ -50,7 +50,7 @@ module Ione
     end
 
     def send_get(path, query, headers)
-      message = 'GET '
+      message = +'GET '
       message << path
       message << '?' << query if query && !query.empty?
       message << " HTTP/1.1\r\n"
@@ -72,7 +72,7 @@ module Ione
 
     def on_message_begin
       @headers = nil
-      @body = ''
+      @body = +''
     end
 
     def on_headers_complete(headers)

@@ -10,7 +10,7 @@ class FakeServer
     @connects = 0
     @disconnects = 0
     @connections = []
-    @received_bytes = ''
+    @received_bytes = +''
     @running = false
   end
 
