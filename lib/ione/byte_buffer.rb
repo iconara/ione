@@ -18,7 +18,7 @@ module Ione
   # @since v1.0.0
   class ByteBuffer
     def initialize(initial_bytes=nil)
-      @read_buffer = ''
+      @read_buffer = +''
       @offset = 0
       @length = 0
       if initial_bytes && !initial_bytes.empty?
@@ -26,7 +26,7 @@ module Ione
         @write_buffer.force_encoding(::Encoding::BINARY)
         @length = @write_buffer.bytesize
       else
-        @write_buffer = ''
+        @write_buffer = +''
       end
     end
 
@@ -323,12 +323,12 @@ module Ione
     def swap_buffers
       @offset -= @read_buffer.bytesize
       @read_buffer = @write_buffer
-      @write_buffer = ''
+      @write_buffer = +''
     end
 
     def merge_read_buffer
       @read_buffer = @read_buffer[@offset, @read_buffer.length - @offset] << @write_buffer
-      @write_buffer = ''
+      @write_buffer = +''
       @offset = 0
     end
   end
