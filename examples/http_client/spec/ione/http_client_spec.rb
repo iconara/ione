@@ -170,7 +170,7 @@ module HttpClientSpec
         end
       when '/fizzbuzz'
         n = request.query_string.scan(/n=(\d+)/).flatten.first.to_i
-        response.body = ''
+        response.body = +''
         response.body << 'fizz' if n % 5 == 0
         response.body << 'buzz' if n % 3 == 0
         response.body << n.to_s if response.body.empty?
