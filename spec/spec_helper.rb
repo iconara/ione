@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+Warning[:deprecated] = true # Enable ruby deprecation warnings
+
 ENV['SERVER_HOST'] ||= '127.0.0.1'.freeze
 
 require 'bundler/setup'
@@ -26,6 +28,12 @@ end
 
 RSpec.configure do |config|
   config.warnings = true
+  config.expect_with :rspec do |expectations|
+    expectations.syntax = [:should, :expect]
+  end
+  config.mock_with :rspec do |mocks|
+    mocks.syntax = [:should, :expect]
+  end
 end
 
 require 'ione'

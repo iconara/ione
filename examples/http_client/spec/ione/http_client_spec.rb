@@ -6,7 +6,6 @@ require 'net/https'
 require 'logger'
 require 'ione/http_client'
 
-
 module Ione
   describe HttpClient do
     let :port do
@@ -25,6 +24,8 @@ module Ione
       attempts = 10
       begin
         http = Net::HTTP.new(WEBrick::Utils::getservername, port)
+        http.read_timeout = 1
+        http.open_timeout = 1
         if scheme == 'https'
           http.use_ssl = true
           http.cert_store = cert_store
@@ -182,7 +183,7 @@ module HttpClientSpec
   end
 
   def self.create_root_ca(cn)
-    key = OpenSSL::PKey::RSA.new(1024)
+    key = OpenSSL::PKey::RSA.new(2048)
     root_ca = OpenSSL::X509::Certificate.new
     root_ca.version = 2
     root_ca.serial = 1
@@ -203,7 +204,7 @@ module HttpClientSpec
   end
 
   def self.create_cert(root_ca, root_key, subject)
-    key = OpenSSL::PKey::RSA.new(1024)
+    key = OpenSSL::PKey::RSA.new(2048)
     cert = OpenSSL::X509::Certificate.new
     cert.version = 2
     cert.serial = 2
