@@ -16,6 +16,8 @@ group :http_client_example do
 end
 
 group :test do
+  gem 'webrick'
+  gem 'logger'
   gem 'rspec'
   gem 'simplecov'
   gem 'coveralls'

@@ -8,7 +8,7 @@ shared_examples_for 'a connection' do |options|
     end
 
     it 'returns true' do
-      handler.close.should be_true
+      handler.close.should be_truthy
     end
 
     it 'does nothing when called again' do
@@ -31,7 +31,7 @@ shared_examples_for 'a connection' do |options|
       called = false
       handler.on_closed { called = true }
       handler.close
-      called.should be_true, 'expected the close listener to have been called'
+      called.should be_truthy, 'expected the close listener to have been called'
     end
 
     it 'does nothing when closed a second time' do
@@ -45,7 +45,7 @@ shared_examples_for 'a connection' do |options|
 
     it 'returns false if it did nothing' do
       handler.close
-      handler.close.should be_false
+      handler.close.should be_falsey
     end
 
     it 'is not writable when closed' do
@@ -203,7 +203,7 @@ shared_examples_for 'a connection' do |options|
         handler.close
         handler.write { called = true }
         handler.flush
-        called.should be_false
+        called.should be_falsey
       end
 
       it 'does not unblock the reactor' do
@@ -227,7 +227,7 @@ shared_examples_for 'a connection' do |options|
         handler.drain
         handler.write { called = true }
         handler.flush
-        called.should be_false
+        called.should be_falsey
       end
 
       it 'does not unblock the reactor' do
@@ -242,12 +242,12 @@ shared_examples_for 'a connection' do |options|
   if options.nil? || options.fetch(:skip_read, false) == false
     describe '#read/#on_data' do
       it 'reads a chunk from the socket' do
-        socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
+        socket.should_receive(:read_nonblock).with(instance_of(Integer)).and_return('foo bar')
         handler.read
       end
 
       it 'calls the data listener with the new data' do
-        socket.should_receive(:read_nonblock).with(instance_of(Fixnum)).and_return('foo bar')
+        socket.should_receive(:read_nonblock).with(instance_of(Integer)).and_return('foo bar')
         data = nil
         handler.on_data { |d| data = d }
         handler.read

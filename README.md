@@ -36,6 +36,25 @@ The [examples](https://github.com/iconara/ione/tree/master/examples) directory h
 
 [See CONTRIBUTING.md](CONTRIBUTING.md)
 
+## Running Tests
+
+```bash
+bundle install
+rspec
+```
+
+Note: You may need to add your hostname to your hosts file for the http_client_spec to pass.
+
+In Linux/OSX you can run hostname to get it.
+```bash
+hostname
+```
+
+Then edit `/etc/hosts` and add
+```bash
+127.0.0.1 YourHostName
+```
+
 # Copyright
 
 Copyright 2013–2014 Theo Hultberg/Iconara and contributors.

@@ -198,8 +198,8 @@ module Ione
           future.on_complete { c1 = true }
           future.on_complete { c2 = true }
           promise.fulfill('bar')
-          c1.should be_true
-          c2.should be_true
+          c1.should be_truthy
+          c2.should be_truthy
         end
 
         it 'passes the future as the first parameter to the block' do
@@ -292,8 +292,8 @@ module Ione
           p2.future.on_complete(&lambda { |v, e=nil| called2 = true })
           p1.fulfill('bar')
           p2.fail(StandardError.new('bork'))
-          called1.should be_false
-          called2.should be_false
+          called1.should be_falsey
+          called2.should be_falsey
         end
 
         it 'notifies all listeners when the promise fails' do
@@ -301,8 +301,8 @@ module Ione
           future.on_complete { c1 = true }
           future.on_complete { c2 = true }
           future.fail(error)
-          c1.should be_true
-          c2.should be_true
+          c1.should be_truthy
+          c2.should be_truthy
         end
 
         it 'passes the error as the second parameter to the block when it expects two arguments' do
@@ -560,7 +560,7 @@ module Ione
           f = p.future.map { |v| v * 2 }
           f.on_failure { failed = true }
           p.fail(StandardError.new('Blurgh'))
-          failed.should be_true
+          failed.should be_truthy
         end
 
         it 'fails when the block raises an error' do
@@ -1126,7 +1126,7 @@ module Ione
           futures = promises.map(&:future)
           f = Future.all(futures)
           promises.each(&:fulfill)
-          f.value.should have(3).items
+          f.value.length.should eq(3)
         end
 
         it 'accepts an enumerable of futures' do
@@ -1134,7 +1134,7 @@ module Ione
           futures = promises.map(&:future).to_enum
           f = Future.all(futures)
           promises.each(&:fulfill)
-          f.value.should have(3).items
+          f.value.length.should eq(3)
         end
 
         it 'accepts an enumerable of one future' do
@@ -1142,7 +1142,7 @@ module Ione
           futures = promises.map(&:future).to_enum
           f = Future.all(futures)
           promises.each(&:fulfill)
-          f.value.should have(1).item
+          f.value.length.should eq(1)
         end
 
         it 'accepts anything that implements #on_complete as futures' do

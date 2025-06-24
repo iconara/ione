@@ -74,7 +74,7 @@ module Ione
       it 'handles appending with multibyte strings' do
         buffer.append('hello')
         buffer.append('würld')
-        buffer.to_s.should eq('hellowürld'.force_encoding(::Encoding::BINARY))
+        buffer.to_s.should eq(String.new('hellowürld', encoding: ::Encoding::BINARY))
       end
 
       it 'handles appending with another byte buffer' do

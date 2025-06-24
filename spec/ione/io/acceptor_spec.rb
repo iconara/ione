@@ -173,7 +173,7 @@ module Ione
         it 'creates a new connection handler and registers it with the reactor' do
           acceptor.bind
           acceptor.read
-          accepted_handlers.should have(1).item
+          accepted_handlers.length.should eq(1)
           accepted_handlers.first.host.should eq('example.com')
           accepted_handlers.first.port.should eq(3333)
         end
@@ -208,7 +208,7 @@ module Ione
           acceptor.on_accept { |c| called = true }
           acceptor.bind
           acceptor.read
-          called.should be_true
+          called.should be_truthy
         end
       end
 

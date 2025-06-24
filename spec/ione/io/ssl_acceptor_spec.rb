@@ -79,7 +79,7 @@ module Ione
           it 'is registered it with the reactor' do
             acceptor.bind
             acceptor.read
-            accepted_handlers.should have(1).item
+            accepted_handlers.length.should eq(1)
             accepted_handlers.first.host.should eq('example.com')
             accepted_handlers.first.port.should eq(3333)
           end

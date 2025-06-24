@@ -196,7 +196,7 @@ module Ione
             called = false
             handler.on_closed { called = true }
             handler.connect
-            called.should be_true, 'expected the close listener to have been called'
+            called.should be_truthy, 'expected the close listener to have been called'
           end
 
           it 'passes the error to the close listener' do
@@ -226,7 +226,7 @@ module Ione
             called = false
             handler.on_closed { called = true }
             handler.connect
-            called.should be_true, 'expected the close listener to have been called'
+            called.should be_truthy, 'expected the close listener to have been called'
           end
 
           it 'passes the error to the close listener' do
